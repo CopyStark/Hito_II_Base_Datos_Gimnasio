@@ -2,9 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  // Configuración lista para despliegue en Vercel
+  // URL por defecto del Backend en Render para producción y Vercel
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://gimnasio-backend-c3mu.onrender.com',
   },
 };
 

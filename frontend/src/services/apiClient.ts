@@ -6,7 +6,7 @@
  * 2. Toda comunicación de datos se realiza a través de las rutas REST expuestas por FastAPI.
  */
 
-const DEFAULT_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const DEFAULT_API_URL = process.env.NEXT_PUBLIC_API_URL || "https://gimnasio-backend-c3mu.onrender.com";
 
 export function getApiBaseUrl(): string {
   if (typeof window !== "undefined") {
