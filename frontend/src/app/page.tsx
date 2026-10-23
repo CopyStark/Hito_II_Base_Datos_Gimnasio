@@ -9,6 +9,39 @@ export default function Home() {
   const [loadingHealth, setLoadingHealth] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [apiUrl, setApiUrl] = useState<string>("");
+  const [showConfig, setShowConfig] = useState(false);
+  const [inputUrl, setInputUrl] = useState("");
+
+  // Inicializar apiUrl en cliente
+  useState(() => {
+    if (typeof window !== "undefined") {
+      const current = apiClient.getBaseUrl();
+      setApiUrl(current);
+      setInputUrl(current);
+    }
+  });
+
+  const handleSaveApiUrl = () => {
+    if (inputUrl.trim()) {
+      apiClient.setCustomBaseUrl(inputUrl.trim());
+      setApiUrl(inputUrl.trim());
+      setShowConfig(false);
+      setHealthStatus(null);
+      setErrorMsg(null);
+    }
+  };
+
+  const handleResetApiUrl = () => {
+    apiClient.resetBaseUrl();
+    const current = apiClient.getBaseUrl();
+    setApiUrl(current);
+    setInputUrl(current);
+    setShowConfig(false);
+    setHealthStatus(null);
+    setErrorMsg(null);
+  };
+
   const testApiHealth = async () => {
     setLoadingHealth(true);
     setErrorMsg(null);
@@ -50,18 +83,59 @@ export default function Home() {
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 Diagnóstico de Conectividad Frontend ↔ Backend
               </h2>
-              <p className="text-sm text-slate-400 mt-1">
-                Comprueba la comunicación HTTP entre Next.js y FastAPI (`GET /api/health`).
-              </p>
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className="text-xs text-slate-400">Target Backend:</span>
+                <code className="text-xs font-mono text-cyan-400 bg-black/60 px-2 py-0.5 rounded border border-slate-800">
+                  {apiUrl || "Cargando..."}
+                </code>
+                <button
+                  onClick={() => setShowConfig(!showConfig)}
+                  className="text-xs text-blue-400 hover:text-blue-300 underline transition-colors"
+                >
+                  {showConfig ? "Ocultar ajustes" : "⚙️ Cambiar URL Backend"}
+                </button>
+              </div>
             </div>
-            <button
-              onClick={testApiHealth}
-              disabled={loadingHealth}
-              className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-medium text-sm text-white bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-blue-500/20"
-            >
-              {loadingHealth ? "Probando conexión..." : "Probar Conexión con FastAPI"}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={testApiHealth}
+                disabled={loadingHealth}
+                className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-medium text-sm text-white bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-blue-500/20"
+              >
+                {loadingHealth ? "Probando conexión..." : "Probar Conexión con FastAPI"}
+              </button>
+            </div>
           </div>
+
+          {/* Configuración dinámica de Backend para Integrantes */}
+          {showConfig && (
+            <div className="mt-4 p-4 rounded-xl bg-slate-950/80 border border-blue-500/30 space-y-3">
+              <p className="text-xs text-slate-300 font-medium">
+                🔄 <strong>Configuración para Integrantes del Equipo:</strong> Puedes apuntar este frontend en Vercel a tu propio backend (ej. tu servicio en Render o tu túnel de desarrollo local con Ngrok/Cloudflare):
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={inputUrl}
+                  onChange={(e) => setInputUrl(e.target.value)}
+                  placeholder="https://tu-backend.onrender.com o https://xxxx.ngrok-free.app"
+                  className="flex-1 text-sm bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono"
+                />
+                <button
+                  onClick={handleSaveApiUrl}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors"
+                >
+                  Guardar en este navegador
+                </button>
+                <button
+                  onClick={handleResetApiUrl}
+                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors"
+                >
+                  Restablecer
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="mt-6">
             {healthStatus && (

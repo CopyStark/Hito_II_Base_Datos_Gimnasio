@@ -6,7 +6,15 @@
  * 2. Toda comunicación de datos se realiza a través de las rutas REST expuestas por FastAPI.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const DEFAULT_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+export function getApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("CUSTOM_API_URL");
+    if (saved) return saved.replace(/\/+$/, "");
+  }
+  return DEFAULT_API_URL.replace(/\/+$/, "");
+}
 
 export class ApiError extends Error {
   status: number;
@@ -30,7 +38,8 @@ interface RequestOptions extends RequestInit {
 export async function apiRequest<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { params, headers, ...restOptions } = options;
 
-  let url = `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  const baseUrl = getApiBaseUrl();
+  let url = `${baseUrl}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
   if (params) {
     const searchParams = new URLSearchParams();
@@ -93,6 +102,19 @@ export const apiClient = {
 
   delete: <T>(endpoint: string) => 
     apiRequest<T>(endpoint, { method: "DELETE" }),
+
+  // Configuración dinámica de URL de API para pruebas del equipo
+  getBaseUrl: () => getApiBaseUrl(),
+  setCustomBaseUrl: (url: string) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("CUSTOM_API_URL", url.trim());
+    }
+  },
+  resetBaseUrl: () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("CUSTOM_API_URL");
+    }
+  },
 
   // Endpoints del Sistema
   health: () => apiRequest<{ backend: string; database: any }>("/api/health"),

@@ -66,12 +66,13 @@ for dev_origin in default_dev_origins:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-logger.info(f"CORS configurado para los orígenes: {origins}")
+logger.info(f"CORS configurado para orígenes explícitos {origins} y regex para dominios de Vercel (*.vercel.app)")
 
 # -------------------------------------------------------------------------
 # Montaje de Routers Modulares

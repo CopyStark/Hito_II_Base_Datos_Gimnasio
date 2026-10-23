@@ -1,27 +1,33 @@
-# Usamos una imagen oficial de Python ligera
-FROM python:3.10-slim
+# Usamos imagen oficial ligera de Python basada en Debian 11 (Bullseye)
+FROM python:3.10-slim-bullseye
 
-# Instalar dependencias del sistema operativo necesarias para el driver ODBC de Microsoft
-RUN apt-get update && apt-get install -y \
+# Evitar diálogos interactivos durante la instalación
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Instalar dependencias del sistema y el driver oficial de Microsoft ODBC msodbcsql17
+# Nota: Usamos gpg --dearmor en lugar del comando deprecado 'apt-key' para evitar el error 127
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    gnupg2 \
+    gnupg \
+    ca-certificates \
     unixodbc \
     unixodbc-dev \
-    && curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
-    && curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list \
+    && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
+    && echo "deb [arch=amd64,arm64,armhf signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/11/prod bullseye main" > /etc/apt/sources.list.d/mssql-release.list \
     && apt-get update \
     && ACCEPT_EULA=Y apt-get install -y msodbcsql17 \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Establecer el directorio de trabajo dentro del contenedor
+# Directorio de trabajo
 WORKDIR /app
 
-# Copiar e instalar las dependencias de Python
+# Instalar dependencias de Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el resto del código del backend
+# Copiar el código del backend
 COPY . .
 
-# Render asigna dinámicamente un puerto mediante la variable de entorno PORT
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Render asigna el puerto mediante la variable PORT
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
