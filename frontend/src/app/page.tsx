@@ -9,6 +9,33 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // --- TEMPORAL: Panel de verificación de clientes ---
+  const [showClientes, setShowClientes] = useState(false);
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [clientesLoading, setClientesLoading] = useState(false);
+  const [clientesError, setClientesError] = useState<string | null>(null);
+
+  const fetchClientes = async () => {
+    setClientesLoading(true);
+    setClientesError(null);
+    try {
+      const data = await apiClient.get<any[]>("/socios/");
+      setClientes(data);
+    } catch (err: any) {
+      setClientesError(err.message || "No se pudo obtener la lista de clientes.");
+    } finally {
+      setClientesLoading(false);
+    }
+  };
+
+  const handleToggleClientes = () => {
+    if (!showClientes) {
+      fetchClientes();
+    }
+    setShowClientes(!showClientes);
+  };
+  // --- FIN TEMPORAL ---
+
   // Comprobar la conexión automáticamente al cargar la página
   useEffect(() => {
     const checkConnection = async () => {
@@ -29,6 +56,78 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-black text-slate-100 py-12 px-4 sm:px-6 lg:px-8">
+
+      {/* ===== TEMPORAL: Botón y Panel de Verificación de Clientes ===== */}
+      <div className="fixed top-4 left-4 z-50">
+        <button
+          id="btn-mostrar-clientes"
+          onClick={handleToggleClientes}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all duration-150 text-white text-sm font-semibold shadow-lg shadow-indigo-900/50 border border-indigo-400/30"
+        >
+          <span>{showClientes ? "🙈" : "👁️"}</span>
+          {showClientes ? "Ocultar Clientes" : "Mostrar Clientes"}
+        </button>
+
+        {showClientes && (
+          <div className="mt-2 w-80 max-h-96 overflow-y-auto rounded-2xl bg-slate-900/95 border border-indigo-500/30 shadow-2xl backdrop-blur-xl p-4 space-y-2">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-indigo-300 uppercase tracking-wider">
+                🗃️ Clientes desde SQL Server
+              </h3>
+              <button
+                onClick={fetchClientes}
+                disabled={clientesLoading}
+                className="text-xs text-slate-400 hover:text-indigo-400 transition-colors disabled:opacity-50"
+                title="Recargar"
+              >
+                {clientesLoading ? "⏳" : "🔄 Recargar"}
+              </button>
+            </div>
+
+            {clientesLoading && (
+              <p className="text-xs text-amber-400 animate-pulse text-center py-4">
+                Consultando base de datos...
+              </p>
+            )}
+
+            {clientesError && !clientesLoading && (
+              <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg p-3">
+                ⚠️ {clientesError}
+              </p>
+            )}
+
+            {!clientesLoading && !clientesError && clientes.length === 0 && (
+              <p className="text-xs text-slate-500 text-center py-4">
+                No se encontraron socios en la BD.
+              </p>
+            )}
+
+            {!clientesLoading && clientes.map((c, i) => (
+              <div
+                key={c.id_socio ?? i}
+                className="p-3 rounded-xl bg-slate-800/70 border border-slate-700/50 text-xs space-y-1"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-white">{c.nombre_completo}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${c.activo ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>
+                    {c.activo ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
+                <p className="text-slate-400">{c.correo}</p>
+                <p className="text-slate-500 font-mono">RUT: {c.rut}</p>
+              </div>
+            ))}
+
+            {!clientesLoading && clientes.length > 0 && (
+              <p className="text-[10px] text-slate-600 text-center pt-1">
+                {clientes.length} socio(s) encontrado(s)
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+      {/* ===== FIN TEMPORAL ===== */}
+
       <div className="max-w-6xl mx-auto space-y-12">
         {/* Header Hero */}
         <header className="text-center space-y-4">
