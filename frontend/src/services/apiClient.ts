@@ -6,7 +6,13 @@
  * 2. Toda comunicación de datos se realiza a través de las rutas REST expuestas por FastAPI.
  */
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "https://gimnasio-backend-c3mu.onrender.com").replace(/\/+$/, "");
+// URL oficial del Backend en producción (Render)
+export const RENDER_BACKEND_URL = "https://gimnasio-backend-c3mu.onrender.com";
+
+const envUrl = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = (envUrl && envUrl.trim() !== "" && !envUrl.includes("localhost:8000"))
+  ? envUrl.replace(/\/+$/, "")
+  : RENDER_BACKEND_URL;
 
 export function getApiBaseUrl(): string {
   return API_BASE_URL;
