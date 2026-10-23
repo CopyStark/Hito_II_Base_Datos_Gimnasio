@@ -140,14 +140,12 @@ BEGIN TRY
     VALUES (@id_clase_spinning, @id_sede_norte, @id_instructor_2, CAST(GETDATE() AS DATE), '18:30:00', 15);
     SET @id_sesion_2 = SCOPE_IDENTITY();
 
-    -- Inscripción de prueba
-    INSERT INTO Inscripcion (id_socio, id_sesion, fecha_inscripcion, asistio, observaciones, estado) 
-    VALUES (@id_socio_daniel, @id_sesion_1, SYSDATETIME(), NULL, N'Inscripción inicial', 'Inscrito');
-
-    PRINT 'Clases, Sesiones e Inscripción insertadas correctamente.';
+    PRINT 'Clases y Sesiones insertadas correctamente.';
 
     -- =================================================================================
     -- 7. CONTRATOS Y PAGOS (Datos para Persona 3)
+    -- NOTA: Los contratos deben insertarse ANTES que las inscripciones
+    --       porque el trigger trg_Inscripcion_Validaciones exige contrato vigente.
     -- =================================================================================
     INSERT INTO Contrato (id_socio, id_plan, fecha_inicio, fecha_termino, estado, precio_pactado) 
     VALUES (@id_socio_daniel, @id_plan_black, CAST(GETDATE() AS DATE), DATEADD(YEAR, 1, CAST(GETDATE() AS DATE)), 'Vigente', 289990.00);
@@ -162,6 +160,15 @@ BEGIN TRY
     VALUES (@id_contrato_daniel, SYSDATETIME(), 289990.00, 'Transferencia');
 
     PRINT 'Contratos y Pagos insertados correctamente.';
+
+    -- =================================================================================
+    -- 8. INSCRIPCIONES (van después de los contratos, por el trigger de validación)
+    -- =================================================================================
+    -- Inscripción de prueba (Daniel ya tiene contrato vigente aquí)
+    INSERT INTO Inscripcion (id_socio, id_sesion, fecha_inscripcion, asistio, observaciones, estado) 
+    VALUES (@id_socio_daniel, @id_sesion_1, SYSDATETIME(), NULL, N'Inscripción inicial', 'Inscrito');
+
+    PRINT 'Inscripciones insertadas correctamente.';
 
     -- Confirmación de la transacción
     COMMIT TRANSACTION;
