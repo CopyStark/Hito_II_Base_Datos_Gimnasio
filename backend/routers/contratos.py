@@ -1,40 +1,75 @@
 """
 Módulo de Membresías, Contratos y Pagos
 Responsable: Persona 3
+Sincronizado con tablas: [dbo].[PlanMembresia], [dbo].[Contrato], [dbo].[Pago]
 
 REGLAS DE DESARROLLO:
 1. Prohibido el uso de ORM.
-2. Todas las consultas a SQL Server deben ejecutarse mediante 'pyodbc' de forma explícita y parametrizada con '?'.
+2. Consultas explícitas y parametrizadas con '?' mediante pyodbc.
 3. Inyectar la conexión con 'get_db_connection()'.
 """
 
 from fastapi import APIRouter, HTTPException, status
 from typing import List
 import pyodbc
+
 try:
     from backend.db.connection import get_db_connection
-    from backend.schemas import ContratoCreate, ContratoResponse, PagoCreate
+    from backend.schemas import (
+        PlanMembresiaResponse, 
+        ContratoCreate, ContratoResponse, 
+        PagoCreate, PagoResponse
+    )
 except ImportError:
     from db.connection import get_db_connection
-    from schemas import ContratoCreate, ContratoResponse, PagoCreate
+    from schemas import (
+        PlanMembresiaResponse, 
+        ContratoCreate, ContratoResponse, 
+        PagoCreate, PagoResponse
+    )
 
 router = APIRouter(
     prefix="/contratos",
     tags=["Persona 3 - Contratos & Pagos"]
 )
 
-@router.get("/", response_model=List[ContratoResponse], summary="Listar contratos y membresías")
+@router.get("/planes", response_model=List[PlanMembresiaResponse], summary="Listar planes de membresía disponibles")
+def listar_planes():
+    """
+    Obtiene los planes de membresía vigentes desde la tabla PlanMembresia.
+    """
+    planes = []
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                query = """
+                    SELECT id_plan, nombre, duracion_meses, precio_vigente
+                    FROM PlanMembresia
+                    ORDER BY duracion_meses ASC
+                """
+                cursor.execute(query)
+                columns = [col[0] for col in cursor.description]
+                for row in cursor.fetchall():
+                    planes.append(dict(zip(columns, row)))
+        return planes
+    except pyodbc.Error as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al listar planes: {str(e)}"
+        )
+
+@router.get("/", response_model=List[ContratoResponse], summary="Listar contratos")
 def listar_contratos():
     """
-    Lista todos los contratos registrados mediante SQL explícito.
+    Lista todos los contratos registrados.
     """
     contratos = []
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 query = """
-                    SELECT id_contrato, id_socio, tipo_plan, monto, fecha_inicio, fecha_fin, estado_pago
-                    FROM Contratos
+                    SELECT id_contrato, id_socio, id_plan, fecha_inicio, fecha_termino, estado, precio_pactado
+                    FROM Contrato
                     ORDER BY id_contrato DESC
                 """
                 cursor.execute(query)
@@ -48,33 +83,45 @@ def listar_contratos():
             detail=f"Error al listar contratos en SQL Server: {str(e)}"
         )
 
-@router.post("/", response_model=ContratoResponse, status_code=status.HTTP_201_CREATED, summary="Crear un nuevo contrato de membresía")
+@router.post("/", response_model=ContratoResponse, status_code=status.HTTP_201_CREATED, summary="Crear nuevo contrato de membresía")
 def crear_contrato(contrato: ContratoCreate):
     """
-    Registra un contrato para un socio usando parámetros de consulta seguros.
+    Registra un contrato para un socio validando la existencia del socio y del plan.
     """
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
-                # Validar existencia del socio
-                cursor.execute("SELECT id_socio FROM Socios WHERE id_socio = ?", (contrato.id_socio,))
+                # 1. Validar existencia del socio
+                cursor.execute("SELECT id_socio FROM Socio WHERE id_socio = ?", (contrato.id_socio,))
                 if not cursor.fetchone():
-                    raise HTTPException(status_code=404, detail="El socio indicado no existe.")
+                    raise HTTPException(status_code=404, detail=f"El socio con ID {contrato.id_socio} no existe.")
 
+                # 2. Validar existencia del plan
+                cursor.execute("SELECT id_plan FROM PlanMembresia WHERE id_plan = ?", (contrato.id_plan,))
+                if not cursor.fetchone():
+                    raise HTTPException(status_code=404, detail=f"El plan con ID {contrato.id_plan} no existe.")
+
+                # 3. Insertar contrato
                 query = """
-                    INSERT INTO Contratos (id_socio, tipo_plan, monto, fecha_inicio, fecha_fin, estado_pago)
-                    OUTPUT INSERTED.id_contrato, INSERTED.estado_pago
-                    VALUES (?, ?, ?, ?, ?, 'pendiente')
+                    INSERT INTO Contrato (id_socio, id_plan, fecha_inicio, fecha_termino, estado, precio_pactado)
+                    OUTPUT INSERTED.id_contrato
+                    VALUES (?, ?, ?, ?, ?, ?)
                 """
                 cursor.execute(
                     query,
-                    (contrato.id_socio, contrato.tipo_plan, contrato.monto, contrato.fecha_inicio, contrato.fecha_fin)
+                    (
+                        contrato.id_socio, 
+                        contrato.id_plan, 
+                        contrato.fecha_inicio, 
+                        contrato.fecha_termino, 
+                        contrato.estado, 
+                        contrato.precio_pactado
+                    )
                 )
-                row = cursor.fetchone()
+                id_contrato = cursor.fetchone()[0]
                 return {
                     **contrato.model_dump(),
-                    "id_contrato": row[0],
-                    "estado_pago": row[1]
+                    "id_contrato": id_contrato
                 }
     except HTTPException:
         raise
@@ -84,40 +131,36 @@ def crear_contrato(contrato: ContratoCreate):
             detail=f"Error al registrar contrato: {str(e)}"
         )
 
-@router.post("/pagos", status_code=status.HTTP_201_CREATED, summary="Registrar pago de membresía")
+@router.post("/pagos", response_model=PagoResponse, status_code=status.HTTP_201_CREATED, summary="Registrar pago de contrato")
 def registrar_pago(pago: PagoCreate):
     """
-    Registra el pago de un contrato y actualiza el estado del contrato en una transacción atómica.
+    Registra un pago para un contrato en la tabla Pago.
     """
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
-                # 1. Comprobar que el contrato existe
-                cursor.execute("SELECT id_contrato, monto FROM Contratos WHERE id_contrato = ?", (pago.id_contrato,))
-                contrato = cursor.fetchone()
-                if not contrato:
-                    raise HTTPException(status_code=404, detail="El contrato a pagar no existe.")
+                # 1. Comprobar que el contrato exista
+                cursor.execute("SELECT id_contrato FROM Contrato WHERE id_contrato = ?", (pago.id_contrato,))
+                if not cursor.fetchone():
+                    raise HTTPException(status_code=404, detail=f"El contrato {pago.id_contrato} no existe.")
 
                 # 2. Insertar registro de pago
-                cursor.execute("""
-                    INSERT INTO Pagos (id_contrato, monto, metodo_pago, fecha_pago)
-                    OUTPUT INSERTED.id_pago
-                    VALUES (?, ?, ?, GETDATE())
-                """, (pago.id_contrato, pago.monto, pago.metodo_pago))
-                id_pago = cursor.fetchone()[0]
-
-                # 3. Actualizar estado del contrato a 'pagado' si cubre el monto
-                cursor.execute("""
-                    UPDATE Contratos
-                    SET estado_pago = 'pagado'
-                    WHERE id_contrato = ?
-                """, (pago.id_contrato,))
-
+                insert_query = """
+                    INSERT INTO Pago (id_contrato, fecha_pago, monto_cancelado, medio_pago)
+                    OUTPUT INSERTED.id_pago, INSERTED.fecha_pago
+                    VALUES (?, SYSDATETIME(), ?, ?)
+                """
+                cursor.execute(
+                    insert_query,
+                    (pago.id_contrato, pago.monto_cancelado, pago.medio_pago)
+                )
+                res = cursor.fetchone()
                 return {
-                    "message": "Pago registrado y contrato actualizado",
-                    "id_pago": id_pago,
+                    "id_pago": res[0],
                     "id_contrato": pago.id_contrato,
-                    "monto": pago.monto
+                    "fecha_pago": res[1],
+                    "monto_cancelado": pago.monto_cancelado,
+                    "medio_pago": pago.medio_pago
                 }
     except HTTPException:
         raise
