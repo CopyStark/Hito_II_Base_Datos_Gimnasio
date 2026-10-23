@@ -1,206 +1,122 @@
 # 🏋️‍♂️ GimnasioDB - Sistema de Gestión de Gimnasio
 
-Sistema integral de gestión de gimnasios desarrollado con una arquitectura modular **API-First**, desacoplando completamente el backend y el frontend para facilitar el trabajo colaborativo en equipo con **Google Antigravity IDE**.
+Sistema integral de gestión de gimnasios con arquitectura modular **API-First**, desacoplando frontend y backend para desarrollo colaborativo en equipo con **Google Antigravity IDE**.
 
 ---
 
-## 🌐 Enlaces Oficiales del Proyecto en Producción
+## 🌐 Enlaces del Proyecto en Producción
 
 * **Repositorio GitHub:** [https://github.com/CopyStark/Hito_II_Base_Datos_Gimnasio.git](https://github.com/CopyStark/Hito_II_Base_Datos_Gimnasio.git)
-* **Backend en Render (Producción):** [https://gimnasio-backend-c3mu.onrender.com](https://gimnasio-backend-c3mu.onrender.com)
-* **Documentación Interactiva Swagger:** [https://gimnasio-backend-c3mu.onrender.com/docs](https://gimnasio-backend-c3mu.onrender.com/docs)
-* **Health Check (Estado de BD & Backend):** [https://gimnasio-backend-c3mu.onrender.com/api/health](https://gimnasio-backend-c3mu.onrender.com/api/health)
+* **Backend en Render:** [https://gimnasio-backend-c3mu.onrender.com](https://gimnasio-backend-c3mu.onrender.com)
+* **Documentación Swagger:** [https://gimnasio-backend-c3mu.onrender.com/docs](https://gimnasio-backend-c3mu.onrender.com/docs)
+* **Health Check API:** [https://gimnasio-backend-c3mu.onrender.com/api/health](https://gimnasio-backend-c3mu.onrender.com/api/health)
 
 ---
 
-## 📐 Stack Tecnológico y Arquitectura
+## 📐 Stack y Reglas Críticas (ESTRICTAS)
 
 * **Backend:** Python 3.10+ con **FastAPI** y servidor ASGI **Uvicorn**.
-* **Acceso a Datos:** **`pyodbc`** (Conexión nativa a Microsoft SQL Server mediante sentencias explícitas T-SQL).
-* **Frontend:** **Next.js 14** (React 18, App Router, TypeScript, TailwindCSS), configurado por defecto para consumir el backend de Render y optimizado para **Vercel**.
-* **Infraestructura Cloud:** Backend dockerizado en **Render** (Debian 12 Bookworm con drivers oficiales `msodbcsql17` y `msodbcsql18`).
+* **Acceso a Datos:** **`pyodbc`** (Conexión nativa a Microsoft SQL Server).
+* **Frontend:** **Next.js 14** (React 18, App Router, TypeScript, TailwindCSS), optimizado para **Vercel**.
 
-### ⚠️ Reglas Críticas del Proyecto (ESTRICTAS)
-
-1. **PROHIBIDO EL USO DE CUALQUIER ORM:**  
-   Queda terminantemente prohibido el uso de SQLAlchemy ORM, Prisma, Django ORM o similares. Todo acceso a datos debe realizarse mediante **sentencias SQL nativas y explícitas**, utilizando consultas parametrizadas con marcadores de posición `?` en `pyodbc` para prevenir ataques de SQL Injection:
+1. **PROHIBIDO EL USO DE ORM:**  
+   No usar SQLAlchemy, Prisma ni Django ORM. Todo el acceso a datos debe ser mediante sentencias SQL explícitas y parametrizadas con `?`:
    ```python
-   # ✅ CORRECTO (Consulta explícita parametrizada con tupla):
+   # ✅ CORRECTO:
    with get_db_connection() as conn:
        with conn.cursor() as cursor:
            cursor.execute("SELECT * FROM Socio WHERE rut = ?", (rut,))
-
-   # ❌ PROHIBIDO (Concatenación / Vulnerable a SQL Injection):
-   cursor.execute(f"SELECT * FROM Socio WHERE rut = '{rut}'")
    ```
 2. **Arquitectura API-First:**  
-   El frontend en ningún caso se conecta de forma directa a SQL Server. Toda interacción de datos se realiza consumiendo los endpoints REST provistos por la API de FastAPI a través de `frontend/src/services/apiClient.ts`.
-3. **Control de CORS:**  
-   El backend incluye middleware CORS configurado para admitir peticiones desde el frontend en desarrollo (`http://localhost:3000`) y cualquier dominio generado por Vercel (`https://*.vercel.app`).
+   El frontend no se conecta a SQL Server. Todo el consumo se realiza vía HTTP REST a través de `frontend/src/services/apiClient.ts`.
+3. **CORS:**  
+   FastAPI admite peticiones locales (`http://localhost:3000`) y cualquier dominio generado por Vercel (`https://*.vercel.app`).
 
 ---
 
-## 👥 División de Trabajo del Equipo (3 Personas)
+## 👥 División de Trabajo del Equipo
 
-| Rol | Integrante | Módulo / Router | Archivo Backend | Responsabilidades Principales |
+| Integrante | Rol | Router Backend | Archivo | Responsabilidades |
 | :--- | :--- | :--- | :--- | :--- |
-| **Persona 1** | Carlos | `/socios` | `backend/routers/auth_socios.py` | Esqueleto de BD, datos de prueba (`seed_inicial.sql`), registro de socios, administración, credenciales y estados de socios. |
-| **Persona 2** | Integrante 2 | `/clases` | `backend/routers/clases.py` | Catálogo de clases deportivas, asignación de instructores, control de cupos y horarios, inscripción a sesiones. |
-| **Persona 3** | Integrante 3 | `/contratos` | `backend/routers/contratos.py` | Gestión de planes de membresía, contratos de socios, procesamiento atómico de pagos y estados de cuenta. |
+| **Carlos** | Persona 1 | `/socios` | `backend/routers/auth_socios.py` | Esqueleto BD, `seed_inicial.sql`, gestión y registro de socios. |
+| **Integrante 2** | Persona 2 | `/clases` | `backend/routers/clases.py` | Catálogo de clases, cupos, horarios e inscripciones. |
+| **Integrante 3** | Persona 3 | `/contratos` | `backend/routers/contratos.py` | Planes de membresía, contratos y registro atómico de pagos. |
 
 ---
 
-## 🤖 Guía Paso a Paso para Trabajar con Google Antigravity
+## 🚀 Puesta en Marcha en Local
 
-Cada integrante del equipo debe seguir estos pasos en su propia computadora:
-
-### 1️⃣ Clonar el Repositorio y Abrir en Antigravity
-Abre la terminal de tu computadora y clona el proyecto:
+### 1. Clonar el repositorio y crear tu rama
 ```bash
 git clone https://github.com/CopyStark/Hito_II_Base_Datos_Gimnasio.git
 cd Hito_II_Base_Datos_Gimnasio
+git checkout -b feature/tu-modulo
 ```
-Luego, abre **Antigravity IDE** y ve a **File > Open Folder...** seleccionando la carpeta `Hito_II_Base_Datos_Gimnasio`.
 
----
+### 2. Cargar Base de Datos de Prueba (SQL Server)
+Abre **SQL Server Management Studio (SSMS)** y ejecuta el script:
+`database/seed_inicial.sql`
 
-### 2️⃣ Crear tu Rama de Git de Trabajo
-Nunca trabajes directamente sobre `main`. Crea una rama con tu rol:
-* **Persona 2:** `git checkout -b feature/persona2-clases`
-* **Persona 3:** `git checkout -b feature/persona3-contratos`
-* **Persona 1:** `git checkout -b feature/persona1-socios`
-
----
-
-### 3️⃣ Cargar la Base de Datos Inicial en SQL Server (SSMS)
-Abre **SQL Server Management Studio (SSMS)** o Azure Data Studio:
-1. Abre el archivo `database/seed_inicial.sql`.
-2. Presiona **Execute (F5)**.
-3. El script creará la jerarquía geográfica (Región, Provincia, Comuna, Ciudad), las 2 Sedes, los 2 Planes, los 2 Instructores y los 3 Socios de prueba (Daniel Matus, Emilia Osorio y Yulissa Ulloa).
-
----
-
-### 4️⃣ Configurar y Levantar el Backend (FastAPI) en Antigravity
-
-Abre la terminal integrada de Antigravity (``Ctrl + ` `` o ``Cmd + ` ``):
-
+### 3. Levantar el Backend (FastAPI)
 ```powershell
 cd backend
-
-# Crear entorno virtual de Python
 python -m venv venv
-
-# Activar entorno virtual
-.\venv\Scripts\Activate.ps1    # En macOS/Linux: source venv/bin/activate
-
-# Instalar dependencias
-pip install --upgrade pip
+.\venv\Scripts\Activate.ps1    # En Linux/macOS: source venv/bin/activate
 pip install -r requirements.txt
-
-# Configurar variables de entorno
-copy .env.example .env          # En Linux/macOS: cp .env.example .env
-```
-
-Abre `backend/.env` y coloca tu contraseña de SQL Server local:
-```ini
-DB_SERVER=localhost
-DB_PORT=1433
-DB_NAME=GimnasioDB
-DB_USER=sa
-DB_PASSWORD=TuPasswordDeSQLServer
-DB_DRIVER=ODBC Driver 17 for SQL Server
-ALLOWED_ORIGINS=http://localhost:3000
-```
-
-Inicia el backend en local:
-```bash
+copy .env.example .env          # Configura tus credenciales de SQL Server en .env
 uvicorn main:app --reload --port 8000
 ```
-* **Swagger UI interactivo local:** [http://localhost:8000/docs](http://localhost:8000/docs)
-* **Diagnóstico de salud de BD:** [http://localhost:8000/api/health](http://localhost:8000/api/health)
 
----
-
-### 5️⃣ Configurar y Levantar el Frontend (Next.js)
-
-En otra pestaña de la terminal integrada de Antigravity:
+### 4. Levantar el Frontend (Next.js)
+En otra terminal:
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
-* **Frontend interactivo:** [http://localhost:3000](http://localhost:3000)
-
-> **Nota:** El frontend viene configurado **por defecto** para conectarse al backend en Render (`https://gimnasio-backend-c3mu.onrender.com`). Nadie necesita configurar variables de entorno para ver la plataforma funcionando.
+La aplicación web abrirá en [http://localhost:3000](http://localhost:3000) conectada por defecto a Render.
 
 ---
 
-### 💬 Prompts Listos para Guiar al Agente de Antigravity
-
-Cuando interactúes con el agente de Antigravity para desarrollar tu parte, copia y pega el prompt que corresponde a tu rol:
-
-#### Para Persona 2 (Clases & Sesiones):
-> *"Actúa como un desarrollador Full Stack experto. Mi rol en el equipo es **Persona 2**. Mi responsabilidad es implementar y extender el módulo en `backend/routers/clases.py` y sus schemas en `backend/schemas/__init__.py`.  
-> **REGLAS ESTRICTAS DEL PROYECTO:**  
-> 1. Prohibido el uso de ORM (No SQLAlchemy, No Prisma).  
-> 2. Todas las consultas a SQL Server deben ser sentencias SQL explícitas y parametrizadas con `?` usando `pyodbc` e inyectando `get_db_connection()`.  
-> 3. Implementa los endpoints para listar clases disponibles con sus cupos, crear clases e inscribir socios validando que no se supere el cupo máximo."*
-
-#### Para Persona 3 (Membresías, Contratos y Pagos):
-> *"Actúa como un desarrollador Full Stack experto. Mi rol en el equipo es **Persona 3**. Mi responsabilidad es implementar y extender el módulo en `backend/routers/contratos.py` y sus schemas en `backend/schemas/__init__.py`.  
-> **REGLAS ESTRICTAS DEL PROYECTO:**  
-> 1. Prohibido el uso de ORM (No SQLAlchemy, No Prisma).  
-> 2. Todas las consultas a SQL Server deben ser sentencias SQL explícitas y parametrizadas con `?` usando `pyodbc` e inyectando `get_db_connection()`.  
-> 3. Implementa los endpoints para listar contratos, crear planes de membresía para un socio y registrar pagos atómicos actualizando el estado del contrato a 'pagado'."*
+## 🌿 Flujo de Trabajo Git
+1. Desarrolla únicamente en tu archivo asignado (`auth_socios.py`, `clases.py` o `contratos.py`).
+2. Sube tus cambios a tu rama:
+   ```bash
+   git add .
+   git commit -m "feat(modulo): descripcion de cambios"
+   git push origin feature/tu-modulo
+   ```
+3. Realiza un Pull Request hacia `main`. Al fusionar, Render y Vercel se actualizarán automáticamente.
 
 ---
 
-### 6️⃣ Probar tus Cambios y Subir a GitHub
-
-Una vez que completes y pruebes tus endpoints en Swagger (`http://localhost:8000/docs` o en Render):
-
-```bash
-git add .
-git commit -m "feat(modulo): descripcion clara de tus cambios"
-git push origin feature/tu-rama
-```
-Crea un **Pull Request** en GitHub hacia `main`. Render y Vercel actualizarán automáticamente las versiones en la nube.
-
----
-
-## 📂 Estructura del Repositorio
+## 📂 Estructura del Proyecto
 
 ```text
 /
 ├── backend/
-│   ├── Dockerfile            # Imagen Debian 12 Bookworm con drivers oficiales de Microsoft
-│   ├── .env.example          # Plantilla con parámetros de conexión a SQL Server
+│   ├── Dockerfile            # Configuración Debian 12 con drivers oficiales Microsoft
+│   ├── .env.example          # Plantilla de variables para SQL Server
 │   ├── requirements.txt      # fastapi, uvicorn, pyodbc, pydantic, email-validator
-│   ├── main.py               # Entrada FastAPI, CORS inteligente y montaje de routers
+│   ├── main.py               # Entrada FastAPI y montaje de routers
 │   ├── db/
 │   │   ├── __init__.py
-│   │   └── connection.py     # Manejador singleton de conexión pyodbc con control de excepciones
+│   │   └── connection.py     # Manejo singleton de pyodbc con control de excepciones
 │   ├── routers/              # Controladores REST modulares por persona
-│   │   ├── __init__.py
-│   │   ├── auth_socios.py    # Persona 1: Acceso y Socios
-│   │   ├── clases.py         # Persona 2: Sesiones e Inscripciones
-│   │   └── contratos.py      # Persona 3: Membresías y Pagos
+│   │   ├── auth_socios.py    # Persona 1
+│   │   ├── clases.py         # Persona 2
+│   │   └── contratos.py      # Persona 3
 │   └── schemas/              # Modelos Pydantic de validación
-│       └── __init__.py
 ├── database/
-│   └── seed_inicial.sql      # Script T-SQL con geografía, sedes, planes, instructores y socios
+│   └── seed_inicial.sql      # Script T-SQL con geografía, sedes, planes y socios
 ├── frontend/
-│   ├── package.json          # Next.js 14, React 18, TailwindCSS, Lucide
-│   ├── next.config.js        # Configuración con URL de Render por defecto
-│   ├── .env.local.example    # NEXT_PUBLIC_API_URL=https://gimnasio-backend-c3mu.onrender.com
-│   └── src/
-│       ├── app/
-│       │   ├── globals.css
-│       │   ├── layout.tsx
-│       │   └── page.tsx      # Dashboard con verificación automática de conexión a Render
-│       ├── components/       # Componentes UI reutilizables (TeamCard)
-│       └── services/
-│           └── apiClient.ts  # Cliente HTTP tipado conectado por defecto a Render
+│   ├── package.json          # Next.js 14, React 18, TailwindCSS
+│   ├── next.config.js        # Configuración para despliegue
+│   ├── src/
+│   │   ├── app/              # App Router (layout.tsx, page.tsx)
+│   │   ├── components/       # Componentes UI reutilizables
+│   │   └── services/
+│   │       └── apiClient.ts  # Cliente HTTP tipado conectado a Render
 ├── .gitignore
-└── README.md                 # Esta guía completa para el equipo
+└── README.md
 ```
