@@ -4,24 +4,33 @@ Sistema integral de gestión de gimnasios desarrollado con una arquitectura modu
 
 ---
 
+## 🌐 Enlaces Oficiales del Proyecto en Producción
+
+* **Repositorio GitHub:** [https://github.com/CopyStark/Hito_II_Base_Datos_Gimnasio.git](https://github.com/CopyStark/Hito_II_Base_Datos_Gimnasio.git)
+* **Backend en Render (Producción):** [https://gimnasio-backend-c3mu.onrender.com](https://gimnasio-backend-c3mu.onrender.com)
+* **Documentación Interactiva Swagger:** [https://gimnasio-backend-c3mu.onrender.com/docs](https://gimnasio-backend-c3mu.onrender.com/docs)
+* **Health Check (Estado de BD & Backend):** [https://gimnasio-backend-c3mu.onrender.com/api/health](https://gimnasio-backend-c3mu.onrender.com/api/health)
+
+---
+
 ## 📐 Stack Tecnológico y Arquitectura
 
 * **Backend:** Python 3.10+ con **FastAPI** y servidor ASGI **Uvicorn**.
 * **Acceso a Datos:** **`pyodbc`** (Conexión nativa a Microsoft SQL Server mediante sentencias explícitas T-SQL).
-* **Frontend:** **Next.js 14** (React 18, App Router, TypeScript, TailwindCSS), optimizado para despliegue en **Vercel**.
-* **Infraestructura Cloud:** Backend dockerizado para **Render** (Debian 12 con `msodbcsql17` y `msodbcsql18`).
+* **Frontend:** **Next.js 14** (React 18, App Router, TypeScript, TailwindCSS), configurado por defecto para consumir el backend de Render y optimizado para **Vercel**.
+* **Infraestructura Cloud:** Backend dockerizado en **Render** (Debian 12 Bookworm con drivers oficiales `msodbcsql17` y `msodbcsql18`).
 
 ### ⚠️ Reglas Críticas del Proyecto (ESTRICTAS)
 
 1. **PROHIBIDO EL USO DE CUALQUIER ORM:**  
    Queda terminantemente prohibido el uso de SQLAlchemy ORM, Prisma, Django ORM o similares. Todo acceso a datos debe realizarse mediante **sentencias SQL nativas y explícitas**, utilizando consultas parametrizadas con marcadores de posición `?` en `pyodbc` para prevenir ataques de SQL Injection:
    ```python
-   # ✅ CORRECTO (Consulta explícita parametrizada):
+   # ✅ CORRECTO (Consulta explícita parametrizada con tupla):
    with get_db_connection() as conn:
        with conn.cursor() as cursor:
            cursor.execute("SELECT * FROM Socio WHERE rut = ?", (rut,))
 
-   # ❌ PROHIBIDO (Concatenación / SQL Injection):
+   # ❌ PROHIBIDO (Concatenación / Vulnerable a SQL Injection):
    cursor.execute(f"SELECT * FROM Socio WHERE rut = '{rut}'")
    ```
 2. **Arquitectura API-First:**  
@@ -63,7 +72,7 @@ Nunca trabajes directamente sobre `main`. Crea una rama con tu rol:
 
 ---
 
-### 3️⃣ Cargar la Base de Datos Inicial en tu SQL Server
+### 3️⃣ Cargar la Base de Datos Inicial en SQL Server (SSMS)
 Abre **SQL Server Management Studio (SSMS)** o Azure Data Studio:
 1. Abre el archivo `database/seed_inicial.sql`.
 2. Presiona **Execute (F5)**.
@@ -103,11 +112,11 @@ DB_DRIVER=ODBC Driver 17 for SQL Server
 ALLOWED_ORIGINS=http://localhost:3000
 ```
 
-Inicia el backend:
+Inicia el backend en local:
 ```bash
 uvicorn main:app --reload --port 8000
 ```
-* **Swagger UI interactivo:** [http://localhost:8000/docs](http://localhost:8000/docs)
+* **Swagger UI interactivo local:** [http://localhost:8000/docs](http://localhost:8000/docs)
 * **Diagnóstico de salud de BD:** [http://localhost:8000/api/health](http://localhost:8000/api/health)
 
 ---
@@ -117,15 +126,16 @@ uvicorn main:app --reload --port 8000
 En otra pestaña de la terminal integrada de Antigravity:
 ```powershell
 cd frontend
-copy .env.local.example .env.local
 npm install
 npm run dev
 ```
 * **Frontend interactivo:** [http://localhost:3000](http://localhost:3000)
 
+> **Nota:** El frontend viene configurado **por defecto** para conectarse al backend en Render (`https://gimnasio-backend-c3mu.onrender.com`). Nadie necesita configurar variables de entorno para ver la plataforma funcionando.
+
 ---
 
-### 💬 Prompts Recomendados para Guiar a Antigravity
+### 💬 Prompts Listos para Guiar al Agente de Antigravity
 
 Cuando interactúes con el agente de Antigravity para desarrollar tu parte, copia y pega el prompt que corresponde a tu rol:
 
@@ -147,17 +157,14 @@ Cuando interactúes con el agente de Antigravity para desarrollar tu parte, copi
 
 ### 6️⃣ Probar tus Cambios y Subir a GitHub
 
-Una vez que completes y pruebes tus endpoints en Swagger (`http://localhost:8000/docs`):
+Una vez que completes y pruebes tus endpoints en Swagger (`http://localhost:8000/docs` o en Render):
 
 ```bash
 git add .
 git commit -m "feat(modulo): descripcion clara de tus cambios"
 git push origin feature/tu-rama
 ```
-Crea un **Pull Request** en GitHub hacia `main`. 
-
-> **Tip de despliegue:**  
-> Si quieres que tu frontend de Vercel apunte a tu backend local mientras desarrollas, abre el frontend en Vercel, presiona **`⚙️ Cambiar URL Backend`**, pega la URL de tu túnel local o instancia de Render y presiona **Guardar**.
+Crea un **Pull Request** en GitHub hacia `main`. Render y Vercel actualizarán automáticamente las versiones en la nube.
 
 ---
 
@@ -184,16 +191,16 @@ Crea un **Pull Request** en GitHub hacia `main`.
 │   └── seed_inicial.sql      # Script T-SQL con geografía, sedes, planes, instructores y socios
 ├── frontend/
 │   ├── package.json          # Next.js 14, React 18, TailwindCSS, Lucide
-│   ├── next.config.js        # Configuración para despliegue en Vercel
-│   ├── .env.local.example    # NEXT_PUBLIC_API_URL=http://localhost:8000
+│   ├── next.config.js        # Configuración con URL de Render por defecto
+│   ├── .env.local.example    # NEXT_PUBLIC_API_URL=https://gimnasio-backend-c3mu.onrender.com
 │   └── src/
 │       ├── app/
 │       │   ├── globals.css
 │       │   ├── layout.tsx
-│       │   └── page.tsx      # Landing page de diagnóstico y división del equipo
-│       ├── components/       # Componentes UI reutilizables
+│       │   └── page.tsx      # Dashboard con verificación automática de conexión a Render
+│       ├── components/       # Componentes UI reutilizables (TeamCard)
 │       └── services/
-│           └── apiClient.ts  # Cliente HTTP tipado con soporte para cambio dinámico de URL
+│           └── apiClient.ts  # Cliente HTTP tipado conectado por defecto a Render
 ├── .gitignore
-└── README.md                 # Esta guía completa
+└── README.md                 # Esta guía completa para el equipo
 ```
