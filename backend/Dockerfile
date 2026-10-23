@@ -1,38 +1,33 @@
-# Usamos imagen oficial ligera de Python basada en Debian 11 (Bullseye)
-FROM python:3.10-slim-bullseye
+# Usamos la imagen oficial de Python 3.10 basada en Debian 12 (Bookworm)
+FROM python:3.10-slim
 
-# Evitar diálogos interactivos durante la instalación
+# Evitar diálogos interactivos durante la instalación de paquetes
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 1. Instalar dependencias del sistema y soporte para repositorios HTTPS
+# Instalar dependencias base, registrar repositorio oficial de Microsoft para Debian 12
+# e instalar tanto msodbcsql17 como msodbcsql18 para máxima compatibilidad
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    gnupg2 \
-    apt-transport-https \
+    gnupg \
     ca-certificates \
     unixodbc \
     unixodbc-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# 2. Agregar clave GPG oficial de Microsoft y configuración del repositorio Bullseye
-RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
-    && curl -fsSL https://packages.microsoft.com/config/debian/11/prod.list | tee /etc/apt/sources.list.d/mssql-release.list
-
-# 3. Actualizar repositorios e instalar el driver msodbcsql17 aceptando la licencia
-RUN apt-get update \
-    && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql17 \
+    && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
+    && curl -fsSL https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-release.list \
+    && apt-get update \
+    && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql17 msodbcsql18 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Directorio de trabajo en el contenedor
+# Directorio de trabajo
 WORKDIR /app
 
-# Instalar dependencias de Python
+# Instalar requerimientos de Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código fuente del backend
+# Copiar el código del backend
 COPY . .
 
-# Render asigna el puerto mediante la variable PORT
+# Render asigna dinámicamente el puerto en $PORT
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
