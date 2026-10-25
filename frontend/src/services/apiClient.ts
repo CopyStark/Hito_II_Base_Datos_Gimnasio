@@ -198,11 +198,24 @@ export const apiClient = {
   // Endpoints del Sistema
   health: () => apiRequest<{ backend: string; database: any }>("/api/health"),
 
-  // Módulo Persona 1: Socios
+  // Módulo Persona 1: Socios y Control de Acceso
   socios: {
-    getAll: () => apiClient.get<Socio[]>("/socios"),
+    getAll: (params?: { activo?: boolean; id_sede?: number; buscar?: string; limite?: number; offset?: number }) => 
+      apiClient.get<Socio[]>("/socios", params),
     getById: (id: number) => apiClient.get<Socio>(`/socios/${id}`),
+    getByRut: (rut: string) => apiClient.get<Socio>(`/socios/rut/${encodeURIComponent(rut)}`),
     create: (data: Partial<Socio>) => apiClient.post<Socio>("/socios", data),
+    update: (id: number, data: Partial<Socio>) => apiClient.put<Socio>(`/socios/${id}`, data),
+    cambiarEstado: (id: number, activo: boolean) => 
+      apiRequest<Socio>(`/socios/${id}/estado`, { method: "PATCH", body: JSON.stringify({ activo_socio: activo }) }),
+    asignarCredenciales: (id: number, data: { username_usuario: string; password: string }) => 
+      apiClient.post<any>(`/socios/${id}/credenciales`, data),
+    login: (data: { username_o_correo: string; password: string }) => 
+      apiClient.post<any>("/socios/login", data),
+    validarAcceso: (identificador: string | number) => 
+      apiClient.get<any>(`/socios/acceso/validar/${encodeURIComponent(identificador)}`),
+    getSedesCatalogo: () => apiClient.get<any[]>("/socios/sedes/catalogo"),
+    getReportePorSede: () => apiClient.get<any[]>("/socios/reportes/por-sede"),
   },
 
   // Módulo Persona 2: Clases

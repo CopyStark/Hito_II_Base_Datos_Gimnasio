@@ -94,6 +94,157 @@ class SocioResponse(SocioBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class SocioUpdate(BaseModel):
+    nombre_completo_socio: Optional[str] = Field(
+        default=None, 
+        min_length=3, 
+        max_length=150,
+        validation_alias=AliasChoices("nombre_completo_socio", "nombre_completo")
+    )
+    correo_socio: Optional[EmailStr] = Field(
+        default=None,
+        validation_alias=AliasChoices("correo_socio", "correo")
+    )
+    telefono_socio: Optional[str] = Field(
+        default=None, 
+        max_length=20,
+        validation_alias=AliasChoices("telefono_socio", "telefono")
+    )
+    id_sede_registro_socio: Optional[int] = Field(
+        default=None, 
+        gt=0,
+        validation_alias=AliasChoices("id_sede_registro_socio", "id_sede_registro")
+    )
+    acepta_promociones_socio: Optional[bool] = Field(
+        default=None,
+        validation_alias=AliasChoices("acepta_promociones_socio", "acepta_promociones")
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+class SocioEstadoUpdate(BaseModel):
+    activo_socio: bool = Field(
+        ...,
+        validation_alias=AliasChoices("activo_socio", "activo")
+    )
+
+    @computed_field
+    def activo(self) -> bool:
+        return self.activo_socio
+
+    model_config = ConfigDict(from_attributes=True)
+
+class SocioCredencialesCreate(BaseModel):
+    username_usuario: str = Field(
+        ..., 
+        min_length=3, 
+        max_length=50,
+        example="socio1",
+        validation_alias=AliasChoices("username_usuario", "username")
+    )
+    password: str = Field(
+        ..., 
+        min_length=6, 
+        max_length=100,
+        example="Clave#socio1"
+    )
+
+class LoginRequest(BaseModel):
+    username_o_correo: str = Field(
+        ..., 
+        min_length=3,
+        example="admin",
+        validation_alias=AliasChoices("username_o_correo", "username", "correo")
+    )
+    password: str = Field(
+        ..., 
+        min_length=1,
+        example="Clave#admin"
+    )
+
+class LoginResponse(BaseModel):
+    autenticado: bool
+    mensaje: str
+    id_usuario: Optional[int] = None
+    username_usuario: Optional[str] = None
+    rol: Optional[str] = None
+    id_socio: Optional[int] = None
+    nombre_completo_socio: Optional[str] = None
+    activo_socio: Optional[bool] = None
+
+    @computed_field
+    def username(self) -> Optional[str]:
+        return self.username_usuario
+
+    @computed_field
+    def nombre_completo(self) -> Optional[str]:
+        return self.nombre_completo_socio
+
+    @computed_field
+    def activo(self) -> Optional[bool]:
+        return self.activo_socio
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ControlAccesoResponse(BaseModel):
+    acceso_permitido: bool
+    motivo: str
+    id_socio: Optional[int] = None
+    rut_socio: Optional[str] = None
+    nombre_completo_socio: Optional[str] = None
+    sede_registro: Optional[str] = None
+    activo_socio: Optional[bool] = None
+    contrato_vigente: Optional[bool] = None
+    nombre_plan: Optional[str] = None
+    fecha_termino_contrato: Optional[date] = None
+
+    @computed_field
+    def rut(self) -> Optional[str]:
+        return self.rut_socio
+
+    @computed_field
+    def nombre_completo(self) -> Optional[str]:
+        return self.nombre_completo_socio
+
+    @computed_field
+    def activo(self) -> Optional[bool]:
+        return self.activo_socio
+
+    model_config = ConfigDict(from_attributes=True)
+
+class SedeSimpleResponse(BaseModel):
+    id_sede: int
+    nombre_sede: str
+    direccion_calle_sede: str
+    telefono_sede: str
+    nombre_ciudad: str
+
+    @computed_field
+    def nombre(self) -> str:
+        return self.nombre_sede
+
+    @computed_field
+    def direccion(self) -> str:
+        return self.direccion_calle_sede
+
+    @computed_field
+    def telefono(self) -> str:
+        return self.telefono_sede
+
+    @computed_field
+    def ciudad(self) -> str:
+        return self.nombre_ciudad
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ReporteSociosPorSedeItem(BaseModel):
+    nombre_sede: str
+    estado_contrato: Optional[str] = None
+    cantidad_socios: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 
 # =========================================================================
 # PERSONA 2: Clases, Sesiones e Inscripciones

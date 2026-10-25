@@ -9,22 +9,72 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // --- TEMPORAL: Panel de verificación de clientes ---
+  // --- Panel de Persona 1: Socios & Control de Acceso ---
   const [showClientes, setShowClientes] = useState(false);
   const [clientes, setClientes] = useState<any[]>([]);
   const [clientesLoading, setClientesLoading] = useState(false);
   const [clientesError, setClientesError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filtroActivo, setFiltroActivo] = useState<"todos" | "activos" | "inactivos">("todos");
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
+
+  // Validador de acceso (Torniquete / Recepción)
+  const [accesoIdentificador, setAccesoIdentificador] = useState("");
+  const [accesoLoading, setAccesoLoading] = useState(false);
+  const [accesoResultado, setAccesoResultado] = useState<any>(null);
 
   const fetchClientes = async () => {
     setClientesLoading(true);
     setClientesError(null);
     try {
-      const data = await apiClient.get<any[]>("/socios/");
+      const params: any = {};
+      if (filtroActivo === "activos") params.activo = true;
+      if (filtroActivo === "inactivos") params.activo = false;
+      if (searchTerm.trim()) params.buscar = searchTerm.trim();
+
+      const data = await apiClient.socios.getAll(params);
       setClientes(data);
     } catch (err: any) {
-      setClientesError(err.message || "No se pudo obtener la lista de clientes.");
+      setClientesError(err.message || "No se pudo obtener la lista de socios.");
     } finally {
       setClientesLoading(false);
+    }
+  };
+
+  const handleToggleEstado = async (id_socio: number, estadoActual: boolean) => {
+    setUpdatingId(id_socio);
+    try {
+      const nuevoEstado = !estadoActual;
+      await apiClient.socios.cambiarEstado(id_socio, nuevoEstado);
+      setClientes((prev) =>
+        prev.map((c) =>
+          c.id_socio === id_socio
+            ? { ...c, activo_socio: nuevoEstado, activo: nuevoEstado }
+            : c
+        )
+      );
+    } catch (err: any) {
+      alert(`Error al actualizar estado: ${err.message}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleValidarAcceso = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accesoIdentificador.trim()) return;
+    setAccesoLoading(true);
+    setAccesoResultado(null);
+    try {
+      const res = await apiClient.socios.validarAcceso(accesoIdentificador.trim());
+      setAccesoResultado(res);
+    } catch (err: any) {
+      setAccesoResultado({
+        acceso_permitido: false,
+        motivo: `Error al conectar: ${err.message}`,
+      });
+    } finally {
+      setAccesoLoading(false);
     }
   };
 
@@ -34,7 +84,7 @@ export default function Home() {
     }
     setShowClientes(!showClientes);
   };
-  // --- FIN TEMPORAL ---
+  // --- FIN PANEL PERSONA 1 ---
 
   // Comprobar la conexión automáticamente al cargar la página
   useEffect(() => {
@@ -57,36 +107,121 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-black text-slate-100 py-12 px-4 sm:px-6 lg:px-8">
 
-      {/* ===== TEMPORAL: Botón y Panel de Verificación de Clientes ===== */}
+      {/* ===== Panel Interactivo Persona 1: Socios & Acceso ===== */}
       <div className="fixed top-4 left-4 z-50">
         <button
           id="btn-mostrar-clientes"
           onClick={handleToggleClientes}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all duration-150 text-white text-sm font-semibold shadow-lg shadow-indigo-900/50 border border-indigo-400/30"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all duration-150 text-white text-sm font-semibold shadow-lg shadow-blue-900/50 border border-blue-400/30"
         >
-          <span>{showClientes ? "🙈" : "👁️"}</span>
-          {showClientes ? "Ocultar Clientes" : "Mostrar Clientes"}
+          <span>{showClientes ? "🙈" : "👥"}</span>
+          {showClientes ? "Ocultar Panel Socios" : "Panel Persona 1 (Socios & Acceso)"}
         </button>
 
         {showClientes && (
-          <div className="mt-2 w-80 max-h-96 overflow-y-auto rounded-2xl bg-slate-900/95 border border-indigo-500/30 shadow-2xl backdrop-blur-xl p-4 space-y-2">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-indigo-300 uppercase tracking-wider">
-                🗃️ Clientes desde SQL Server
-              </h3>
+          <div className="mt-2 w-96 max-h-[85vh] overflow-y-auto rounded-2xl bg-slate-900/95 border border-blue-500/30 shadow-2xl backdrop-blur-xl p-4 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>🛡️</span> Persona 1: Socios & Acceso
+                </h3>
+                <p className="text-[10px] text-slate-400">Consultas nativas pyodbc sin ORM</p>
+              </div>
               <button
                 onClick={fetchClientes}
                 disabled={clientesLoading}
-                className="text-xs text-slate-400 hover:text-indigo-400 transition-colors disabled:opacity-50"
+                className="text-xs text-slate-400 hover:text-blue-400 transition-colors disabled:opacity-50"
                 title="Recargar"
               >
                 {clientesLoading ? "⏳" : "🔄 Recargar"}
               </button>
             </div>
 
+            {/* Validador de Acceso Rápido (Torniquete) */}
+            <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
+              <label className="text-xs font-semibold text-slate-300 block">
+                🚪 Simular Control de Acceso (Torniquete)
+              </label>
+              <form onSubmit={handleValidarAcceso} className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="RUT o ID de Socio..."
+                  value={accesoIdentificador}
+                  onChange={(e) => setAccesoIdentificador(e.target.value)}
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  type="submit"
+                  disabled={accesoLoading || !accesoIdentificador.trim()}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium disabled:opacity-50"
+                >
+                  {accesoLoading ? "..." : "Validar"}
+                </button>
+              </form>
+
+              {accesoResultado && (
+                <div
+                  className={`p-2 rounded-lg text-xs border ${
+                    accesoResultado.acceso_permitido
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                      : "bg-rose-500/10 border-rose-500/30 text-rose-300"
+                  }`}
+                >
+                  <p className="font-bold">
+                    {accesoResultado.acceso_permitido ? "✅ ACCESO PERMITIDO" : "⛔ ACCESO DENEGADO"}
+                  </p>
+                  <p className="text-[11px] mt-0.5 opacity-90">{accesoResultado.motivo}</p>
+                  {accesoResultado.nombre_completo_socio && (
+                    <p className="text-[10px] text-slate-400 mt-1 font-mono">
+                      Socio: {accesoResultado.nombre_completo_socio} ({accesoResultado.sede_registro})
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Filtros de Socios */}
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Buscar por Nombre, RUT, Correo..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && fetchClientes()}
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  onClick={fetchClientes}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 rounded-lg"
+                >
+                  🔍
+                </button>
+              </div>
+
+              <div className="flex gap-1.5 text-[11px]">
+                {(["todos", "activos", "inactivos"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => {
+                      setFiltroActivo(f);
+                    }}
+                    className={`flex-1 py-1 rounded-md capitalize font-medium transition-colors ${
+                      filtroActivo === f
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "bg-slate-800/60 text-slate-400 hover:bg-slate-800"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Listado de Socios */}
             {clientesLoading && (
               <p className="text-xs text-amber-400 animate-pulse text-center py-4">
-                Consultando base de datos...
+                Consultando tabla [Socio] en SQL Server...
               </p>
             )}
 
@@ -98,42 +233,59 @@ export default function Home() {
 
             {!clientesLoading && !clientesError && clientes.length === 0 && (
               <p className="text-xs text-slate-500 text-center py-4">
-                No se encontraron socios en la BD.
+                No se encontraron socios que coincidan con los filtros.
               </p>
             )}
 
-            {!clientesLoading && clientes.map((c, i) => {
-              const nombre = c.nombre_completo_socio ?? c.nombre_completo ?? "Sin nombre";
-              const activo = c.activo_socio ?? c.activo ?? true;
-              const correo = c.correo_socio ?? c.correo ?? "Sin correo";
-              const rut = c.rut_socio ?? c.rut ?? "Sin RUT";
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {!clientesLoading &&
+                clientes.map((c, i) => {
+                  const id = c.id_socio ?? i;
+                  const nombre = c.nombre_completo_socio ?? c.nombre_completo ?? "Sin nombre";
+                  const activo = c.activo_socio ?? c.activo ?? true;
+                  const correo = c.correo_socio ?? c.correo ?? "Sin correo";
+                  const rut = c.rut_socio ?? c.rut ?? "Sin RUT";
+                  const isUpdating = updatingId === id;
 
-              return (
-                <div
-                  key={c.id_socio ?? i}
-                  className="p-3 rounded-xl bg-slate-800/70 border border-slate-700/50 text-xs space-y-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-white">{nombre}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${activo ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>
-                      {activo ? "Activo" : "Inactivo"}
-                    </span>
-                  </div>
-                  <p className="text-slate-400">{correo}</p>
-                  <p className="text-slate-500 font-mono">RUT: {rut}</p>
-                </div>
-              );
-            })}
+                  return (
+                    <div
+                      key={id}
+                      className="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/50 text-xs space-y-1 hover:border-blue-500/40 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-white truncate max-w-[180px]">{nombre}</span>
+                        <button
+                          onClick={() => handleToggleEstado(id, activo)}
+                          disabled={isUpdating}
+                          title="Haga clic para cambiar estado en SQL Server"
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all ${
+                            activo
+                              ? "bg-emerald-500/20 text-emerald-400 hover:bg-rose-500/20 hover:text-rose-400"
+                              : "bg-rose-500/20 text-rose-400 hover:bg-emerald-500/20 hover:text-emerald-400"
+                          } ${isUpdating ? "opacity-50 animate-pulse" : ""}`}
+                        >
+                          {isUpdating ? "..." : activo ? "✓ Activo" : "✕ Inactivo"}
+                        </button>
+                      </div>
+                      <p className="text-slate-400 text-[11px] truncate">{correo}</p>
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                        <span>RUT: {rut}</span>
+                        <span>ID: {id}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
 
             {!clientesLoading && clientes.length > 0 && (
-              <p className="text-[10px] text-slate-600 text-center pt-1">
-                {clientes.length} socio(s) encontrado(s)
+              <p className="text-[10px] text-slate-500 text-center pt-1 border-t border-slate-800">
+                {clientes.length} socio(s) desplegado(s)
               </p>
             )}
           </div>
         )}
       </div>
-      {/* ===== FIN TEMPORAL ===== */}
+      {/* ===== FIN PANEL PERSONA 1 ===== */}
 
       <div className="max-w-6xl mx-auto space-y-12">
         {/* Header Hero */}
