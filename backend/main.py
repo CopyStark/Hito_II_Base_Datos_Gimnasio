@@ -72,6 +72,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Middleware para que peticiones HEAD de Render se manejen transparentemente como GET
+@app.middleware("http")
+async def handle_head_requests(request, call_next):
+    if request.method == "HEAD":
+        request.scope["method"] = "GET"
+        response = await call_next(request)
+        from starlette.responses import Response
+        return Response(
+            status_code=response.status_code,
+            headers=dict(response.headers)
+        )
+    return await call_next(request)
+
 logger.info(f"CORS configurado para orígenes explícitos {origins} y regex para dominios de Vercel (*.vercel.app)")
 
 # -------------------------------------------------------------------------
@@ -83,11 +96,13 @@ app.include_router(contratos_router)
 
 # -------------------------------------------------------------------------
 # Rutas Base y Diagnóstico (Health Check)
+# Compatible con GET y HEAD (utilizado por el balanceador y health check de Render)
 # -------------------------------------------------------------------------
-@app.get("/", tags=["General"])
+@app.api_route("/", methods=["GET", "HEAD"], tags=["General"])
 def read_root():
     """
     Ruta raíz para verificar que el servicio FastAPI está operativo.
+    Soporta GET y HEAD para el healthcheck de Render.
     """
     return {
         "sistema": "GimnasioDB API",
@@ -101,10 +116,11 @@ def read_root():
         }
     }
 
-@app.get("/api/health", tags=["General"])
+@app.api_route("/api/health", methods=["GET", "HEAD"], tags=["General"])
 def health_check():
     """
     Verifica el estado del backend y la conectividad a SQL Server mediante pyodbc.
+    Soporta GET y HEAD para el healthcheck de Render.
     """
     db_status = test_connection()
     return {
