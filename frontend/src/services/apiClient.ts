@@ -4,6 +4,7 @@
  * REGLAS DE ARQUITECTURA:
  * 1. Arquitectura API-First: Este frontend NO tiene ninguna conexión directa a la base de datos SQL Server.
  * 2. Toda comunicación de datos se realiza a través de las rutas REST expuestas por FastAPI.
+ * 3. Nomenclatura sincronizada con el nuevo DDL (sufijos por tabla en la BD) con soporte retrocompatible.
  */
 
 // URL oficial del Backend en producción (Render)
@@ -32,6 +33,94 @@ export class ApiError extends Error {
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
+}
+
+/**
+ * Interfaces Tipadas para GimnasioDB (Nomenclatura con sufijos y retrocompatibilidad)
+ */
+export interface Socio {
+  id_socio: number;
+  rut_socio?: string;
+  rut?: string;
+  nombre_completo_socio?: string;
+  nombre_completo?: string;
+  fecha_nacimiento_socio?: string;
+  fecha_nacimiento?: string;
+  correo_socio?: string;
+  correo?: string;
+  telefono_socio?: string;
+  telefono?: string;
+  id_sede_registro_socio?: number;
+  id_sede_registro?: number;
+  acepta_promociones_socio?: boolean;
+  acepta_promociones?: boolean;
+  activo_socio?: boolean;
+  activo?: boolean;
+}
+
+export interface Clase {
+  id_clase: number;
+  nombre_clase?: string;
+  nombre?: string;
+  duracion_minutos_clase?: number;
+  duracion_minutos?: number;
+  nivel_exigencia_clase?: "Principiante" | "Intermedio" | "Avanzado";
+  nivel_exigencia?: "Principiante" | "Intermedio" | "Avanzado";
+}
+
+export interface SesionOcupacion {
+  id_sesion: number;
+  nombre_clase?: string;
+  Clase?: string;
+  nombre_sede?: string;
+  Sede?: string;
+  fecha_sesion?: string;
+  fecha?: string;
+  hora_sesion?: string;
+  hora?: string;
+  cupo_maximo_sesion?: number;
+  cupo_maximo?: number;
+  total_inscritos?: number;
+  Total_Inscritos?: number;
+  cupos_disponibles?: number;
+  Cupos_Disponibles?: number;
+}
+
+export interface PlanMembresia {
+  id_planmembresia: number;
+  id_plan?: number;
+  nombre_planmembresia?: string;
+  nombre?: string;
+  duracion_meses_planmembresia?: number;
+  duracion_meses?: number;
+  precio_vigente_planmembresia?: number;
+  precio_vigente?: number;
+}
+
+export interface Contrato {
+  id_contrato: number;
+  id_socio_contrato?: number;
+  id_socio?: number;
+  id_planmembresia_contrato?: number;
+  id_plan?: number;
+  fecha_inicio_contrato?: string;
+  fecha_inicio?: string;
+  fecha_termino_contrato?: string;
+  fecha_termino?: string;
+  estado_contrato?: string;
+  estado?: string;
+  precio_pactado_contrato?: number;
+  precio_pactado?: number;
+}
+
+export interface Pago {
+  id_pago: number;
+  id_contrato_pago?: number;
+  id_contrato?: number;
+  fecha_pago?: string;
+  monto_cancelado_pago?: number;
+  monto_cancelado?: number;
+  medio_pago?: string;
 }
 
 /**
@@ -111,25 +200,40 @@ export const apiClient = {
 
   // Módulo Persona 1: Socios
   socios: {
-    getAll: () => apiClient.get<any[]>("/socios"),
-    getById: (id: number) => apiClient.get<any>(`/socios/${id}`),
-    create: (data: any) => apiClient.post<any>("/socios", data),
+    getAll: () => apiClient.get<Socio[]>("/socios"),
+    getById: (id: number) => apiClient.get<Socio>(`/socios/${id}`),
+    create: (data: Partial<Socio>) => apiClient.post<Socio>("/socios", data),
   },
 
   // Módulo Persona 2: Clases
   clases: {
-    getAll: () => apiClient.get<any[]>("/clases"),
-    create: (data: any) => apiClient.post<any>("/clases", data),
-    inscribir: (data: { id_socio: number; id_clase: number }) => 
-      apiClient.post<any>("/clases/inscripciones", data),
+    getAll: () => apiClient.get<Clase[]>("/clases"),
+    create: (data: Partial<Clase>) => apiClient.post<Clase>("/clases", data),
+    getSesiones: () => apiClient.get<SesionOcupacion[]>("/clases/sesiones"),
+    inscribir: (data: { 
+      id_socio_inscripcion?: number; 
+      id_socio?: number; 
+      id_sesion_inscripcion?: number; 
+      id_sesion?: number; 
+      observaciones_inscripcion?: string;
+      observaciones?: string;
+    }) => apiClient.post<any>("/clases/inscripciones", data),
   },
 
   // Módulo Persona 3: Contratos y Pagos
   contratos: {
-    getAll: () => apiClient.get<any[]>("/contratos"),
-    create: (data: any) => apiClient.post<any>("/contratos", data),
-    registrarPago: (data: { id_contrato: number; monto: number; metodo_pago: string }) => 
-      apiClient.post<any>("/contratos/pagos", data),
+    getPlanes: () => apiClient.get<PlanMembresia[]>("/contratos/planes"),
+    getAll: () => apiClient.get<Contrato[]>("/contratos"),
+    create: (data: Partial<Contrato>) => apiClient.post<Contrato>("/contratos", data),
+    registrarPago: (data: { 
+      id_contrato_pago?: number; 
+      id_contrato?: number; 
+      monto_cancelado_pago?: number; 
+      monto_cancelado?: number; 
+      monto?: number;
+      medio_pago?: string; 
+      metodo_pago?: string;
+    }) => apiClient.post<Pago>("/contratos/pagos", data),
   },
 };
 

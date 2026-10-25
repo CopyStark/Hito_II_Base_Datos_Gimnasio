@@ -1,7 +1,7 @@
 """
 Módulo de Acceso y Administración de Socios
 Responsable: Persona 1 (Carlos)
-Sincronizado con tabla: [dbo].[Socio]
+Sincronizado con tabla: [dbo].[Socio] (sufijo _socio en todas las columnas excepto PK id_socio)
 
 REGLAS DE DESARROLLO:
 1. Prohibido el uso de ORM.
@@ -29,14 +29,15 @@ router = APIRouter(
 def listar_socios():
     """
     Obtiene la lista completa de socios desde la tabla Socio.
+    Utiliza la convención oficial de sufijos de GimnasioDB.
     """
     socios = []
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 query = """
-                    SELECT id_socio, rut, nombre_completo, fecha_nacimiento, correo, 
-                           telefono, id_sede_registro, acepta_promociones, activo
+                    SELECT id_socio, rut_socio, nombre_completo_socio, fecha_nacimiento_socio, correo_socio, 
+                           telefono_socio, id_sede_registro_socio, acepta_promociones_socio, activo_socio
                     FROM Socio
                     ORDER BY id_socio DESC
                 """
@@ -60,8 +61,8 @@ def obtener_socio(id_socio: int):
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 query = """
-                    SELECT id_socio, rut, nombre_completo, fecha_nacimiento, correo, 
-                           telefono, id_sede_registro, acepta_promociones, activo
+                    SELECT id_socio, rut_socio, nombre_completo_socio, fecha_nacimiento_socio, correo_socio, 
+                           telefono_socio, id_sede_registro_socio, acepta_promociones_socio, activo_socio
                     FROM Socio
                     WHERE id_socio = ?
                 """
@@ -91,44 +92,56 @@ def registrar_socio(socio: SocioCreate):
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 # 1. Validar que la sede de registro exista
-                cursor.execute("SELECT id_sede FROM Sede WHERE id_sede = ?", (socio.id_sede_registro,))
+                cursor.execute("SELECT id_sede FROM Sede WHERE id_sede = ?", (socio.id_sede_registro_socio,))
                 if not cursor.fetchone():
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"La sede con ID {socio.id_sede_registro} no existe."
+                        detail=f"La sede con ID {socio.id_sede_registro_socio} no existe."
                     )
 
                 # 2. Validar RUT o Correo duplicado
-                cursor.execute("SELECT id_socio FROM Socio WHERE rut = ? OR correo = ?", (socio.rut, socio.correo))
+                cursor.execute(
+                    "SELECT id_socio FROM Socio WHERE rut_socio = ? OR correo_socio = ?", 
+                    (socio.rut_socio, socio.correo_socio)
+                )
                 if cursor.fetchone():
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Ya existe un socio registrado con el mismo RUT o Correo."
                     )
 
-                # 3. Inserción con OUTPUT para obtener id_socio generado y activo por defecto
+                # 3. Inserción con OUTPUT para obtener id_socio generado y activo_socio por defecto
                 insert_query = """
-                    INSERT INTO Socio (rut, nombre_completo, fecha_nacimiento, correo, telefono, id_sede_registro, acepta_promociones, activo)
-                    OUTPUT INSERTED.id_socio, INSERTED.activo
+                    INSERT INTO Socio (
+                        rut_socio, 
+                        nombre_completo_socio, 
+                        fecha_nacimiento_socio, 
+                        correo_socio, 
+                        telefono_socio, 
+                        id_sede_registro_socio, 
+                        acepta_promociones_socio, 
+                        activo_socio
+                    )
+                    OUTPUT INSERTED.id_socio, INSERTED.activo_socio
                     VALUES (?, ?, ?, ?, ?, ?, ?, 1)
                 """
                 cursor.execute(
                     insert_query,
                     (
-                        socio.rut, 
-                        socio.nombre_completo, 
-                        socio.fecha_nacimiento, 
-                        socio.correo, 
-                        socio.telefono, 
-                        socio.id_sede_registro, 
-                        1 if socio.acepta_promociones else 0
+                        socio.rut_socio, 
+                        socio.nombre_completo_socio, 
+                        socio.fecha_nacimiento_socio, 
+                        socio.correo_socio, 
+                        socio.telefono_socio, 
+                        socio.id_sede_registro_socio, 
+                        1 if socio.acepta_promociones_socio else 0
                     )
                 )
                 row = cursor.fetchone()
                 return {
                     **socio.model_dump(),
                     "id_socio": row[0],
-                    "activo": bool(row[1])
+                    "activo_socio": bool(row[1])
                 }
     except HTTPException:
         raise

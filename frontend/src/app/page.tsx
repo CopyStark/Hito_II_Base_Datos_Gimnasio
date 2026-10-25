@@ -102,21 +102,28 @@ export default function Home() {
               </p>
             )}
 
-            {!clientesLoading && clientes.map((c, i) => (
-              <div
-                key={c.id_socio ?? i}
-                className="p-3 rounded-xl bg-slate-800/70 border border-slate-700/50 text-xs space-y-1"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-white">{c.nombre_completo}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${c.activo ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>
-                    {c.activo ? "Activo" : "Inactivo"}
-                  </span>
+            {!clientesLoading && clientes.map((c, i) => {
+              const nombre = c.nombre_completo_socio ?? c.nombre_completo ?? "Sin nombre";
+              const activo = c.activo_socio ?? c.activo ?? true;
+              const correo = c.correo_socio ?? c.correo ?? "Sin correo";
+              const rut = c.rut_socio ?? c.rut ?? "Sin RUT";
+
+              return (
+                <div
+                  key={c.id_socio ?? i}
+                  className="p-3 rounded-xl bg-slate-800/70 border border-slate-700/50 text-xs space-y-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-white">{nombre}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${activo ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>
+                      {activo ? "Activo" : "Inactivo"}
+                    </span>
+                  </div>
+                  <p className="text-slate-400">{correo}</p>
+                  <p className="text-slate-500 font-mono">RUT: {rut}</p>
                 </div>
-                <p className="text-slate-400">{c.correo}</p>
-                <p className="text-slate-500 font-mono">RUT: {c.rut}</p>
-              </div>
-            ))}
+              );
+            })}
 
             {!clientesLoading && clientes.length > 0 && (
               <p className="text-[10px] text-slate-600 text-center pt-1">

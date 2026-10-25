@@ -2,6 +2,7 @@
 Módulo de Membresías, Contratos y Pagos
 Responsable: Persona 3
 Sincronizado con tablas: [dbo].[PlanMembresia], [dbo].[Contrato], [dbo].[Pago]
+Convención: sufijos por tabla (_planmembresia, _contrato, _pago)
 
 REGLAS DE DESARROLLO:
 1. Prohibido el uso de ORM.
@@ -43,9 +44,9 @@ def listar_planes():
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 query = """
-                    SELECT id_plan, nombre, duracion_meses, precio_vigente
+                    SELECT id_planmembresia, nombre_planmembresia, duracion_meses_planmembresia, precio_vigente_planmembresia
                     FROM PlanMembresia
-                    ORDER BY duracion_meses ASC
+                    ORDER BY duracion_meses_planmembresia ASC
                 """
                 cursor.execute(query)
                 columns = [col[0] for col in cursor.description]
@@ -68,7 +69,8 @@ def listar_contratos():
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 query = """
-                    SELECT id_contrato, id_socio, id_plan, fecha_inicio, fecha_termino, estado, precio_pactado
+                    SELECT id_contrato, id_socio_contrato, id_planmembresia_contrato, 
+                           fecha_inicio_contrato, fecha_termino_contrato, estado_contrato, precio_pactado_contrato
                     FROM Contrato
                     ORDER BY id_contrato DESC
                 """
@@ -92,30 +94,43 @@ def crear_contrato(contrato: ContratoCreate):
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 # 1. Validar existencia del socio
-                cursor.execute("SELECT id_socio FROM Socio WHERE id_socio = ?", (contrato.id_socio,))
+                cursor.execute("SELECT id_socio FROM Socio WHERE id_socio = ?", (contrato.id_socio_contrato,))
                 if not cursor.fetchone():
-                    raise HTTPException(status_code=404, detail=f"El socio con ID {contrato.id_socio} no existe.")
+                    raise HTTPException(status_code=404, detail=f"El socio con ID {contrato.id_socio_contrato} no existe.")
 
                 # 2. Validar existencia del plan
-                cursor.execute("SELECT id_plan FROM PlanMembresia WHERE id_plan = ?", (contrato.id_plan,))
+                cursor.execute(
+                    "SELECT id_planmembresia FROM PlanMembresia WHERE id_planmembresia = ?", 
+                    (contrato.id_planmembresia_contrato,)
+                )
                 if not cursor.fetchone():
-                    raise HTTPException(status_code=404, detail=f"El plan con ID {contrato.id_plan} no existe.")
+                    raise HTTPException(
+                        status_code=404, 
+                        detail=f"El plan de membresía con ID {contrato.id_planmembresia_contrato} no existe."
+                    )
 
                 # 3. Insertar contrato
                 query = """
-                    INSERT INTO Contrato (id_socio, id_plan, fecha_inicio, fecha_termino, estado, precio_pactado)
+                    INSERT INTO Contrato (
+                        id_socio_contrato, 
+                        id_planmembresia_contrato, 
+                        fecha_inicio_contrato, 
+                        fecha_termino_contrato, 
+                        estado_contrato, 
+                        precio_pactado_contrato
+                    )
                     OUTPUT INSERTED.id_contrato
                     VALUES (?, ?, ?, ?, ?, ?)
                 """
                 cursor.execute(
                     query,
                     (
-                        contrato.id_socio, 
-                        contrato.id_plan, 
-                        contrato.fecha_inicio, 
-                        contrato.fecha_termino, 
-                        contrato.estado, 
-                        contrato.precio_pactado
+                        contrato.id_socio_contrato, 
+                        contrato.id_planmembresia_contrato, 
+                        contrato.fecha_inicio_contrato, 
+                        contrato.fecha_termino_contrato, 
+                        contrato.estado_contrato, 
+                        contrato.precio_pactado_contrato
                     )
                 )
                 id_contrato = cursor.fetchone()[0]
@@ -140,26 +155,26 @@ def registrar_pago(pago: PagoCreate):
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 # 1. Comprobar que el contrato exista
-                cursor.execute("SELECT id_contrato FROM Contrato WHERE id_contrato = ?", (pago.id_contrato,))
+                cursor.execute("SELECT id_contrato FROM Contrato WHERE id_contrato = ?", (pago.id_contrato_pago,))
                 if not cursor.fetchone():
-                    raise HTTPException(status_code=404, detail=f"El contrato {pago.id_contrato} no existe.")
+                    raise HTTPException(status_code=404, detail=f"El contrato {pago.id_contrato_pago} no existe.")
 
                 # 2. Insertar registro de pago
                 insert_query = """
-                    INSERT INTO Pago (id_contrato, fecha_pago, monto_cancelado, medio_pago)
+                    INSERT INTO Pago (id_contrato_pago, fecha_pago, monto_cancelado_pago, medio_pago)
                     OUTPUT INSERTED.id_pago, INSERTED.fecha_pago
                     VALUES (?, SYSDATETIME(), ?, ?)
                 """
                 cursor.execute(
                     insert_query,
-                    (pago.id_contrato, pago.monto_cancelado, pago.medio_pago)
+                    (pago.id_contrato_pago, pago.monto_cancelado_pago, pago.medio_pago)
                 )
                 res = cursor.fetchone()
                 return {
                     "id_pago": res[0],
-                    "id_contrato": pago.id_contrato,
+                    "id_contrato_pago": pago.id_contrato_pago,
                     "fecha_pago": res[1],
-                    "monto_cancelado": pago.monto_cancelado,
+                    "monto_cancelado_pago": pago.monto_cancelado_pago,
                     "medio_pago": pago.medio_pago
                 }
     except HTTPException:

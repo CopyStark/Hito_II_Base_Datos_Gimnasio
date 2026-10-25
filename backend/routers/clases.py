@@ -2,6 +2,7 @@
 Módulo de Gestión de Clases, Sesiones e Inscripciones
 Responsable: Persona 2
 Sincronizado con tablas: [dbo].[Clase], [dbo].[Sesion], [dbo].[Inscripcion]
+Convención: sufijos por tabla (_clase, _sesion, _inscripcion)
 
 REGLAS DE DESARROLLO:
 1. Prohibido el uso de ORM.
@@ -43,9 +44,9 @@ def listar_clases():
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 query = """
-                    SELECT id_clase, nombre, duracion_minutos, nivel_exigencia
+                    SELECT id_clase, nombre_clase, duracion_minutos_clase, nivel_exigencia_clase
                     FROM Clase
-                    ORDER BY nombre ASC
+                    ORDER BY nombre_clase ASC
                 """
                 cursor.execute(query)
                 columns = [col[0] for col in cursor.description]
@@ -67,13 +68,13 @@ def crear_clase(clase: ClaseCreate):
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 insert_query = """
-                    INSERT INTO Clase (nombre, duracion_minutos, nivel_exigencia)
+                    INSERT INTO Clase (nombre_clase, duracion_minutos_clase, nivel_exigencia_clase)
                     OUTPUT INSERTED.id_clase
                     VALUES (?, ?, ?)
                 """
                 cursor.execute(
                     insert_query,
-                    (clase.nombre, clase.duracion_minutos, clase.nivel_exigencia)
+                    (clase.nombre_clase, clase.duracion_minutos_clase, clase.nivel_exigencia_clase)
                 )
                 row = cursor.fetchone()
                 return {
@@ -90,25 +91,38 @@ def crear_clase(clase: ClaseCreate):
 def listar_sesiones_disponibles():
     """
     Consulta la vista oficial vw_Reporte_Ocupacion_Clases para mostrar cupos en tiempo real.
+    Columnas oficiales: id_sesion, nombre_clase, nombre_sede, fecha_sesion, hora_sesion, 
+                       cupo_maximo_sesion, total_inscritos, cupos_disponibles.
     """
     sesiones = []
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 query = """
-                    SELECT id_sesion, Clase, Sede, fecha, hora, cupo_maximo, Total_Inscritos, Cupos_Disponibles
+                    SELECT id_sesion, nombre_clase, nombre_sede, fecha_sesion, hora_sesion, 
+                           cupo_maximo_sesion, total_inscritos, cupos_disponibles
                     FROM vw_Reporte_Ocupacion_Clases
-                    ORDER BY fecha ASC, hora ASC
+                    ORDER BY fecha_sesion ASC, hora_sesion ASC
                 """
                 cursor.execute(query)
                 columns = [col[0] for col in cursor.description]
                 for row in cursor.fetchall():
                     item = dict(zip(columns, row))
                     # Convertir hora y fecha a string para serialización JSON limpia
-                    if "hora" in item and item["hora"] is not None:
-                        item["hora"] = str(item["hora"])
-                    if "fecha" in item and item["fecha"] is not None:
-                        item["fecha"] = str(item["fecha"])
+                    if "hora_sesion" in item and item["hora_sesion"] is not None:
+                        item["hora_sesion"] = str(item["hora_sesion"])
+                    if "fecha_sesion" in item and item["fecha_sesion"] is not None:
+                        item["fecha_sesion"] = str(item["fecha_sesion"])
+
+                    # Aliases de compatibilidad para código que consuma la convención previa
+                    item["Clase"] = item.get("nombre_clase")
+                    item["Sede"] = item.get("nombre_sede")
+                    item["fecha"] = item.get("fecha_sesion")
+                    item["hora"] = item.get("hora_sesion")
+                    item["cupo_maximo"] = item.get("cupo_maximo_sesion")
+                    item["Total_Inscritos"] = item.get("total_inscritos")
+                    item["Cupos_Disponibles"] = item.get("cupos_disponibles")
+
                     sesiones.append(item)
         return sesiones
     except pyodbc.Error as e:
@@ -127,12 +141,12 @@ def inscribir_socio(inscripcion: InscripcionCreate):
             with conn.cursor() as cursor:
                 # 1. Validar que la sesión existe y revisar cupo disponible
                 cursor.execute("""
-                    SELECT se.cupo_maximo, COUNT(i.id_inscripcion) AS inscritos
+                    SELECT se.cupo_maximo_sesion, COUNT(i.id_inscripcion) AS inscritos
                     FROM Sesion se
-                    LEFT JOIN Inscripcion i ON se.id_sesion = i.id_sesion AND i.estado = 'Inscrito'
+                    LEFT JOIN Inscripcion i ON se.id_sesion = i.id_sesion_inscripcion AND i.estado_inscripcion = 'Inscrito'
                     WHERE se.id_sesion = ?
-                    GROUP BY se.id_sesion, se.cupo_maximo
-                """, (inscripcion.id_sesion,))
+                    GROUP BY se.id_sesion, se.cupo_maximo_sesion
+                """, (inscripcion.id_sesion_inscripcion,))
                 row = cursor.fetchone()
                 if not row:
                     raise HTTPException(status_code=404, detail="La sesión especificada no existe.")
@@ -144,30 +158,40 @@ def inscribir_socio(inscripcion: InscripcionCreate):
                 # 2. Validar que el socio no esté ya inscrito
                 cursor.execute("""
                     SELECT id_inscripcion FROM Inscripcion
-                    WHERE id_socio = ? AND id_sesion = ? AND estado = 'Inscrito'
-                """, (inscripcion.id_socio, inscripcion.id_sesion))
+                    WHERE id_socio_inscripcion = ? AND id_sesion_inscripcion = ? AND estado_inscripcion = 'Inscrito'
+                """, (inscripcion.id_socio_inscripcion, inscripcion.id_sesion_inscripcion))
                 if cursor.fetchone():
                     raise HTTPException(status_code=400, detail="El socio ya se encuentra inscrito en esta sesión.")
 
                 # 3. Insertar inscripción
                 insert_query = """
-                    INSERT INTO Inscripcion (id_socio, id_sesion, fecha_inscripcion, estado, observaciones)
-                    OUTPUT INSERTED.id_inscripcion, INSERTED.fecha_inscripcion, INSERTED.estado
+                    INSERT INTO Inscripcion (
+                        id_socio_inscripcion, 
+                        id_sesion_inscripcion, 
+                        fecha_inscripcion, 
+                        estado_inscripcion, 
+                        observaciones_inscripcion
+                    )
+                    OUTPUT INSERTED.id_inscripcion, INSERTED.fecha_inscripcion, INSERTED.estado_inscripcion
                     VALUES (?, ?, SYSDATETIME(), 'Inscrito', ?)
                 """
                 cursor.execute(
                     insert_query,
-                    (inscripcion.id_socio, inscripcion.id_sesion, inscripcion.observaciones)
+                    (
+                        inscripcion.id_socio_inscripcion, 
+                        inscripcion.id_sesion_inscripcion, 
+                        inscripcion.observaciones_inscripcion
+                    )
                 )
                 res = cursor.fetchone()
                 return {
                     "id_inscripcion": res[0],
-                    "id_socio": inscripcion.id_socio,
-                    "id_sesion": inscripcion.id_sesion,
+                    "id_socio_inscripcion": inscripcion.id_socio_inscripcion,
+                    "id_sesion_inscripcion": inscripcion.id_sesion_inscripcion,
                     "fecha_inscripcion": res[1],
-                    "estado": res[2],
-                    "observaciones": inscripcion.observaciones,
-                    "asistio": None
+                    "estado_inscripcion": res[2],
+                    "observaciones_inscripcion": inscripcion.observaciones_inscripcion,
+                    "asistio_inscripcion": None
                 }
     except HTTPException:
         raise

@@ -54,8 +54,9 @@ git checkout -b feature/tu-modulo
 ```
 
 ### 2. Cargar Base de Datos de Prueba (SQL Server)
-Abre **SQL Server Management Studio (SSMS)** y ejecuta el script:
-`database/seed_inicial.sql`
+Abre **SQL Server Management Studio (SSMS)** y ejecuta en orden:
+1. `database/GimnasioDB_DDL.sql` (crea la base de datos y su esquema relacional)
+2. `database/GimnasioDB_Seed.sql` (puebla los datos de prueba iniciales)
 
 ### 3. Levantar el Backend (FastAPI)
 ```powershell
