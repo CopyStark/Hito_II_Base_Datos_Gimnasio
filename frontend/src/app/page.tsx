@@ -350,47 +350,91 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <TeamCard
-              personNumber="Persona 1"
-              roleTitle="Acceso & Socios"
+              personNumber="Persona 1 (Carlos)"
+              roleTitle="Acceso, Socios & Sedes"
               moduleRoute="/socios"
               backendFile="backend/routers/auth_socios.py"
-              colorBorder="border-blue-500/30"
+              colorBorder="border-blue-500/40"
               badgeBg="bg-blue-600"
+              databaseEntities={[
+                "Socio",
+                "Usuario",
+                "Rol",
+                "Sede",
+                "vw_Reporte_Socios_Por_Sede"
+              ]}
               responsibilities={[
-                "Registro y credenciales de socios",
-                "Consultas SQL a tabla Socio con pyodbc",
-                "Control de acceso y estado activo/inactivo",
-                "Schemas Pydantic para validación de datos"
+                "Autenticación multi-rol (Socio, Instructor, Admin) con HASHBYTES SHA2_512",
+                "Alta, edición, baja/estado y búsqueda avanzada de socios (RUT, nombre, correo)",
+                "Portal del Socio: consulta y edición de sus propios datos personales",
+                "Control de acceso y simulación de torniquete en recepción en tiempo real",
+                "Gestión de infraestructura de Sedes y reporte analítico de socios por sede"
+              ]}
+              frontendViews={[
+                "Login Multi-rol",
+                "Gestión de Socios",
+                "Mi Perfil",
+                "Torniquete / Portería"
               ]}
             />
 
             <TeamCard
               personNumber="Persona 2"
-              roleTitle="Clases & Sesiones"
+              roleTitle="Clases, Sesiones & Asistencia"
               moduleRoute="/clases"
               backendFile="backend/routers/clases.py"
-              colorBorder="border-purple-500/30"
+              colorBorder="border-purple-500/40"
               badgeBg="bg-purple-600"
+              databaseEntities={[
+                "Clase",
+                "Sesion",
+                "Inscripcion",
+                "Instructor",
+                "Equipamiento",
+                "vw_Reporte_Ocupacion_Clases",
+                "vw_Ranking_Clases_Demandadas"
+              ]}
               responsibilities={[
-                "Catálogo de disciplinas y entrenadores",
-                "Gestión de cupos y horarios",
-                "Inscripción de socios a sesiones",
-                "Consultas SQL con JOINs y agregaciones"
+                "Catálogo de disciplinas y programación de sesiones (sede, horario, cupo)",
+                "Portal del Socio: reserva de clases con validación de contrato vigente y cupos",
+                "Cancelación de inscripciones de socios antes de la realización de la sesión",
+                "Portal del Instructor: agenda de sesiones, lista de inscritos y pase de asistencia",
+                "Gestión de instructores, equipamiento y reportes de ocupación y ranking de clases"
+              ]}
+              frontendViews={[
+                "Catálogo y Reserva",
+                "Portal del Instructor",
+                "Programador de Sesiones",
+                "Inventario Equipos"
               ]}
             />
 
             <TeamCard
               personNumber="Persona 3"
-              roleTitle="Membresías & Pagos"
+              roleTitle="Membresías, Contratos & Finanzas"
               moduleRoute="/contratos"
               backendFile="backend/routers/contratos.py"
-              colorBorder="border-emerald-500/30"
+              colorBorder="border-emerald-500/40"
               badgeBg="bg-emerald-600"
+              databaseEntities={[
+                "PlanMembresia",
+                "Contrato",
+                "Pago",
+                "Personal",
+                "vw_Reporte_Ingresos_Por_Sede"
+              ]}
               responsibilities={[
-                "Planes de suscripción y contratos",
-                "Transacciones atómicas de pagos",
-                "Vencimiento y estado de cuentas",
-                "Consultas SQL con transacciones (commit/rollback)"
+                "Catálogo de planes de membresía y generador de contratos con fechas y precios",
+                "Control de estados de contrato (Vigente, Vencido, Cancelado) y plazos",
+                "Caja y registro de pagos atómicos (Efectivo, Tarjeta, Transferencia)",
+                "Portal Financiero del Socio: consulta de contratos, recibos y saldo pendiente",
+                "Gestión de Personal del gimnasio y reporte de ingresos por sede y período"
+              ]}
+              frontendViews={[
+                "Estado de Cuenta",
+                "Generador de Contratos",
+                "Módulo de Caja",
+                "Personal y Finanzas"
               ]}
             />
           </div>

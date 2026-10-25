@@ -36,11 +36,11 @@ Sistema integral de gestión de gimnasios con arquitectura modular **API-First**
 
 ## 👥 División de Trabajo del Equipo
 
-| Integrante | Rol | Router Backend | Archivo | Responsabilidades |
-| :--- | :--- | :--- | :--- | :--- |
-| **Carlos** | Persona 1 | `/socios` | `backend/routers/auth_socios.py` | Esqueleto BD, `seed_inicial.sql`, gestión y registro de socios. |
-| **Integrante 2** | Persona 2 | `/clases` | `backend/routers/clases.py` | Catálogo de clases, cupos, horarios e inscripciones. |
-| **Integrante 3** | Persona 3 | `/contratos` | `backend/routers/contratos.py` | Planes de membresía, contratos y registro atómico de pagos. |
+| Integrante | Rol | Router Backend | Archivo | Tablas & Vistas | Responsabilidades Principales |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Carlos** | Persona 1 | `/socios` | `backend/routers/auth_socios.py` | `Socio`, `Usuario`, `Rol`, `Sede`<br>`vw_Reporte_Socios_Por_Sede` | Login multi-rol (SHA2_512), perfil del socio, gestión de socios (alta, baja, filtros), control de acceso en torniquetes y sedes. |
+| **Integrante 2** | Persona 2 | `/clases` | `backend/routers/clases.py` | `Clase`, `Sesion`, `Inscripcion`, `Instructor`, `Equipamiento`<br>`vw_Reporte_Ocupacion_Clases`<br>`vw_Ranking_Clases_Demandadas` | Catálogo de clases, programación de sesiones, reserva/cancelación para socios, portal del instructor con asistencia y equipamiento. |
+| **Integrante 3** | Persona 3 | `/contratos` | `backend/routers/contratos.py` | `PlanMembresia`, `Contrato`, `Pago`, `Personal`<br>`vw_Reporte_Ingresos_Por_Sede` | Planes de membresía, emisión de contratos, caja y pagos atómicos, estado de cuenta/saldo del socio, personal y reporte de ingresos. |
 
 ---
 
