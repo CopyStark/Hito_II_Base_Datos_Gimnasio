@@ -10,10 +10,7 @@
 // URL oficial del Backend en producción (Render)
 export const RENDER_BACKEND_URL = "https://gimnasio-backend-c3mu.onrender.com";
 
-const envUrl = process.env.NEXT_PUBLIC_API_URL;
-const API_BASE_URL = (envUrl && envUrl.trim() !== "" && !envUrl.includes("localhost:8000"))
-  ? envUrl.replace(/\/+$/, "")
-  : RENDER_BACKEND_URL;
+const API_BASE_URL = "http://localhost:8000";
 
 export function getApiBaseUrl(): string {
   return API_BASE_URL;
@@ -159,8 +156,8 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
     try {
       errorData = await response.json();
       if (errorData?.detail) {
-        errorDetail = typeof errorData.detail === "string" 
-          ? errorData.detail 
+        errorDetail = typeof errorData.detail === "string"
+          ? errorData.detail
           : JSON.stringify(errorData.detail);
       }
     } catch {
@@ -181,16 +178,16 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
  * Cliente API con métodos tipados para uso del equipo
  */
 export const apiClient = {
-  get: <T>(endpoint: string, params?: Record<string, any>) => 
+  get: <T>(endpoint: string, params?: Record<string, any>) =>
     apiRequest<T>(endpoint, { method: "GET", params }),
 
-  post: <T>(endpoint: string, body?: any) => 
+  post: <T>(endpoint: string, body?: any) =>
     apiRequest<T>(endpoint, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
 
-  put: <T>(endpoint: string, body?: any) => 
+  put: <T>(endpoint: string, body?: any) =>
     apiRequest<T>(endpoint, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
 
-  delete: <T>(endpoint: string) => 
+  delete: <T>(endpoint: string) =>
     apiRequest<T>(endpoint, { method: "DELETE" }),
 
   getBaseUrl: () => API_BASE_URL,
@@ -200,19 +197,19 @@ export const apiClient = {
 
   // Módulo Persona 1: Socios y Control de Acceso
   socios: {
-    getAll: (params?: { activo?: boolean; id_sede?: number; buscar?: string; limite?: number; offset?: number }) => 
+    getAll: (params?: { activo?: boolean; id_sede?: number; buscar?: string; limite?: number; offset?: number }) =>
       apiClient.get<Socio[]>("/socios", params),
     getById: (id: number) => apiClient.get<Socio>(`/socios/${id}`),
     getByRut: (rut: string) => apiClient.get<Socio>(`/socios/rut/${encodeURIComponent(rut)}`),
     create: (data: Partial<Socio>) => apiClient.post<Socio>("/socios", data),
     update: (id: number, data: Partial<Socio>) => apiClient.put<Socio>(`/socios/${id}`, data),
-    cambiarEstado: (id: number, activo: boolean) => 
+    cambiarEstado: (id: number, activo: boolean) =>
       apiRequest<Socio>(`/socios/${id}/estado`, { method: "PATCH", body: JSON.stringify({ activo_socio: activo }) }),
-    asignarCredenciales: (id: number, data: { username_usuario: string; password: string }) => 
+    asignarCredenciales: (id: number, data: { username_usuario: string; password: string }) =>
       apiClient.post<any>(`/socios/${id}/credenciales`, data),
-    login: (data: { username_o_correo: string; password: string }) => 
+    login: (data: { username_o_correo: string; password: string }) =>
       apiClient.post<any>("/socios/login", data),
-    validarAcceso: (identificador: string | number) => 
+    validarAcceso: (identificador: string | number) =>
       apiClient.get<any>(`/socios/acceso/validar/${encodeURIComponent(identificador)}`),
     getSedesCatalogo: () => apiClient.get<any[]>("/socios/sedes/catalogo"),
     getReportePorSede: () => apiClient.get<any[]>("/socios/reportes/por-sede"),
@@ -223,11 +220,11 @@ export const apiClient = {
     getAll: () => apiClient.get<Clase[]>("/clases"),
     create: (data: Partial<Clase>) => apiClient.post<Clase>("/clases", data),
     getSesiones: () => apiClient.get<SesionOcupacion[]>("/clases/sesiones"),
-    inscribir: (data: { 
-      id_socio_inscripcion?: number; 
-      id_socio?: number; 
-      id_sesion_inscripcion?: number; 
-      id_sesion?: number; 
+    inscribir: (data: {
+      id_socio_inscripcion?: number;
+      id_socio?: number;
+      id_sesion_inscripcion?: number;
+      id_sesion?: number;
       observaciones_inscripcion?: string;
       observaciones?: string;
     }) => apiClient.post<any>("/clases/inscripciones", data),
@@ -238,16 +235,198 @@ export const apiClient = {
     getPlanes: () => apiClient.get<PlanMembresia[]>("/contratos/planes"),
     getAll: () => apiClient.get<Contrato[]>("/contratos"),
     create: (data: Partial<Contrato>) => apiClient.post<Contrato>("/contratos", data),
-    registrarPago: (data: { 
-      id_contrato_pago?: number; 
-      id_contrato?: number; 
-      monto_cancelado_pago?: number; 
-      monto_cancelado?: number; 
+    registrarPago: (data: {
+      id_contrato_pago?: number;
+      id_contrato?: number;
+      monto_cancelado_pago?: number;
+      monto_cancelado?: number;
       monto?: number;
-      medio_pago?: string; 
+      medio_pago?: string;
       metodo_pago?: string;
     }) => apiClient.post<Pago>("/contratos/pagos", data),
   },
 };
 
+/* =========================================================================
+ * Módulo Clases (Persona 2)
+ * Definiciones de interfaces y cliente de servicios para /clases
+ * Utiliza exactamente la nomenclatura de esquemas de backend/schemas/clases.py
+ * ========================================================================= */
+
+export interface ClaseResponse {
+  id_clase: number;
+  nombre_clase: string;
+  duracion_minutos_clase: number;
+  nivel_exigencia_clase: "Principiante" | "Intermedio" | "Avanzado" | string;
+}
+
+export interface SesionDisponibleResponse {
+  id_sesion: number;
+  nombre_clase: string;
+  nivel_exigencia_clase: string;
+  duracion_minutos_clase: number;
+  nombre_sede: string;
+  nombre_completo_instructor: string | null;
+  fecha_sesion: string;
+  hora_sesion: string;
+  cupo_maximo_sesion: number;
+  total_inscritos: number;
+  cupos_disponibles: number;
+}
+
+export interface InscribirSocioRequest {
+  id_socio_inscripcion: number;
+  id_sesion_inscripcion: number;
+}
+
+export interface InscripcionCreadaResponse {
+  id_inscripcion: number;
+}
+
+export interface CancelarInscripcionRequest {
+  id_socio: number;
+}
+
+export interface CancelacionResponse {
+  id_inscripcion: number;
+  estado_inscripcion: string;
+}
+
+export interface InscripcionSocioDetalleResponse {
+  id_inscripcion: number;
+  id_socio_inscripcion: number;
+  id_sesion_inscripcion: number;
+  id_clase: number;
+  nombre_clase: string;
+  duracion_minutos_clase: number;
+  nivel_exigencia_clase: string;
+  id_sede: number;
+  nombre_sede: string;
+  fecha_sesion: string;
+  hora_sesion: string;
+  cupo_maximo_sesion: number;
+  fecha_inscripcion: string;
+  estado_inscripcion: string;
+  asistio_inscripcion?: boolean | null;
+  observaciones_inscripcion?: string | null;
+}
+
+export interface SedeSimpleResponse {
+  id_sede: number;
+  nombre_sede: string;
+  direccion_calle_sede: string;
+  telefono_sede: string;
+  nombre_ciudad: string;
+}
+
+export interface InstructorItemResponse {
+  id_instructor: number;
+  rut_instructor: string;
+  nombre_completo_instructor: string;
+  correo_instructor: string;
+  telefono_instructor: string;
+  id_sede_habitual_instructor: number;
+  nombre_sede?: string | null;
+}
+
+export interface SesionInstructorResponse {
+  id_sesion: number;
+  nombre_clase: string;
+  nombre_sede: string;
+  fecha: string;
+  hora: string;
+  cupo_maximo_sesion: number;
+  total_inscritos: number;
+}
+
+export interface ProgramarSesionRequest {
+  id_clase_sesion: number;
+  id_sede_sesion: number;
+  id_instructor_sesion?: number | null;
+  fecha_sesion: string;
+  hora_sesion: string;
+  cupo_maximo_sesion: number;
+}
+
+export interface EquipamientoItemResponse {
+  id_equipamiento: number;
+  nombre_descriptivo_equipamiento: string;
+  nombre_sede: string;
+  id_sede_equipamiento: number;
+  fecha_adquisicion_equipamiento: string;
+  antiguedad_anios: number;
+}
+
+export interface EquipamientoCreateRequest {
+  id_sede_equipamiento: number;
+  nombre_descriptivo_equipamiento: string;
+  fecha_adquisicion_equipamiento: string;
+}
+
+export interface EquipamientoCreadoResponse {
+  id_equipamiento: number;
+}
+
+export interface EquipamientoUpdateRequest {
+  nombre_descriptivo_equipamiento: string;
+  fecha_adquisicion_equipamiento: string;
+}
+
+export interface EquipamientoOperacionResponse {
+  id_equipamiento: number;
+  mensaje: string;
+}
+
+export const clasesApi = {
+  // Catálogo de clases
+  getClases: () => apiClient.get<ClaseResponse[]>("/clases"),
+
+  // Sesiones con filtros opcionales
+  getSesiones: (params?: { fecha?: string; id_sede?: number; id_clase?: number }) =>
+    apiClient.get<SesionDisponibleResponse[]>("/clases/sesiones", params),
+
+  // Reserva e inscripciones
+  inscribirSocio: (data: InscribirSocioRequest) =>
+    apiClient.post<InscripcionCreadaResponse>("/clases/inscripciones", data),
+
+  cancelarInscripcion: (id_inscripcion: number, data: CancelarInscripcionRequest) =>
+    apiRequest<CancelacionResponse>(`/clases/inscripciones/${id_inscripcion}/cancelar`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  getInscripcionesSocio: (id_socio: number) =>
+    apiClient.get<InscripcionSocioDetalleResponse[]>(`/clases/socios/${id_socio}/inscripciones`),
+
+  // Sedes e instructores
+  getSedes: () => apiClient.get<SedeSimpleResponse[]>("/clases/sedes"),
+
+  getInstructores: (params?: { id_sede?: number }) =>
+    apiClient.get<InstructorItemResponse[]>("/clases/instructores", params),
+
+  getSesionesInstructor: (id_instructor: number, params?: { desde?: string; hasta?: string }) =>
+    apiClient.get<SesionInstructorResponse[]>(`/clases/instructores/${id_instructor}/sesiones`, params),
+
+  // Programación de sesiones
+  programarSesion: (data: ProgramarSesionRequest) =>
+    apiClient.post<{ id_sesion: number }>("/clases/sesiones", data),
+
+  // Equipamiento
+  getEquipos: (params?: { id_sede?: number }) =>
+    apiClient.get<EquipamientoItemResponse[]>("/clases/equipos", params),
+
+  registrarEquipo: (data: EquipamientoCreateRequest) =>
+    apiClient.post<EquipamientoCreadoResponse>("/clases/equipos", data),
+
+  actualizarEquipo: (id_equipamiento: number, data: EquipamientoUpdateRequest) =>
+    apiClient.put<EquipamientoOperacionResponse>(`/clases/equipos/${id_equipamiento}`, data),
+
+  eliminarEquipo: (id_equipamiento: number) =>
+    apiClient.delete<EquipamientoOperacionResponse>(`/clases/equipos/${id_equipamiento}`),
+};
+
+// Extender el objeto principal apiClient con clasesApi para retrocompatibilidad
+(apiClient as any).clasesModulo = clasesApi;
+
 export default apiClient;
+

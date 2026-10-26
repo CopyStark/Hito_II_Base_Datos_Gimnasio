@@ -372,7 +372,7 @@ def listar_sesiones_disponibles(
                nombre_sede,
                nombre_completo_instructor,
                fecha_sesion,
-               hora_sesion,
+               CONVERT(VARCHAR(8), hora_sesion, 108) AS hora_sesion,
                cupo_maximo_sesion,
                total_inscritos,
                cupos_disponibles
