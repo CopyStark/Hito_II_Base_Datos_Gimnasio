@@ -13,7 +13,7 @@ SPs implicados    : sp_Inscribir_Socio, sp_Cancelar_Inscripcion,
 
 from datetime import date, datetime
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AliasChoices
 
 
 # ---------------------------------------------------------------------------
@@ -206,3 +206,76 @@ class RankingClaseItem(BaseModel):
     nombre_clase: str
     nivel_exigencia_clase: str
     total_inscripciones: int
+
+
+# ---------------------------------------------------------------------------
+# 8. Instructores, Equipamiento y Detalle de Inscripción – responses & requests
+# ---------------------------------------------------------------------------
+
+class InstructorItemResponse(BaseModel):
+    id_instructor: int
+    rut_instructor: str
+    nombre_completo_instructor: str
+    correo_instructor: str
+    telefono_instructor: str
+    id_sede_habitual_instructor: int
+    nombre_sede: Optional[str] = None
+
+
+class SesionInstructorResponse(BaseModel):
+    id_sesion: int
+    nombre_clase: str
+    nombre_sede: str
+    fecha: date = Field(..., validation_alias=AliasChoices("fecha", "fecha_sesion"))
+    hora: str = Field(..., validation_alias=AliasChoices("hora", "hora_sesion"))
+    cupo_maximo_sesion: int
+    total_inscritos: int
+
+
+class EquipamientoItemResponse(BaseModel):
+    id_equipamiento: int
+    nombre_descriptivo_equipamiento: str
+    nombre_sede: str
+    id_sede_equipamiento: int
+    fecha_adquisicion_equipamiento: date
+    antiguedad_anios: int
+
+
+class EquipamientoCreateRequest(BaseModel):
+    id_sede_equipamiento: int = Field(..., gt=0, validation_alias=AliasChoices("id_sede_equipamiento", "id_sede"))
+    nombre_descriptivo_equipamiento: str = Field(..., min_length=1, max_length=150, validation_alias=AliasChoices("nombre_descriptivo_equipamiento", "nombre"))
+    fecha_adquisicion_equipamiento: date = Field(..., validation_alias=AliasChoices("fecha_adquisicion_equipamiento", "fecha_adquisicion"))
+
+
+class EquipamientoCreadoResponse(BaseModel):
+    id_equipamiento: int
+
+
+class EquipamientoUpdateRequest(BaseModel):
+    nombre_descriptivo_equipamiento: str = Field(..., min_length=1, max_length=150, validation_alias=AliasChoices("nombre_descriptivo_equipamiento", "nombre"))
+    fecha_adquisicion_equipamiento: date = Field(..., validation_alias=AliasChoices("fecha_adquisicion_equipamiento", "fecha_adquisicion"))
+
+
+class EquipamientoOperacionResponse(BaseModel):
+    id_equipamiento: int
+    mensaje: str = "Operación realizada exitosamente"
+
+
+class InscripcionSocioDetalleResponse(BaseModel):
+    id_inscripcion: int
+    id_socio_inscripcion: int
+    id_sesion_inscripcion: int
+    id_clase: int
+    nombre_clase: str
+    duracion_minutos_clase: int
+    nivel_exigencia_clase: str
+    id_sede: int
+    nombre_sede: str
+    fecha_sesion: date
+    hora_sesion: str
+    cupo_maximo_sesion: int
+    fecha_inscripcion: datetime
+    estado_inscripcion: str
+    asistio_inscripcion: Optional[bool] = None
+    observaciones_inscripcion: Optional[str] = None
+

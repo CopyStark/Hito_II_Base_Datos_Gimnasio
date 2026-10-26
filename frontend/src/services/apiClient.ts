@@ -10,7 +10,8 @@
 // URL oficial del Backend en producción (Render)
 export const RENDER_BACKEND_URL = "https://gimnasio-backend-c3mu.onrender.com";
 
-const API_BASE_URL = "http://localhost:8000";
+const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+export const API_BASE_URL = envApiUrl ? envApiUrl.replace(/\/+$/, "") : RENDER_BACKEND_URL;
 
 export function getApiBaseUrl(): string {
   return API_BASE_URL;
