@@ -26,6 +26,8 @@ CÓDIGOS DE ERROR DE LOS SP (definidos en sp_clases.sql):
   50030 = Regla de negocio / dato inválido
 """
 
+import logging
+from datetime import date
 from typing import List, Optional
 import pyodbc
 from fastapi import APIRouter, HTTPException, Query, status
@@ -33,38 +35,150 @@ from fastapi import APIRouter, HTTPException, Query, status
 # ── Importaciones con fallback para ejecución directa vs. desde uvicorn ──────
 try:
     from backend.db.connection import get_db_connection
-    from backend.schemas.clases import (
-        SesionDisponibleResponse,
-        InscribirSocioRequest,
-        InscripcionCreadaResponse,
-        CancelarInscripcionRequest,
-        CancelacionResponse,
-        RegistrarAsistenciaRequest,
-        AsistenciaResponse,
-        ProgramarSesionRequest,
-        SesionCreadaResponse,
-        InscritoEnSesionResponse,
-        OcupacionClaseItem,
-        RankingClaseItem,
-    )
-    from backend.schemas import ClaseResponse
+    from backend.schemas import ClaseResponse, SedeSimpleResponse
+    try:
+        from backend.schemas.clases import (
+            SesionDisponibleResponse,
+            InscribirSocioRequest,
+            InscripcionCreadaResponse,
+            CancelarInscripcionRequest,
+            CancelacionResponse,
+            RegistrarAsistenciaRequest,
+            AsistenciaResponse,
+            ProgramarSesionRequest,
+            SesionCreadaResponse,
+            InscritoEnSesionResponse,
+            OcupacionClaseItem,
+            RankingClaseItem,
+            SedeSimpleResponse,
+            InstructorItemResponse,
+            SesionInstructorResponse,
+            EquipamientoItemResponse,
+            EquipamientoCreateRequest,
+            EquipamientoCreadoResponse,
+            EquipamientoUpdateRequest,
+            EquipamientoOperacionResponse,
+            InscripcionSocioDetalleResponse,
+        )
+    except ImportError:
+        from backend.schemas.clases import (
+            SesionDisponibleResponse,
+            InscribirSocioRequest,
+            InscripcionCreadaResponse,
+            CancelarInscripcionRequest,
+            CancelacionResponse,
+            RegistrarAsistenciaRequest,
+            AsistenciaResponse,
+            ProgramarSesionRequest,
+            SesionCreadaResponse,
+            InscritoEnSesionResponse,
+            OcupacionClaseItem,
+            RankingClaseItem,
+        )
+        from datetime import datetime
+        from pydantic import BaseModel, Field, AliasChoices
+
+        class InstructorItemResponse(BaseModel):
+            id_instructor: int
+            rut_instructor: str
+            nombre_completo_instructor: str
+            correo_instructor: str
+            telefono_instructor: str
+            id_sede_habitual_instructor: int
+            nombre_sede: Optional[str] = None
+
+        class SesionInstructorResponse(BaseModel):
+            id_sesion: int
+            nombre_clase: str
+            nombre_sede: str
+            fecha: date = Field(..., validation_alias=AliasChoices("fecha", "fecha_sesion"))
+            hora: str = Field(..., validation_alias=AliasChoices("hora", "hora_sesion"))
+            cupo_maximo_sesion: int
+            total_inscritos: int
+
+        class EquipamientoItemResponse(BaseModel):
+            id_equipamiento: int
+            nombre_descriptivo_equipamiento: str
+            nombre_sede: str
+            id_sede_equipamiento: int
+            fecha_adquisicion_equipamiento: date
+            antiguedad_anios: int
+
+        class EquipamientoCreateRequest(BaseModel):
+            id_sede_equipamiento: int = Field(..., gt=0, validation_alias=AliasChoices("id_sede_equipamiento", "id_sede"))
+            nombre_descriptivo_equipamiento: str = Field(..., min_length=1, max_length=150, validation_alias=AliasChoices("nombre_descriptivo_equipamiento", "nombre"))
+            fecha_adquisicion_equipamiento: date = Field(..., validation_alias=AliasChoices("fecha_adquisicion_equipamiento", "fecha_adquisicion"))
+
+        class EquipamientoCreadoResponse(BaseModel):
+            id_equipamiento: int
+
+        class EquipamientoUpdateRequest(BaseModel):
+            nombre_descriptivo_equipamiento: str = Field(..., min_length=1, max_length=150, validation_alias=AliasChoices("nombre_descriptivo_equipamiento", "nombre"))
+            fecha_adquisicion_equipamiento: date = Field(..., validation_alias=AliasChoices("fecha_adquisicion_equipamiento", "fecha_adquisicion"))
+
+        class EquipamientoOperacionResponse(BaseModel):
+            id_equipamiento: int
+            mensaje: str = "Operación realizada exitosamente"
+
+        class InscripcionSocioDetalleResponse(BaseModel):
+            id_inscripcion: int
+            id_socio_inscripcion: int
+            id_sesion_inscripcion: int
+            id_clase: int
+            nombre_clase: str
+            duracion_minutos_clase: int
+            nivel_exigencia_clase: str
+            id_sede: int
+            nombre_sede: str
+            fecha_sesion: date
+            hora_sesion: str
+            cupo_maximo_sesion: int
+            fecha_inscripcion: datetime
+            estado_inscripcion: str
+            asistio_inscripcion: Optional[bool] = None
+            observaciones_inscripcion: Optional[str] = None
 except ImportError:
     from db.connection import get_db_connection
-    from schemas.clases import (
-        SesionDisponibleResponse,
-        InscribirSocioRequest,
-        InscripcionCreadaResponse,
-        CancelarInscripcionRequest,
-        CancelacionResponse,
-        RegistrarAsistenciaRequest,
-        AsistenciaResponse,
-        ProgramarSesionRequest,
-        SesionCreadaResponse,
-        InscritoEnSesionResponse,
-        OcupacionClaseItem,
-        RankingClaseItem,
-    )
-    from schemas import ClaseResponse
+    from schemas import ClaseResponse, SedeSimpleResponse
+    try:
+        from schemas.clases import (
+            SesionDisponibleResponse,
+            InscribirSocioRequest,
+            InscripcionCreadaResponse,
+            CancelarInscripcionRequest,
+            CancelacionResponse,
+            RegistrarAsistenciaRequest,
+            AsistenciaResponse,
+            ProgramarSesionRequest,
+            SesionCreadaResponse,
+            InscritoEnSesionResponse,
+            OcupacionClaseItem,
+            RankingClaseItem,
+            SedeSimpleResponse,
+            InstructorItemResponse,
+            SesionInstructorResponse,
+            EquipamientoItemResponse,
+            EquipamientoCreateRequest,
+            EquipamientoCreadoResponse,
+            EquipamientoUpdateRequest,
+            EquipamientoOperacionResponse,
+            InscripcionSocioDetalleResponse,
+        )
+    except ImportError:
+        from schemas.clases import (
+            SesionDisponibleResponse,
+            InscribirSocioRequest,
+            InscripcionCreadaResponse,
+            CancelarInscripcionRequest,
+            CancelacionResponse,
+            RegistrarAsistenciaRequest,
+            AsistenciaResponse,
+            ProgramarSesionRequest,
+            SesionCreadaResponse,
+            InscritoEnSesionResponse,
+            OcupacionClaseItem,
+            RankingClaseItem,
+        )
 
 # ── Definición del router ──────────────────────────────────────────────────
 # prefix="/clases" es el único prefijo; main.py NO añade ninguno adicional.
@@ -86,11 +200,11 @@ def _sp_error_to_http(exc: pyodbc.Error) -> HTTPException:
     del mensaje con el formato: '[SQL Server]<mensaje> (NNNNN) ...'.
     Extraemos el número buscando el patrón '(NNNNN)'.
 
-    Códigos definidos en sp_clases.sql:
+    Códigos definidos en sp_clases.sql y sp_equipos.sql:
       50010 -> 404 Not Found
       50020 -> 409 Conflict
       50030 -> 400 Bad Request
-      otro  -> 500 Internal Server Error (mensaje genérico)
+      otro  -> 500 Internal Server Error (mensaje genérico + logging.exception)
     """
     # El mensaje completo de pyodbc incluye el número entre paréntesis.
     msg_completo = str(exc)
@@ -117,7 +231,8 @@ def _sp_error_to_http(exc: pyodbc.Error) -> HTTPException:
     if numero_error == 50030:
         return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg_sp)
 
-    # Error desconocido: respuesta 500 sin exponer detalles internos
+    # Error desconocido: registro con logging.exception y respuesta 500 sin exponer detalles
+    logging.exception("Error de base de datos no controlado: %s", exc)
     return HTTPException(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         detail="Error interno en la base de datos. Contacte al administrador.",
@@ -594,4 +709,403 @@ def reporte_ranking_clases():
         return resultado
     except pyodbc.Error as exc:
         raise _sp_error_to_http(exc)
+
+
+# =============================================================================
+# ENDPOINT 10: GET /clases/sedes
+# Listado completo de sedes para selectores y gestión
+# =============================================================================
+@router.get(
+    "/sedes",
+    response_model=List[SedeSimpleResponse],
+    summary="Listado de sedes",
+    description="Devuelve todas las sedes del gimnasio junto con el nombre de su ciudad.",
+)
+def listar_sedes():
+    """
+    SELECT directo sobre la tabla Sede con INNER JOIN a Ciudad.
+    Sin parámetros de usuario; ordenado alfabéticamente por nombre_sede.
+    """
+    resultado = []
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT s.id_sede,
+                           s.nombre_sede,
+                           s.direccion_calle_sede,
+                           s.id_ciudad_sede,
+                           s.telefono_sede,
+                           c.nombre_ciudad
+                    FROM   Sede AS s
+                    INNER JOIN Ciudad AS c ON s.id_ciudad_sede = c.id_ciudad
+                    ORDER  BY s.nombre_sede ASC
+                    """
+                )
+                for row in cursor.fetchall():
+                    resultado.append(_row_to_dict(cursor, row))
+        return resultado
+    except pyodbc.Error as exc:
+        raise _sp_error_to_http(exc)
+
+
+# =============================================================================
+# ENDPOINT 11: GET /clases/instructores
+# Listado de instructores con filtro opcional por sede habitual
+# =============================================================================
+@router.get(
+    "/instructores",
+    response_model=List[InstructorItemResponse],
+    summary="Listado de instructores",
+    description=(
+        "Devuelve instructores registrados en la tabla Instructor. "
+        "Acepta filtro opcional por sede habitual (id_sede)."
+    ),
+)
+def listar_instructores(
+    id_sede: Optional[int] = Query(
+        default=None,
+        gt=0,
+        description="Filtrar por id_sede_habitual_instructor.",
+    ),
+):
+    """
+    SELECT sobre la tabla Instructor con INNER JOIN a Sede.
+    Construye la cláusula WHERE de forma parametrizada con '?' evitando SQL injection.
+    """
+    condiciones = []
+    parametros = []
+
+    if id_sede is not None:
+        condiciones.append("i.id_sede_habitual_instructor = ?")
+        parametros.append(id_sede)
+
+    where_clause = ""
+    if condiciones:
+        where_clause = "WHERE " + " AND ".join(condiciones)
+
+    sql = f"""
+        SELECT i.id_instructor,
+               i.rut_instructor,
+               i.nombre_completo_instructor,
+               i.correo_instructor,
+               i.telefono_instructor,
+               i.id_sede_habitual_instructor,
+               s.nombre_sede
+        FROM   Instructor AS i
+        INNER JOIN Sede AS s ON i.id_sede_habitual_instructor = s.id_sede
+        {where_clause}
+        ORDER  BY i.nombre_completo_instructor ASC
+    """
+
+    resultado = []
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(sql, parametros)
+                for row in cursor.fetchall():
+                    resultado.append(_row_to_dict(cursor, row))
+        return resultado
+    except pyodbc.Error as exc:
+        raise _sp_error_to_http(exc)
+
+
+# =============================================================================
+# ENDPOINT 12: GET /clases/instructores/{id}/sesiones
+# Sesiones de un instructor mediante sp_Sesiones_Por_Instructor
+# =============================================================================
+@router.get(
+    "/instructores/{id_instructor}/sesiones",
+    response_model=List[SesionInstructorResponse],
+    summary="Sesiones asignadas a un instructor",
+    description=(
+        "Ejecuta sp_Sesiones_Por_Instructor. Lista sesiones (pasadas y futuras) "
+        "asignadas al instructor, con total de inscritos activos ('Inscrito'). "
+        "Acepta filtro opcional por rango de fechas (desde, hasta)."
+    ),
+)
+def listar_sesiones_instructor(
+    id_instructor: int,
+    desde: Optional[date] = Query(
+        default=None,
+        description="Fecha mínima del filtro (YYYY-MM-DD).",
+    ),
+    hasta: Optional[date] = Query(
+        default=None,
+        description="Fecha máxima del filtro (YYYY-MM-DD).",
+    ),
+):
+    """
+    EXEC sp_Sesiones_Por_Instructor @id_instructor = ?, @desde = ?, @hasta = ?
+
+    Llama al procedimiento parametrizado con pyodbc.
+    Captura y traduce códigos de error THROW (50010 -> 404, 50030 -> 400).
+    """
+    resultado = []
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "EXEC sp_Sesiones_Por_Instructor ?, ?, ?",
+                    (id_instructor, desde, hasta),
+                )
+                for row in cursor.fetchall():
+                    resultado.append(_row_to_dict(cursor, row))
+        return resultado
+    except pyodbc.Error as exc:
+        raise _sp_error_to_http(exc)
+
+
+# =============================================================================
+# ENDPOINT 13: GET /clases/equipos
+# Inventario de equipamiento mediante vw_Inventario_Equipos
+# =============================================================================
+@router.get(
+    "/equipos",
+    response_model=List[EquipamientoItemResponse],
+    summary="Inventario de equipamiento",
+    description=(
+        "Consulta la vista vw_Inventario_Equipos. "
+        "Acepta filtro opcional por sede (id_sede)."
+    ),
+)
+def listar_equipos(
+    id_sede: Optional[int] = Query(
+        default=None,
+        gt=0,
+        description="Filtrar por id_sede_equipamiento.",
+    ),
+):
+    """
+    SELECT sobre la vista vw_Inventario_Equipos con filtro opcional parametrizado.
+    Calcula antigüedad de los equipos en años a través de la vista.
+    """
+    condiciones = []
+    parametros = []
+
+    if id_sede is not None:
+        condiciones.append("id_sede_equipamiento = ?")
+        parametros.append(id_sede)
+
+    where_clause = ""
+    if condiciones:
+        where_clause = "WHERE " + " AND ".join(condiciones)
+
+    sql = f"""
+        SELECT id_equipamiento,
+               nombre_descriptivo_equipamiento,
+               nombre_sede,
+               id_sede_equipamiento,
+               fecha_adquisicion_equipamiento,
+               antiguedad_anios
+        FROM   vw_Inventario_Equipos
+        {where_clause}
+        ORDER  BY nombre_descriptivo_equipamiento ASC
+    """
+
+    resultado = []
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(sql, parametros)
+                for row in cursor.fetchall():
+                    resultado.append(_row_to_dict(cursor, row))
+        return resultado
+    except pyodbc.Error as exc:
+        raise _sp_error_to_http(exc)
+
+
+# =============================================================================
+# ENDPOINT 14: POST /clases/equipos
+# Registrar equipamiento mediante sp_Registrar_Equipamiento
+# =============================================================================
+@router.post(
+    "/equipos",
+    response_model=EquipamientoCreadoResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Registrar nuevo equipamiento",
+    description=(
+        "Ejecuta sp_Registrar_Equipamiento. Valida que la sede exista, que el nombre "
+        "no venga vacío y que la fecha de adquisición no sea futura. "
+        "Devuelve el id_equipamiento generado."
+    ),
+)
+def registrar_equipamiento(body: EquipamientoCreateRequest):
+    """
+    EXEC sp_Registrar_Equipamiento @id_sede = ?, @nombre = ?, @fecha_adquisicion = ?
+    """
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "EXEC sp_Registrar_Equipamiento ?, ?, ?",
+                    (
+                        body.id_sede_equipamiento,
+                        body.nombre_descriptivo_equipamiento,
+                        body.fecha_adquisicion_equipamiento,
+                    ),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="El SP no devolvió un resultado. Contacte al administrador.",
+                    )
+                return {"id_equipamiento": row[0]}
+    except HTTPException:
+        raise
+    except pyodbc.Error as exc:
+        raise _sp_error_to_http(exc)
+
+
+# =============================================================================
+# ENDPOINT 15: PUT /clases/equipos/{id}
+# Actualizar equipamiento mediante sp_Actualizar_Equipamiento
+# =============================================================================
+@router.put(
+    "/equipos/{id_equipamiento}",
+    response_model=EquipamientoOperacionResponse,
+    summary="Actualizar equipamiento",
+    description=(
+        "Ejecuta sp_Actualizar_Equipamiento. Valida existencia del equipo, nombre no vacío "
+        "y fecha no futura. El UPDATE filtra siempre por id_equipamiento."
+    ),
+)
+def actualizar_equipamiento(id_equipamiento: int, body: EquipamientoUpdateRequest):
+    """
+    EXEC sp_Actualizar_Equipamiento @id_equipamiento = ?, @nombre = ?, @fecha_adquisicion = ?
+    """
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "EXEC sp_Actualizar_Equipamiento ?, ?, ?",
+                    (
+                        id_equipamiento,
+                        body.nombre_descriptivo_equipamiento,
+                        body.fecha_adquisicion_equipamiento,
+                    ),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="El SP no devolvió un resultado. Contacte al administrador.",
+                    )
+                return {
+                    "id_equipamiento": row[0],
+                    "mensaje": "Equipamiento actualizado correctamente",
+                }
+    except HTTPException:
+        raise
+    except pyodbc.Error as exc:
+        raise _sp_error_to_http(exc)
+
+
+# =============================================================================
+# ENDPOINT 16: DELETE /clases/equipos/{id}
+# Eliminar equipamiento mediante sp_Eliminar_Equipamiento
+# =============================================================================
+@router.delete(
+    "/equipos/{id_equipamiento}",
+    response_model=EquipamientoOperacionResponse,
+    summary="Eliminar equipamiento",
+    description=(
+        "Ejecuta sp_Eliminar_Equipamiento. Valida que el equipo exista "
+        "y lo elimina mediante DELETE filtrado por id_equipamiento."
+    ),
+)
+def eliminar_equipamiento(id_equipamiento: int):
+    """
+    EXEC sp_Eliminar_Equipamiento @id_equipamiento = ?
+    """
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "EXEC sp_Eliminar_Equipamiento ?",
+                    (id_equipamiento,),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="El SP no devolvió un resultado. Contacte al administrador.",
+                    )
+                return {
+                    "id_equipamiento": row[0],
+                    "mensaje": "Equipamiento eliminado correctamente",
+                }
+    except HTTPException:
+        raise
+    except pyodbc.Error as exc:
+        raise _sp_error_to_http(exc)
+
+
+# =============================================================================
+# ENDPOINT 17: GET /clases/socios/{id_socio}/inscripciones
+# Historial de inscripciones de un socio con estado_inscripcion
+# =============================================================================
+@router.get(
+    "/socios/{id_socio}/inscripciones",
+    response_model=List[InscripcionSocioDetalleResponse],
+    summary="Inscripciones de un socio",
+    description=(
+        "Obtiene todas las inscripciones del socio realizando JOIN entre "
+        "Inscripcion, Sesion, Clase y Sede, incluyendo el estado_inscripcion."
+    ),
+)
+def listar_inscripciones_socio(id_socio: int):
+    """
+    JOIN Inscripcion x Sesion x Clase x Sede filtrado por id_socio_inscripcion.
+    Valida previamente que el socio exista (404 si no existe).
+    """
+    resultado = []
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # Validar existencia del socio
+                cursor.execute("SELECT id_socio FROM Socio WHERE id_socio = ?", (id_socio,))
+                if cursor.fetchone() is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Socio no encontrado.",
+                    )
+
+                cursor.execute(
+                    """
+                    SELECT i.id_inscripcion,
+                           i.id_socio_inscripcion,
+                           i.id_sesion_inscripcion,
+                           c.id_clase,
+                           c.nombre_clase,
+                           c.duracion_minutos_clase,
+                           c.nivel_exigencia_clase,
+                           s.id_sede,
+                           s.nombre_sede,
+                           se.fecha_sesion,
+                           CONVERT(VARCHAR(8), se.hora_sesion, 108) AS hora_sesion,
+                           se.cupo_maximo_sesion,
+                           i.fecha_inscripcion,
+                           i.estado_inscripcion,
+                           i.asistio_inscripcion,
+                           i.observaciones_inscripcion
+                    FROM   Inscripcion AS i
+                    INNER JOIN Sesion AS se ON i.id_sesion_inscripcion = se.id_sesion
+                    INNER JOIN Clase  AS c  ON se.id_clase_sesion      = c.id_clase
+                    INNER JOIN Sede   AS s  ON se.id_sede_sesion       = s.id_sede
+                    WHERE  i.id_socio_inscripcion = ?
+                    ORDER  BY se.fecha_sesion DESC, se.hora_sesion DESC
+                    """,
+                    (id_socio,),
+                )
+                for row in cursor.fetchall():
+                    resultado.append(_row_to_dict(cursor, row))
+        return resultado
+    except HTTPException:
+        raise
+    except pyodbc.Error as exc:
+        raise _sp_error_to_http(exc)
+
 
