@@ -484,8 +484,57 @@ export const clasesApi = {
     apiClient.delete<EquipamientoOperacionResponse>(`/clases/equipos/${id_equipamiento}`),
 };
 
+// =========================================================================
+// Módulo Socios & Acceso (Persona 1)
+// =========================================================================
+
+export interface SocioDetail {
+  id_socio: number;
+  rut_socio: string;
+  nombre_completo_socio: string;
+  fecha_nacimiento_socio: string;
+  correo_socio: string;
+  telefono_socio: string;
+  id_sede_registro_socio: number;
+  acepta_promociones_socio: boolean;
+  activo_socio: boolean;
+}
+
+export interface ControlAccesoResult {
+  acceso_permitido: boolean;
+  motivo: string;
+  id_socio?: number | null;
+  rut_socio?: string | null;
+  nombre_completo_socio?: string | null;
+  sede_registro?: string | null;
+  activo_socio?: boolean | null;
+  contrato_vigente?: boolean | null;
+  nombre_plan?: string | null;
+  fecha_termino_contrato?: string | null;
+}
+
+export interface LoginResult {
+  autenticado: boolean;
+  mensaje: string;
+  id_usuario?: number;
+  username_usuario?: string;
+  rol?: string;
+  id_socio?: number;
+  nombre_completo_socio?: string;
+  activo_socio?: boolean;
+}
+
+export interface ReporteSedeItem {
+  nombre_sede: string;
+  estado_contrato: string;
+  cantidad_socios: number;
+}
+
+export const sociosApi = apiClient.socios;
+
 // Extender el objeto principal apiClient con clasesApi para retrocompatibilidad
 (apiClient as any).clasesModulo = clasesApi;
+(apiClient as any).sociosModulo = sociosApi;
 
 export default apiClient;
 

@@ -133,15 +133,17 @@ export default function Home() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              id="btn-mostrar-clientes"
-              onClick={handleToggleClientes}
-              className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-xl bg-blue-600/90 hover:bg-blue-500 active:scale-95 transition-all text-white text-xs sm:text-sm font-semibold shadow-md shadow-blue-900/40 border border-blue-400/30"
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <Link
+              href="/socios"
+              id="btn-modulo-socios"
+              className="flex items-center gap-2 px-3.5 sm:px-4 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 active:scale-95 transition-all text-white text-xs sm:text-sm font-bold shadow-lg shadow-blue-900/50 border border-blue-400/40 ring-1 ring-blue-400/30"
             >
-              <span>{showClientes ? "🙈" : "👥"}</span>
-              <span>{showClientes ? "Cerrar Panel" : "Persona 1 (Carlos): Socios"}</span>
-            </button>
+              <span>👥</span>
+              <span>Persona 1 (Carlos): Socios & Acceso</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>→</span>
+            </Link>
 
             <Link
               href="/clases"
@@ -435,10 +437,16 @@ export default function Home() {
               roleTitle="Acceso, Socios & Sedes"
               moduleRoute="/socios"
               backendFile="backend/routers/auth_socios.py"
-              colorBorder="border-blue-500/40"
+              colorBorder="border-blue-500/50"
               badgeBg="bg-blue-600"
-              onActionClick={handleToggleClientes}
-              actionButtonText="Abrir Panel de Socios"
+              isLive={true}
+              actionButtonText="Ingresar al Módulo de Socios"
+              viewRoutes={{
+                "Gestión de Socios": "/socios",
+                "Torniquete & Acceso": "/socios/torniquete",
+                "Sedes & Reportes": "/socios/sedes",
+                "Login & Mi Perfil": "/socios/login",
+              }}
               databaseEntities={[
                 "Socio",
                 "Usuario",
@@ -454,10 +462,10 @@ export default function Home() {
                 "Gestión de infraestructura de Sedes y reporte analítico de socios por sede"
               ]}
               frontendViews={[
-                "Login Multi-rol",
                 "Gestión de Socios",
-                "Mi Perfil",
-                "Torniquete / Portería"
+                "Torniquete & Acceso",
+                "Sedes & Reportes",
+                "Login & Mi Perfil"
               ]}
             />
 
