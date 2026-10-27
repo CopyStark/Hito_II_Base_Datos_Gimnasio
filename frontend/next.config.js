@@ -4,7 +4,10 @@ const nextConfig = {
   swcMinify: true,
   // URL por defecto del Backend en Render para producción y Vercel
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://gimnasio-backend-c3mu.onrender.com',
+    NEXT_PUBLIC_API_URL:
+      process.env.VERCEL || !process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL.includes('localhost')
+        ? 'https://gimnasio-backend-c3mu.onrender.com'
+        : process.env.NEXT_PUBLIC_API_URL,
   },
 };
 

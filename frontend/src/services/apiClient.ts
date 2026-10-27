@@ -10,12 +10,41 @@
 // URL oficial del Backend en producción (Render)
 export const RENDER_BACKEND_URL = "https://gimnasio-backend-c3mu.onrender.com";
 
-const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-export const API_BASE_URL = envApiUrl ? envApiUrl.replace(/\/+$/, "") : RENDER_BACKEND_URL;
-
+/**
+ * Obtiene la URL base del Backend FastAPI de forma dinámica.
+ * REGLA ESTRICTA:
+ * Cuando la web corre en Vercel (*.vercel.app o cualquier dominio que no sea localhost),
+ * está terminantemente prohibido usar localhost:8000; SIEMPRE debe apuntar a Render.
+ */
 export function getApiBaseUrl(): string {
-  return API_BASE_URL;
+  // 1. En el navegador: si estamos en Vercel o en cualquier host público, forzar Render
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    const isLocalhost = host === "localhost" || host === "127.0.0.1" || host.startsWith("192.168.");
+    if (!isLocalhost) {
+      return RENDER_BACKEND_URL;
+    }
+  }
+
+  // 2. En build de Vercel o producción
+  if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+    const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+    if (envUrl && !envUrl.includes("localhost") && envUrl.startsWith("http")) {
+      return envUrl.replace(/\/+$/, "");
+    }
+    return RENDER_BACKEND_URL;
+  }
+
+  // 3. Entorno de desarrollo puramente local
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (envUrl && envUrl.startsWith("http")) {
+    return envUrl.replace(/\/+$/, "");
+  }
+
+  return RENDER_BACKEND_URL;
 }
+
+export const API_BASE_URL = getApiBaseUrl();
 
 export class ApiError extends Error {
   status: number;
@@ -133,7 +162,8 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
     cleanEndpoint += "/";
   }
 
-  let url = `${API_BASE_URL}${cleanEndpoint}`;
+  const baseUrl = getApiBaseUrl();
+  let url = `${baseUrl}${cleanEndpoint}`;
 
   if (params) {
     const searchParams = new URLSearchParams();
@@ -195,7 +225,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
     }
     if (err.message === "Failed to fetch") {
       throw new ApiError(
-        `No se pudo conectar con Render (${API_BASE_URL}). Si la instancia gratuita estaba suspendida, tarda ~30s en despertar. Reintente en unos instantes.`,
+        `No se pudo conectar con Render (${getApiBaseUrl()}). Si la instancia gratuita estaba suspendida, tarda ~30s en despertar. Reintente en unos instantes.`,
         503
       );
     }
