@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import TeamCard from "@/components/TeamCard";
 import apiClient from "@/services/apiClient";
@@ -87,23 +87,35 @@ export default function Home() {
   };
   // --- FIN PANEL PERSONA 1 ---
 
-  // Comprobar la conexión automáticamente al cargar la página
-  useEffect(() => {
-    const checkConnection = async () => {
-      setLoading(true);
-      setErrorMsg(null);
-      try {
-        const data = await apiClient.health();
-        setHealthStatus(data);
-      } catch (err: any) {
-        setErrorMsg(err.message || "No se pudo conectar con el backend.");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const [isWakingUp, setIsWakingUp] = useState(false);
 
-    checkConnection();
+  // Comprobar la conexión con auto-reintento para cold-starts de Render
+  const checkConnection = useCallback(async (intentosRestantes = 3) => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const data = await apiClient.health();
+      setHealthStatus(data);
+      setIsWakingUp(false);
+      setLoading(false);
+    } catch (err: any) {
+      if (intentosRestantes > 1) {
+        setIsWakingUp(true);
+        // Si Render está suspendido (cold-start), reintentar automáticamente en 4 segundos
+        setTimeout(() => {
+          checkConnection(intentosRestantes - 1);
+        }, 4000);
+      } else {
+        setIsWakingUp(false);
+        setLoading(false);
+        setErrorMsg(err.message || "El servidor de Render está suspendido o tardó demasiado en responder.");
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    checkConnection(3);
+  }, [checkConnection]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-black text-slate-100 pt-24 pb-16 px-4 sm:px-6 lg:px-8">
@@ -367,21 +379,42 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="text-sm">
-              {loading && (
-                <span className="text-amber-400 font-medium text-xs bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg">
-                  ⏳ Verificando conexión con Render...
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm">
+              {loading && !isWakingUp && (
+                <span className="text-amber-400 font-medium text-xs bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                  <span>Verificando conexión con Render...</span>
                 </span>
               )}
+
+              {isWakingUp && (
+                <span className="text-purple-300 font-medium text-xs bg-purple-500/15 border border-purple-500/30 px-3 py-1.5 rounded-lg flex items-center gap-2 animate-pulse">
+                  <span>☕</span>
+                  <span>Despertando instancia Render (cold-start ~30s)...</span>
+                </span>
+              )}
+
               {!loading && healthStatus && (
-                <span className="text-emerald-400 font-medium text-xs bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
-                  ✅ Backend & Base de Datos En Línea
+                <span className="text-emerald-400 font-medium text-xs bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span>Backend & Base de Datos En Línea</span>
                 </span>
               )}
+
               {!loading && errorMsg && (
-                <span className="text-rose-400 font-medium text-xs bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-lg">
-                  ⚠️ Error al conectar con Render
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-rose-400 font-medium text-xs bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                    <span>⚠️</span>
+                    <span>Backend en reposo o no responde</span>
+                  </span>
+                  <button
+                    onClick={() => checkConnection(3)}
+                    className="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition-all flex items-center gap-1.5 active:scale-95 shadow-sm"
+                  >
+                    <span>🔄</span>
+                    <span>Reintentar Conexión</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>
