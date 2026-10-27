@@ -6,21 +6,45 @@ import {
   EquipamientoItemResponse,
   SedeSimpleResponse,
 } from "@/services/apiClient";
+import {
+  PERSONAL_RESPONSABLE_MOCK,
+  PersonalResponsable,
+} from "@/components/clases/empleadoActual";
 
 export default function EquiposPage() {
   const [equipos, setEquipos] = useState<EquipamientoItemResponse[]>([]);
   const [sedes, setSedes] = useState<SedeSimpleResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtroSede, setFiltroSede] = useState("");
+
+  // Empleado / Personal Responsable
+  const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<PersonalResponsable>(
+    PERSONAL_RESPONSABLE_MOCK[0]
+  );
+
+  // Filtro por Sede (sincronizado con la sede del empleado)
+  const [filtroSede, setFiltroSede] = useState<string>(
+    String(PERSONAL_RESPONSABLE_MOCK[0].id_sede_personal)
+  );
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Form para agregar nuevo equipo
   const [showAddModal, setShowAddModal] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState("");
-  const [nuevaSede, setNuevaSede] = useState<number>(0);
+  const [nuevaSede, setNuevaSede] = useState<number>(PERSONAL_RESPONSABLE_MOCK[0].id_sede_personal);
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [guardando, setGuardando] = useState(false);
 
+  // Cargar lista de sedes
+  const cargarSedes = useCallback(async () => {
+    try {
+      const data = await clasesApi.getSedes();
+      setSedes(data);
+    } catch (err: any) {
+      console.error(err);
+    }
+  }, []);
+
+  // Cargar inventario de equipos (con filtro opcional por sede)
   const cargarEquipos = useCallback(async () => {
     setLoading(true);
     try {
@@ -34,16 +58,6 @@ export default function EquiposPage() {
     }
   }, [filtroSede]);
 
-  const cargarSedes = useCallback(async () => {
-    try {
-      const data = await clasesApi.getSedes();
-      setSedes(data);
-      if (data.length > 0) setNuevaSede(data[0].id_sede);
-    } catch (err: any) {
-      console.error(err);
-    }
-  }, []);
-
   useEffect(() => {
     cargarSedes();
   }, [cargarSedes]);
@@ -51,6 +65,24 @@ export default function EquiposPage() {
   useEffect(() => {
     cargarEquipos();
   }, [cargarEquipos]);
+
+  // Cambiar empleado responsable y sincronizar sede por defecto
+  const handleCambiarEmpleado = (idPersonal: number) => {
+    const encontrado = PERSONAL_RESPONSABLE_MOCK.find((e) => e.id_personal === idPersonal);
+    if (encontrado) {
+      setEmpleadoSeleccionado(encontrado);
+      // Sincroniza la sede del filtro con la sede del empleado responsable
+      setFiltroSede(String(encontrado.id_sede_personal));
+      // Sincroniza la sede por defecto para nuevos registros
+      setNuevaSede(encontrado.id_sede_personal);
+    }
+  };
+
+  // Abrir modal de nuevo equipo precargando la sede del empleado
+  const handleAbrirModalRegistro = () => {
+    setNuevaSede(empleadoSeleccionado.id_sede_personal);
+    setShowAddModal(true);
+  };
 
   const handleCrearEquipo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +97,7 @@ export default function EquiposPage() {
       });
       setFeedback({
         type: "success",
-        message: `¡Equipamiento #${res.id_equipamiento} registrado correctamente!`,
+        message: `¡Equipamiento #${res.id_equipamiento} registrado correctamente en sede!`,
       });
       setNuevoNombre("");
       setNuevaFecha("");
@@ -108,12 +140,54 @@ export default function EquiposPage() {
         </div>
 
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={handleAbrirModalRegistro}
           className="self-start sm:self-auto text-xs px-4 py-2.5 rounded-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/30 transition-all flex items-center gap-1.5"
         >
           <span>+</span>
           <span>Registrar Equipo</span>
         </button>
+      </div>
+
+      {/* Selector de Personal / Empleado Responsable */}
+      <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
+          <label
+            htmlFor="selector-empleado"
+            className="text-xs font-semibold uppercase tracking-wider text-purple-300 flex items-center gap-1.5 shrink-0"
+          >
+            <span>👷</span>
+            <span>Personal Responsable:</span>
+          </label>
+          <select
+            id="selector-empleado"
+            value={empleadoSeleccionado.id_personal}
+            onChange={(e) => handleCambiarEmpleado(Number(e.target.value))}
+            className="w-full sm:w-auto bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 font-medium cursor-pointer shadow-inner"
+          >
+            {PERSONAL_RESPONSABLE_MOCK.map((emp) => (
+              <option key={emp.id_personal} value={emp.id_personal}>
+                {emp.nombre_completo_personal} — {emp.cargo_personal} ({emp.nombre_sede_personal})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="text-xs text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1 bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-800">
+          <span>
+            Sede asignada:{" "}
+            <strong className="text-purple-300 font-semibold">
+              {empleadoSeleccionado.nombre_sede_personal}
+            </strong>
+          </span>
+          <span className="text-slate-600">&bull;</span>
+          <span>
+            Cargo: <span className="text-slate-300">{empleadoSeleccionado.cargo_personal}</span>
+          </span>
+          <span className="text-slate-600">&bull;</span>
+          <span>
+            Contacto: <span className="font-mono text-slate-400">{empleadoSeleccionado.correo_personal}</span>
+          </span>
+        </div>
       </div>
 
       {/* Feedback Banner */}
@@ -131,25 +205,36 @@ export default function EquiposPage() {
       )}
 
       {/* Filtro por Sede */}
-      <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex items-center gap-3">
-        <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Filtrar por Sede:
-        </label>
-        <select
-          value={filtroSede}
-          onChange={(e) => setFiltroSede(e.target.value)}
-          className="bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
-        >
-          <option value="">Todas las sedes</option>
-          {sedes.map((s) => (
-            <option key={s.id_sede} value={s.id_sede}>
-              {s.nombre_sede}
-            </option>
-          ))}
-        </select>
-        <span className="text-xs text-slate-500 ml-auto font-mono">
-          {equipos.length} máquinas registradas
-        </span>
+      <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 shrink-0">
+            Filtrar por Sede:
+          </label>
+          <select
+            value={filtroSede}
+            onChange={(e) => setFiltroSede(e.target.value)}
+            className="bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
+          >
+            <option value="">Todas las sedes</option>
+            {sedes.map((s) => (
+              <option key={s.id_sede} value={s.id_sede}>
+                {s.nombre_sede}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-3 text-xs text-slate-400">
+          <button
+            onClick={() => setFiltroSede(String(empleadoSeleccionado.id_sede_personal))}
+            className="text-purple-400 hover:text-purple-300 underline font-medium"
+          >
+            Restablecer a Sede del Empleado ({empleadoSeleccionado.nombre_sede_personal})
+          </button>
+          <span className="text-slate-600">&bull;</span>
+          <span className="font-mono text-slate-500">
+            {equipos.length} máquinas registradas
+          </span>
+        </div>
       </div>
 
       {/* Grilla de Equipos */}
@@ -179,7 +264,7 @@ export default function EquiposPage() {
                       {eq.nombre_descriptivo_equipamiento}
                     </h3>
                   </div>
-                  <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                  <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 shrink-0">
                     {eq.antiguedad_anios} {eq.antiguedad_anios === 1 ? "año" : "años"}
                   </span>
                 </div>
@@ -208,7 +293,12 @@ export default function EquiposPage() {
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-lg font-bold text-white">Registrar Equipamiento</h3>
+              <div>
+                <h3 className="text-lg font-bold text-white">Registrar Equipamiento</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Responsable: <span className="text-purple-300">{empleadoSeleccionado.nombre_completo_personal}</span>
+                </p>
+              </div>
               <button
                 onClick={() => setShowAddModal(false)}
                 className="text-slate-400 hover:text-white text-sm"
@@ -234,7 +324,7 @@ export default function EquiposPage() {
 
               <div>
                 <label className="block text-slate-400 uppercase tracking-wider mb-1">
-                  Sede
+                  Sede Asignada
                 </label>
                 <select
                   value={nuevaSede}
@@ -244,7 +334,7 @@ export default function EquiposPage() {
                 >
                   {sedes.map((s) => (
                     <option key={s.id_sede} value={s.id_sede}>
-                      {s.nombre_sede}
+                      {s.nombre_sede} {s.id_sede === empleadoSeleccionado.id_sede_personal ? "(Sede del Responsable)" : ""}
                     </option>
                   ))}
                 </select>

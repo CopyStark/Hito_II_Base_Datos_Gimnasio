@@ -8,7 +8,13 @@ import {
   InscripcionSocioDetalleResponse,
   SedeSimpleResponse,
 } from "@/services/apiClient";
-import { SOCIO_ACTUAL } from "@/components/clases/socioActual";
+import {
+  SOCIOS_PRUEBA,
+  SocioActual,
+  getStoredSocioActual,
+  setStoredSocioActual,
+  subscribeSocioActual,
+} from "@/components/clases/socioActual";
 
 interface FeedbackState {
   type: "success" | "error" | "info";
@@ -16,6 +22,9 @@ interface FeedbackState {
 }
 
 export default function ClasesPage() {
+  // --- Socio en Sesión (Dinámico) ---
+  const [socioActual, setSocioActual] = useState<SocioActual>(SOCIOS_PRUEBA[0]);
+
   // --- Estados de Datos ---
   const [clases, setClases] = useState<ClaseResponse[]>([]);
   const [sedes, setSedes] = useState<SedeSimpleResponse[]>([]);
@@ -30,13 +39,49 @@ export default function ClasesPage() {
   const [loadingInscripciones, setLoadingInscripciones] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
-  // --- Filtros de Sesiones ---
-  const [filtroFecha, setFiltroFecha] = useState<string>("");
+  // Helper fecha de hoy en formato YYYY-MM-DD
+  const getFechaHoy = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  // --- Filtros de Sesiones Inicializados por Defecto ---
+  // Fecha: Hoy | Sede: Sede del socio o primera | Disciplina: Todas
+  const [filtroFecha, setFiltroFecha] = useState<string>(getFechaHoy());
   const [filtroSede, setFiltroSede] = useState<string>("");
   const [filtroClase, setFiltroClase] = useState<string>("");
 
-  // --- Feedback / Mensajes de Éxito o Error ---
+  // --- Feedback / Notificaciones Flotantes (Toasts) ---
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+
+  // Sincronizar socio actual con localStorage y eventos entre componentes
+  useEffect(() => {
+    const current = getStoredSocioActual();
+    setSocioActual(current);
+    if (current.id_sede_registro_socio) {
+      setFiltroSede(String(current.id_sede_registro_socio));
+    }
+    const unsubscribe = subscribeSocioActual((nuevo) => {
+      setSocioActual(nuevo);
+      if (nuevo.id_sede_registro_socio) {
+        setFiltroSede(String(nuevo.id_sede_registro_socio));
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // Auto-descartar Notificaciones Flotantes (Toast) tras 5 segundos
+  useEffect(() => {
+    if (feedback) {
+      const timer = setTimeout(() => {
+        setFeedback(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [feedback]);
 
   // Cargar Catálogo de Clases
   const cargarClases = useCallback(async () => {
@@ -51,11 +96,19 @@ export default function ClasesPage() {
     }
   }, []);
 
-  // Cargar Sedes para el filtro
+  // Cargar Sedes e inicializar la sede por defecto si no está seteada
   const cargarSedes = useCallback(async () => {
     try {
       const data = await clasesApi.getSedes();
       setSedes(data);
+      setFiltroSede((prev) => {
+        if (prev) return prev;
+        const current = getStoredSocioActual();
+        if (current.id_sede_registro_socio) {
+          return String(current.id_sede_registro_socio);
+        }
+        return data.length > 0 ? String(data[0].id_sede) : "";
+      });
     } catch (err: any) {
       console.error("Error al cargar sedes:", err);
     }
@@ -84,29 +137,49 @@ export default function ClasesPage() {
   }, [filtroFecha, filtroSede, filtroClase]);
 
   // Cargar Mis Inscripciones para el socio actual
-  const cargarMisInscripciones = useCallback(async () => {
+  const cargarMisInscripciones = useCallback(async (idSocioOverride?: number) => {
+    const id = idSocioOverride ?? socioActual.id_socio;
+    if (!id) return;
     try {
       setLoadingInscripciones(true);
-      const data = await clasesApi.getInscripcionesSocio(SOCIO_ACTUAL.id_socio);
+      const data = await clasesApi.getInscripcionesSocio(id);
       setMisInscripciones(data);
     } catch (err: any) {
       console.error("Error al cargar inscripciones:", err);
     } finally {
       setLoadingInscripciones(false);
     }
-  }, []);
+  }, [socioActual.id_socio]);
 
   // Carga inicial
   useEffect(() => {
     cargarClases();
     cargarSedes();
-    cargarMisInscripciones();
-  }, [cargarClases, cargarSedes, cargarMisInscripciones]);
+  }, [cargarClases, cargarSedes]);
+
+  // Recargar inscripciones cuando cambie el socio actual
+  useEffect(() => {
+    if (socioActual.id_socio) {
+      cargarMisInscripciones(socioActual.id_socio);
+    }
+  }, [socioActual.id_socio, cargarMisInscripciones]);
 
   // Cargar sesiones cuando cambian los filtros
   useEffect(() => {
     cargarSesiones();
   }, [cargarSesiones]);
+
+  // Cambiar socio desde el selector dinámico
+  const handleCambiarSocio = (nuevoId: number) => {
+    const encontrado = SOCIOS_PRUEBA.find((s) => s.id_socio === nuevoId);
+    if (encontrado) {
+      setSocioActual(encontrado);
+      setStoredSocioActual(encontrado);
+      if (encontrado.id_sede_registro_socio) {
+        setFiltroSede(String(encontrado.id_sede_registro_socio));
+      }
+    }
+  };
 
   // Acción: Inscribirme en una sesión
   const handleInscribir = async (id_sesion: number) => {
@@ -114,7 +187,7 @@ export default function ClasesPage() {
     setFeedback(null);
     try {
       await clasesApi.inscribirSocio({
-        id_socio_inscripcion: SOCIO_ACTUAL.id_socio,
+        id_socio_inscripcion: socioActual.id_socio,
         id_sesion_inscripcion: id_sesion,
       });
 
@@ -124,7 +197,7 @@ export default function ClasesPage() {
       });
 
       // Refrescar ambas listas inmediatamente
-      await Promise.all([cargarSesiones(), cargarMisInscripciones()]);
+      await Promise.all([cargarSesiones(), cargarMisInscripciones(socioActual.id_socio)]);
     } catch (err: any) {
       // Mostrar exactamente el mensaje retornado por la API (409, 400, etc.)
       const errorMsg =
@@ -150,7 +223,7 @@ export default function ClasesPage() {
     setFeedback(null);
     try {
       await clasesApi.cancelarInscripcion(id_inscripcion, {
-        id_socio: SOCIO_ACTUAL.id_socio,
+        id_socio: socioActual.id_socio,
       });
 
       setFeedback({
@@ -159,7 +232,7 @@ export default function ClasesPage() {
       });
 
       // Refrescar ambas listas
-      await Promise.all([cargarSesiones(), cargarMisInscripciones()]);
+      await Promise.all([cargarSesiones(), cargarMisInscripciones(socioActual.id_socio)]);
     } catch (err: any) {
       const errorMsg =
         err.data?.detail ||
@@ -199,7 +272,7 @@ export default function ClasesPage() {
     <div className="space-y-12">
       {/* Hero / Encabezado de la Pantalla */}
       <div className="relative overflow-hidden bg-gradient-to-r from-purple-950/40 via-slate-900/60 to-indigo-950/40 border border-purple-500/20 rounded-3xl p-6 sm:p-10 shadow-2xl backdrop-blur-xl">
-        <div className="relative z-10 max-w-3xl">
+        <div className="relative z-10 max-w-4xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30 mb-4">
             <span>✨</span> Portal del Socio &bull; Reserva de Clases
           </div>
@@ -211,22 +284,42 @@ export default function ClasesPage() {
             en cada sede con disponibilidad de cupos en tiempo real y reserva tu
             asistencia de forma inmediata.
           </p>
+
+          {/* Selector Dinámico de Socio para Testeo de Inscripciones */}
+          <div className="mt-6 pt-5 border-t border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-950/40 p-4 rounded-2xl border border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <label
+                htmlFor="selector-socio-hero"
+                className="text-xs font-semibold uppercase tracking-wider text-purple-300 flex items-center gap-1.5 shrink-0"
+              >
+                <span>👤</span>
+                <span>Socio en sesión (Pruebas):</span>
+              </label>
+              <select
+                id="selector-socio-hero"
+                value={socioActual.id_socio}
+                onChange={(e) => handleCambiarSocio(Number(e.target.value))}
+                className="bg-slate-900 border border-purple-500/40 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-inner cursor-pointer"
+              >
+                {SOCIOS_PRUEBA.map((s) => (
+                  <option key={s.id_socio} value={s.id_socio}>
+                    {s.nombre_completo_socio} (#{s.id_socio} - {s.nombre_sede_registro || `Sede ${s.id_sede_registro_socio}`})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="text-xs text-slate-400 font-mono">
+              <span>RUT: {socioActual.rut_socio}</span> &bull; <span>{socioActual.correo_socio}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Banner de Feedback (Éxito / Error / Notificación) */}
+      {/* Alerta Flotante Fija (Toast en la esquina) para no perderse con el scroll */}
       {feedback && (
-        <div
-          className={`p-4 rounded-2xl border transition-all flex items-start justify-between gap-3 shadow-xl ${
-            feedback.type === "success"
-              ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-200"
-              : feedback.type === "error"
-              ? "bg-rose-950/50 border-rose-500/50 text-rose-200"
-              : "bg-blue-950/40 border-blue-500/40 text-blue-200"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm sm:max-w-md w-full p-4 rounded-2xl border shadow-2xl backdrop-blur-xl animate-fade-in flex items-start justify-between gap-3 bg-slate-950/95 border-purple-500/40">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl shrink-0">
               {feedback.type === "success"
                 ? "✅"
                 : feedback.type === "error"
@@ -234,19 +327,21 @@ export default function ClasesPage() {
                 : "ℹ️"}
             </span>
             <div>
-              <strong className="block text-sm font-semibold">
+              <strong className="block text-sm font-semibold text-white">
                 {feedback.type === "success"
                   ? "Operación Exitosa"
                   : feedback.type === "error"
                   ? "Aviso de la Base de Datos"
                   : "Información"}
               </strong>
-              <p className="text-xs sm:text-sm mt-0.5">{feedback.message}</p>
+              <p className="text-xs sm:text-sm mt-0.5 text-slate-300 leading-relaxed">
+                {feedback.message}
+              </p>
             </div>
           </div>
           <button
             onClick={() => setFeedback(null)}
-            className="text-slate-400 hover:text-white text-xs px-2 py-1 rounded-md hover:bg-slate-800/60"
+            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800/60 shrink-0"
             title="Cerrar notificación"
           >
             ✕
@@ -279,7 +374,7 @@ export default function ClasesPage() {
           </div>
 
           <button
-            onClick={cargarMisInscripciones}
+            onClick={() => cargarMisInscripciones()}
             disabled={loadingInscripciones}
             className="self-start sm:self-auto text-xs px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1.5 border border-slate-700/60"
           >
@@ -508,13 +603,20 @@ export default function ClasesPage() {
                           {sesion.nombre_clase}
                         </h3>
                       </div>
-                      <span
-                        className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${getBadgeNivel(
-                          sesion.nivel_exigencia_clase
-                        )}`}
-                      >
-                        {sesion.nivel_exigencia_clase}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        {sinCupo && (
+                          <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse">
+                            Agotado
+                          </span>
+                        )}
+                        <span
+                          className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${getBadgeNivel(
+                            sesion.nivel_exigencia_clase
+                          )}`}
+                        >
+                          {sesion.nivel_exigencia_clase}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Detalles */}
@@ -601,9 +703,10 @@ export default function ClasesPage() {
                     ) : sinCupo ? (
                       <button
                         disabled
-                        className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-slate-800/60 text-slate-500 border border-slate-800 cursor-not-allowed text-center"
+                        className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-rose-950/40 text-rose-400 border border-rose-800/60 cursor-not-allowed text-center flex items-center justify-center gap-1.5"
                       >
-                        Cupo Completo
+                        <span>🚫</span>
+                        <span>Agotado (Sin cupos disponibles)</span>
                       </button>
                     ) : (
                       <button

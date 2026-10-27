@@ -430,6 +430,23 @@ export interface AsistenciaResponse {
   asistio_inscripcion: boolean;
 }
 
+export interface OcupacionClaseItem {
+  id_sesion: number;
+  nombre_clase: string;
+  nombre_sede: string;
+  fecha_sesion: string;
+  hora_sesion: string;
+  cupo_maximo_sesion: number;
+  total_inscritos: number;
+  cupos_disponibles: number;
+}
+
+export interface RankingClaseItem {
+  nombre_clase: string;
+  nivel_exigencia_clase: string;
+  total_inscripciones: number;
+}
+
 export interface EquipamientoItemResponse {
   id_equipamiento: number;
   nombre_descriptivo_equipamiento: string;
@@ -505,6 +522,13 @@ export const clasesApi = {
         observaciones_inscripcion: data.observaciones_inscripcion ?? data.observaciones,
       }),
     }),
+
+  // Reportes y Analítica (Vistas SQL)
+  getReporteOcupacion: () =>
+    apiClient.get<OcupacionClaseItem[]>("/clases/reportes/ocupacion"),
+
+  getReporteRanking: () =>
+    apiClient.get<RankingClaseItem[]>("/clases/reportes/ranking"),
 
   // Programación de sesiones
   programarSesion: (data: ProgramarSesionRequest) =>

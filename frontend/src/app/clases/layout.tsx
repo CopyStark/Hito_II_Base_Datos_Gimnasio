@@ -1,8 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SOCIO_ACTUAL } from "@/components/clases/socioActual";
+import {
+  SOCIOS_PRUEBA,
+  SocioActual,
+  getStoredSocioActual,
+  setStoredSocioActual,
+  subscribeSocioActual,
+} from "@/components/clases/socioActual";
 
 interface NavItem {
   name: string;
@@ -36,6 +43,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: "⚙️",
     description: "Gestión de máquinas y equipamiento por sede",
   },
+  {
+    name: "Reportes de Clases",
+    href: "/clases/reportes",
+    icon: "📊",
+    description: "Ocupación y ranking de clases más demandadas",
+  },
 ];
 
 export default function ClasesLayout({
@@ -44,13 +57,31 @@ export default function ClasesLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [socioActual, setSocioActual] = useState<SocioActual>(SOCIOS_PRUEBA[0]);
+
+  useEffect(() => {
+    setSocioActual(getStoredSocioActual());
+    const unsubscribe = subscribeSocioActual((s) => {
+      setSocioActual(s);
+    });
+    return unsubscribe;
+  }, []);
+
+  const handleCambiarSocio = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = Number(e.target.value);
+    const encontrado = SOCIOS_PRUEBA.find((s) => s.id_socio === id);
+    if (encontrado) {
+      setSocioActual(encontrado);
+      setStoredSocioActual(encontrado);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans">
       {/* Top Navigation Header */}
       <header className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-16 gap-3">
             {/* Brand & Module Badge */}
             <div className="flex items-center gap-3">
               <Link
@@ -75,15 +106,29 @@ export default function ClasesLayout({
               </div>
             </div>
 
-            {/* Simulación Socio Actual Badge */}
+            {/* Selector Dinámico de Socio en Sesión */}
             <div className="flex items-center gap-2 text-xs">
-              <div className="hidden md:flex items-center gap-2 bg-slate-900/90 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-300">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>Socio en sesión:</span>
-                <strong className="text-white font-medium">
-                  {SOCIO_ACTUAL.nombre_completo_socio}
-                </strong>
-                <span className="text-slate-500">#{SOCIO_ACTUAL.id_socio}</span>
+              <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                <span className="hidden md:inline text-slate-400 text-[11px] font-semibold uppercase tracking-wider">
+                  Socio en sesión:
+                </span>
+                <select
+                  aria-label="Seleccionar Socio de prueba"
+                  value={socioActual.id_socio}
+                  onChange={handleCambiarSocio}
+                  className="bg-transparent text-white font-medium focus:outline-none cursor-pointer text-xs pr-1"
+                >
+                  {SOCIOS_PRUEBA.map((s) => (
+                    <option
+                      key={s.id_socio}
+                      value={s.id_socio}
+                      className="bg-slate-900 text-white"
+                    >
+                      {s.nombre_completo_socio} (#{s.id_socio})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>

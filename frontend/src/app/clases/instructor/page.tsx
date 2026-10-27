@@ -33,8 +33,17 @@ export default function InstructorPage() {
   const [loadingSesiones, setLoadingSesiones] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // --- Filtros de Rango ---
-  const [filtroDesde, setFiltroDesde] = useState("");
+  // Helper fecha de hoy en formato YYYY-MM-DD
+  const getFechaHoy = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  // --- Filtros de Rango (Desde inicializado en Hoy para priorizar agenda actual y futura) ---
+  const [filtroDesde, setFiltroDesde] = useState(getFechaHoy());
   const [filtroHasta, setFiltroHasta] = useState("");
 
   // --- Estados del Modal de Inscritos y Asistencia ---
