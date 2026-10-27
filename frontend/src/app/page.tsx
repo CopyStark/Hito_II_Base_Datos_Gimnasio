@@ -345,25 +345,6 @@ export default function Home() {
             Repositorio base inicializado para el sistema de gestión de gimnasios.
             Estructurado de forma modular para desarrollo colaborativo entre 3 desarrolladores.
           </p>
-
-          {/* Accesos Directos a los Módulos */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
-            <Link
-              href="/clases"
-              className="flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm sm:text-base font-bold shadow-xl shadow-purple-900/40 border border-purple-400/40 transition-all hover:scale-105 active:scale-95"
-            >
-              <span>🏋️</span>
-              <span>Abrir Módulo de Clases (Persona 2 - Emilia)</span>
-              <span>→</span>
-            </Link>
-            <button
-              onClick={handleToggleClientes}
-              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-sm sm:text-base font-semibold border border-slate-700/80 transition-all hover:scale-105 active:scale-95 shadow-lg"
-            >
-              <span>👥</span>
-              <span>Panel de Socios & Acceso (Persona 1 - Carlos)</span>
-            </button>
-          </div>
         </header>
 
         {/* Estado Automático del Sistema */}
