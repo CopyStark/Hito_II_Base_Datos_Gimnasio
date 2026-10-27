@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import TeamCard from "@/components/TeamCard";
 import apiClient from "@/services/apiClient";
 
@@ -105,21 +106,49 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-black text-slate-100 py-12 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-black text-slate-100 pt-24 pb-16 px-4 sm:px-6 lg:px-8">
 
-      {/* ===== Panel Interactivo Persona 1: Socios & Acceso ===== */}
-      <div className="fixed top-4 left-4 z-50">
-        <button
-          id="btn-mostrar-clientes"
-          onClick={handleToggleClientes}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all duration-150 text-white text-sm font-semibold shadow-lg shadow-blue-900/50 border border-blue-400/30"
-        >
-          <span>{showClientes ? "🙈" : "👥"}</span>
-          {showClientes ? "Ocultar Panel Socios" : "Panel Persona 1 (Socios & Acceso)"}
-        </button>
+      {/* ===== Barra de Navegación Rápida Superior ===== */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-950/85 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-8 py-3">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">⚡</span>
+            <span className="font-extrabold text-base sm:text-lg tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
+              GimnasioDB Platform
+            </span>
+            <span className="hidden sm:inline-block text-[11px] px-2.5 py-0.5 rounded-full font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              API-First
+            </span>
+          </div>
 
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              id="btn-mostrar-clientes"
+              onClick={handleToggleClientes}
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-xl bg-blue-600/90 hover:bg-blue-500 active:scale-95 transition-all text-white text-xs sm:text-sm font-semibold shadow-md shadow-blue-900/40 border border-blue-400/30"
+            >
+              <span>{showClientes ? "🙈" : "👥"}</span>
+              <span>{showClientes ? "Cerrar Panel" : "Persona 1 (Carlos): Socios"}</span>
+            </button>
+
+            <Link
+              href="/clases"
+              id="btn-modulo-clases"
+              className="flex items-center gap-2 px-3.5 sm:px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-95 transition-all text-white text-xs sm:text-sm font-bold shadow-lg shadow-purple-900/50 border border-purple-400/40 ring-1 ring-purple-400/30"
+            >
+              <span>🏋️</span>
+              <span>Persona 2 (Emilia): Clases & Reservas</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>→</span>
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* ===== Panel Interactivo Persona 1: Socios & Acceso (Desplegable) ===== */}
+      <div className="fixed top-16 left-4 sm:left-8 z-50">
         {showClientes && (
-          <div className="mt-2 w-96 max-h-[85vh] overflow-y-auto rounded-2xl bg-slate-900/95 border border-blue-500/30 shadow-2xl backdrop-blur-xl p-4 space-y-4">
+          <div className="mt-2 w-96 max-h-[80vh] overflow-y-auto rounded-2xl bg-slate-900/95 border border-blue-500/30 shadow-2xl backdrop-blur-xl p-4 space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <div>
                 <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -302,6 +331,25 @@ export default function Home() {
             Repositorio base inicializado para el sistema de gestión de gimnasios.
             Estructurado de forma modular para desarrollo colaborativo entre 3 desarrolladores.
           </p>
+
+          {/* Accesos Directos a los Módulos */}
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
+            <Link
+              href="/clases"
+              className="flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm sm:text-base font-bold shadow-xl shadow-purple-900/40 border border-purple-400/40 transition-all hover:scale-105 active:scale-95"
+            >
+              <span>🏋️</span>
+              <span>Abrir Módulo de Clases (Persona 2 - Emilia)</span>
+              <span>→</span>
+            </Link>
+            <button
+              onClick={handleToggleClientes}
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-sm sm:text-base font-semibold border border-slate-700/80 transition-all hover:scale-105 active:scale-95 shadow-lg"
+            >
+              <span>👥</span>
+              <span>Panel de Socios & Acceso (Persona 1 - Carlos)</span>
+            </button>
+          </div>
         </header>
 
         {/* Estado Automático del Sistema */}
@@ -356,6 +404,8 @@ export default function Home() {
               backendFile="backend/routers/auth_socios.py"
               colorBorder="border-blue-500/40"
               badgeBg="bg-blue-600"
+              onActionClick={handleToggleClientes}
+              actionButtonText="Abrir Panel de Socios"
               databaseEntities={[
                 "Socio",
                 "Usuario",
@@ -379,12 +429,20 @@ export default function Home() {
             />
 
             <TeamCard
-              personNumber="Persona 2"
+              personNumber="Persona 2 (Emilia)"
               roleTitle="Clases, Sesiones & Asistencia"
               moduleRoute="/clases"
               backendFile="backend/routers/clases.py"
-              colorBorder="border-purple-500/40"
+              colorBorder="border-purple-500/50"
               badgeBg="bg-purple-600"
+              isLive={true}
+              actionButtonText="Ingresar al Módulo de Clases"
+              viewRoutes={{
+                "Catálogo y Reserva": "/clases",
+                "Portal del Instructor": "/clases/instructor",
+                "Programador de Sesiones": "/clases/programador",
+                "Inventario Equipos": "/clases/equipos",
+              }}
               databaseEntities={[
                 "Clase",
                 "Sesion",
