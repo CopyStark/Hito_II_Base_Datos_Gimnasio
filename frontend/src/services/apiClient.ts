@@ -407,6 +407,29 @@ export interface ProgramarSesionRequest {
   cupo_maximo_sesion: number;
 }
 
+export interface InscritoEnSesionResponse {
+  id_inscripcion: number;
+  id_socio_inscripcion: number;
+  nombre_completo_socio: string;
+  correo_socio: string;
+  telefono_socio: string;
+  fecha_inscripcion: string;
+  estado_inscripcion: string;
+  asistio_inscripcion?: boolean | null;
+  observaciones_inscripcion?: string | null;
+}
+
+export interface RegistrarAsistenciaRequest {
+  asistio: boolean;
+  observaciones?: string | null;
+  observaciones_inscripcion?: string | null;
+}
+
+export interface AsistenciaResponse {
+  id_inscripcion: number;
+  asistio_inscripcion: boolean;
+}
+
 export interface EquipamientoItemResponse {
   id_equipamiento: number;
   nombre_descriptivo_equipamiento: string;
@@ -465,6 +488,23 @@ export const clasesApi = {
 
   getSesionesInstructor: (id_instructor: number, params?: { desde?: string; hasta?: string }) =>
     apiClient.get<SesionInstructorResponse[]>(`/clases/instructores/${id_instructor}/sesiones`, params),
+
+  // Inscritos y Asistencia
+  getInscritosSesion: (id_sesion: number) =>
+    apiClient.get<InscritoEnSesionResponse[]>(`/clases/sesiones/${id_sesion}/inscritos`),
+
+  registrarAsistencia: (
+    id_inscripcion: number,
+    data: { asistio: boolean; observaciones?: string | null; observaciones_inscripcion?: string | null }
+  ) =>
+    apiRequest<AsistenciaResponse>(`/clases/inscripciones/${id_inscripcion}/asistencia`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        asistio: data.asistio,
+        observaciones: data.observaciones,
+        observaciones_inscripcion: data.observaciones_inscripcion ?? data.observaciones,
+      }),
+    }),
 
   // Programación de sesiones
   programarSesion: (data: ProgramarSesionRequest) =>

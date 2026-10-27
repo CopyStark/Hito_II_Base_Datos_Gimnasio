@@ -111,6 +111,7 @@ class RegistrarAsistenciaRequest(BaseModel):
         default=None,
         max_length=500,
         description="Observaciones opcionales (columna observaciones_inscripcion).",
+        validation_alias=AliasChoices("observaciones_inscripcion", "observaciones"),
     )
 
 

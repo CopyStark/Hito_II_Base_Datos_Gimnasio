@@ -590,13 +590,13 @@ def cancelar_inscripcion(id_inscripcion: int, body: CancelarInscripcionRequest):
     response_model=List[InscritoEnSesionResponse],
     summary="Inscritos en una sesión",
     description=(
-        "Devuelve los socios con inscripción activa ('Inscrito') en la sesión indicada. "
+        "Devuelve los socios inscritos en la sesión indicada. "
         "JOIN entre Inscripcion y Socio usando los nombres de columna del DDL."
     ),
 )
 def listar_inscritos_en_sesion(id_sesion: int):
     """
-    JOIN Inscripcion x Socio filtrado por id_sesion_inscripcion y estado_inscripcion.
+    JOIN Inscripcion x Socio filtrado por id_sesion_inscripcion.
     Solo columnas necesarias para no exponer datos sensibles innecesarios.
     """
     resultado = []
@@ -618,7 +618,6 @@ def listar_inscritos_en_sesion(id_sesion: int):
                     INNER  JOIN Socio AS s
                            ON i.id_socio_inscripcion = s.id_socio
                     WHERE  i.id_sesion_inscripcion = ?
-                      AND  i.estado_inscripcion    = 'Inscrito'
                     ORDER  BY i.fecha_inscripcion ASC
                     """,
                     (id_sesion,),   # parametrizado: nunca f-string con id_sesion
