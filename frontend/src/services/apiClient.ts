@@ -127,7 +127,13 @@ export interface Pago {
 export async function apiRequest<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { params, headers, ...restOptions } = options;
 
-  let url = `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  let cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  // Asegurar barra final en raíces de routers FastAPI para evitar redirección 307 (CORS redirect issue)
+  if (["/socios", "/clases", "/contratos"].includes(cleanEndpoint)) {
+    cleanEndpoint += "/";
+  }
+
+  let url = `${API_BASE_URL}${cleanEndpoint}`;
 
   if (params) {
     const searchParams = new URLSearchParams();
@@ -142,37 +148,59 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
     }
   }
 
-  const response = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...headers,
-    },
-    ...restOptions,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 40000);
 
-  if (!response.ok) {
-    let errorDetail = `Error en petición: ${response.status} ${response.statusText}`;
-    let errorData = null;
-    try {
-      errorData = await response.json();
-      if (errorData?.detail) {
-        errorDetail = typeof errorData.detail === "string"
-          ? errorData.detail
-          : JSON.stringify(errorData.detail);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...headers,
+      },
+      ...restOptions,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      let errorDetail = `Error en petición: ${response.status} ${response.statusText}`;
+      let errorData = null;
+      try {
+        errorData = await response.json();
+        if (errorData?.detail) {
+          errorDetail = typeof errorData.detail === "string"
+            ? errorData.detail
+            : JSON.stringify(errorData.detail);
+        }
+      } catch {
+        // Si la respuesta no es JSON válido
       }
-    } catch {
-      // Si la respuesta no es JSON válido
+      throw new ApiError(errorDetail, response.status, errorData);
     }
-    throw new ApiError(errorDetail, response.status, errorData);
-  }
 
-  // Si no hay contenido (HTTP 204 No Content)
-  if (response.status === 204) {
-    return {} as T;
-  }
+    // Si no hay contenido (HTTP 204 No Content)
+    if (response.status === 204) {
+      return {} as T;
+    }
 
-  return response.json();
+    return response.json();
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === "AbortError") {
+      throw new ApiError(
+        "El servidor backend en Render tardó más de 40s en responder. Puede estar despertando de su modo reposo (cold-start).",
+        504
+      );
+    }
+    if (err.message === "Failed to fetch") {
+      throw new ApiError(
+        `No se pudo conectar con Render (${API_BASE_URL}). Si la instancia gratuita estaba suspendida, tarda ~30s en despertar. Reintente en unos instantes.`,
+        503
+      );
+    }
+    throw err;
+  }
 }
 
 /**

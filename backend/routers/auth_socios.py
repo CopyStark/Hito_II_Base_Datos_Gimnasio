@@ -53,6 +53,7 @@ router = APIRouter(
 # 1. CONSULTAS Y FILTROS DE SOCIOS
 # =========================================================================
 
+@router.get("", response_model=List[SocioResponse], include_in_schema=False)
 @router.get("/", response_model=List[SocioResponse], summary="Listar socios con filtros y paginación")
 def listar_socios(
     activo: Optional[bool] = Query(None, description="Filtrar por estado activo (true/false)"),

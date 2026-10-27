@@ -59,6 +59,7 @@ def listar_planes():
             detail=f"Error al listar planes: {str(e)}"
         )
 
+@router.get("", response_model=List[ContratoResponse], include_in_schema=False)
 @router.get("/", response_model=List[ContratoResponse], summary="Listar contratos")
 def listar_contratos():
     """

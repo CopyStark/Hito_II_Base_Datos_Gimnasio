@@ -66,7 +66,7 @@ for dev_origin in default_dev_origins:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
+    allow_origin_regex=r"^(https:\/\/.*\.vercel\.app|http:\/\/(localhost|127\.0\.0\.1)(:[0-9]+)?)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -117,6 +117,7 @@ def read_root():
     }
 
 @app.api_route("/api/health", methods=["GET", "HEAD"], tags=["General"])
+@app.api_route("/api/health/", methods=["GET", "HEAD"], include_in_schema=False)
 def health_check():
     """
     Verifica el estado del backend y la conectividad a SQL Server mediante pyodbc.

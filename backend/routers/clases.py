@@ -357,6 +357,7 @@ def _row_to_dict(cursor, row) -> dict:
 # ENDPOINT 1: GET /clases
 # Catálogo completo de disciplinas desde la tabla Clase
 # =============================================================================
+@router.get("", response_model=List[ClaseResponse], include_in_schema=False)
 @router.get(
     "/",
     response_model=List[ClaseResponse],
