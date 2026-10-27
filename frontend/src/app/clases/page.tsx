@@ -286,7 +286,7 @@ export default function ClasesPage() {
           </p>
 
           {/* Selector Dinámico de Socio para Testeo de Inscripciones */}
-          <div className="mt-6 pt-5 border-t border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-950/40 p-4 rounded-2xl border border-slate-800">
+          <div className="mt-6 pt-5 border-t border-purple-500/20 flex flex-col gap-3 bg-slate-950/60 p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-lg">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <label
                 htmlFor="selector-socio-hero"
@@ -299,7 +299,7 @@ export default function ClasesPage() {
                 id="selector-socio-hero"
                 value={socioActual.id_socio}
                 onChange={(e) => handleCambiarSocio(Number(e.target.value))}
-                className="bg-slate-900 border border-purple-500/40 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-inner cursor-pointer"
+                className="w-full sm:w-auto bg-slate-900 border border-purple-500/40 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-inner cursor-pointer"
               >
                 {SOCIOS_PRUEBA.map((s) => (
                   <option key={s.id_socio} value={s.id_socio}>
@@ -308,8 +308,28 @@ export default function ClasesPage() {
                 ))}
               </select>
             </div>
-            <div className="text-xs text-slate-400 font-mono">
-              <span>RUT: {socioActual.rut_socio}</span> &bull; <span>{socioActual.correo_socio}</span>
+
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs bg-slate-900/80 p-3 rounded-xl border border-slate-800/80">
+              <span className="text-purple-300 font-semibold flex items-center gap-1">
+                <span>🏷️</span>
+                <span>{socioActual.nombre_completo_socio}</span>
+              </span>
+              <span className="text-slate-600 hidden sm:inline">&bull;</span>
+              <span className="bg-slate-800/80 px-2.5 py-1 rounded-lg text-slate-300 border border-slate-700/60 font-mono">
+                RUT: <strong className="text-white">{socioActual.rut_socio}</strong>
+              </span>
+              <span className="text-slate-600 hidden sm:inline">&bull;</span>
+              <span className="bg-slate-800/80 px-2.5 py-1 rounded-lg text-slate-300 border border-slate-700/60 font-mono">
+                Correo: <strong className="text-white">{socioActual.correo_socio}</strong>
+              </span>
+              {socioActual.nombre_sede_registro && (
+                <>
+                  <span className="text-slate-600 hidden sm:inline">&bull;</span>
+                  <span className="text-purple-400 font-medium">
+                    Sede: {socioActual.nombre_sede_registro}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>

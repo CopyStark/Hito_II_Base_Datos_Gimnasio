@@ -44,11 +44,11 @@ export default function EquiposPage() {
     }
   }, []);
 
-  // Cargar inventario de equipos (con filtro opcional por sede)
-  const cargarEquipos = useCallback(async () => {
+  // Cargar inventario de equipos (recibe la sede a consultar)
+  const cargarEquipos = useCallback(async (sedeAUsar: string) => {
     setLoading(true);
     try {
-      const params = filtroSede ? { id_sede: Number(filtroSede) } : undefined;
+      const params = sedeAUsar ? { id_sede: Number(sedeAUsar) } : undefined;
       const data = await clasesApi.getEquipos(params);
       setEquipos(data);
     } catch (err: any) {
@@ -56,25 +56,31 @@ export default function EquiposPage() {
     } finally {
       setLoading(false);
     }
-  }, [filtroSede]);
+  }, []);
 
   useEffect(() => {
     cargarSedes();
   }, [cargarSedes]);
 
+  // Carga reactiva de equipos cada vez que cambia el filtro de sede sincronizado
   useEffect(() => {
-    cargarEquipos();
-  }, [cargarEquipos]);
+    cargarEquipos(filtroSede);
+  }, [filtroSede, cargarEquipos]);
 
-  // Cambiar empleado responsable y sincronizar sede por defecto
+  // Cambiar empleado responsable y sincronizar sede estricta
   const handleCambiarEmpleado = (idPersonal: number) => {
     const encontrado = PERSONAL_RESPONSABLE_MOCK.find((e) => e.id_personal === idPersonal);
     if (encontrado) {
       setEmpleadoSeleccionado(encontrado);
-      // Sincroniza la sede del filtro con la sede del empleado responsable
-      setFiltroSede(String(encontrado.id_sede_personal));
+      const nuevaSedeStr = String(encontrado.id_sede_personal);
       // Sincroniza la sede por defecto para nuevos registros
       setNuevaSede(encontrado.id_sede_personal);
+      // Sincroniza la sede del filtro con la sede del empleado responsable
+      if (filtroSede !== nuevaSedeStr) {
+        setFiltroSede(nuevaSedeStr);
+      } else {
+        cargarEquipos(nuevaSedeStr);
+      }
     }
   };
 
@@ -102,7 +108,7 @@ export default function EquiposPage() {
       setNuevoNombre("");
       setNuevaFecha("");
       setShowAddModal(false);
-      cargarEquipos();
+      cargarEquipos(filtroSede);
     } catch (err: any) {
       const msg = err.data?.detail || err.message || "Error al registrar el equipamiento.";
       setFeedback({ type: "error", message: String(msg) });
@@ -116,7 +122,7 @@ export default function EquiposPage() {
     try {
       await clasesApi.eliminarEquipo(id);
       setFeedback({ type: "success", message: `Equipamiento #${id} eliminado.` });
-      cargarEquipos();
+      cargarEquipos(filtroSede);
     } catch (err: any) {
       const msg = err.data?.detail || err.message || "Error al eliminar.";
       setFeedback({ type: "error", message: String(msg) });
@@ -149,8 +155,9 @@ export default function EquiposPage() {
       </div>
 
       {/* Selector de Personal / Empleado Responsable */}
-      <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
+      <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-3.5 shadow-lg">
+        {/* Fila 1: Label + Select de Empleado */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <label
             htmlFor="selector-empleado"
             className="text-xs font-semibold uppercase tracking-wider text-purple-300 flex items-center gap-1.5 shrink-0"
@@ -162,7 +169,7 @@ export default function EquiposPage() {
             id="selector-empleado"
             value={empleadoSeleccionado.id_personal}
             onChange={(e) => handleCambiarEmpleado(Number(e.target.value))}
-            className="w-full sm:w-auto bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 font-medium cursor-pointer shadow-inner"
+            className="w-full sm:w-auto flex-1 max-w-2xl bg-slate-900 border border-purple-500/30 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 font-medium cursor-pointer shadow-inner"
           >
             {PERSONAL_RESPONSABLE_MOCK.map((emp) => (
               <option key={emp.id_personal} value={emp.id_personal}>
@@ -172,21 +179,33 @@ export default function EquiposPage() {
           </select>
         </div>
 
-        <div className="text-xs text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1 bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-800">
-          <span>
-            Sede asignada:{" "}
-            <strong className="text-purple-300 font-semibold">
-              {empleadoSeleccionado.nombre_sede_personal}
-            </strong>
-          </span>
-          <span className="text-slate-600">&bull;</span>
-          <span>
-            Cargo: <span className="text-slate-300">{empleadoSeleccionado.cargo_personal}</span>
-          </span>
-          <span className="text-slate-600">&bull;</span>
-          <span>
-            Contacto: <span className="font-mono text-slate-400">{empleadoSeleccionado.correo_personal}</span>
-          </span>
+        {/* Fila 2: Badges con datos del empleado distribuidos en filas/wrap sin solapamiento */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs bg-slate-900/70 p-3 rounded-xl border border-slate-800">
+          <div className="flex items-center gap-1.5 bg-purple-950/40 border border-purple-500/30 px-2.5 py-1 rounded-lg text-purple-200 font-medium">
+            <span>🏢</span>
+            <span>Sede asignada:</span>
+            <strong className="text-white font-bold">{empleadoSeleccionado.nombre_sede_personal}</strong>
+          </div>
+          <span className="text-slate-600 hidden sm:inline">&bull;</span>
+          <div className="flex items-center gap-1.5 bg-slate-800/70 border border-slate-700/60 px-2.5 py-1 rounded-lg text-slate-300">
+            <span>💼</span>
+            <span>Cargo:</span>
+            <strong className="text-slate-100">{empleadoSeleccionado.cargo_personal}</strong>
+          </div>
+          <span className="text-slate-600 hidden sm:inline">&bull;</span>
+          <div className="flex items-center gap-1.5 bg-slate-800/70 border border-slate-700/60 px-2.5 py-1 rounded-lg text-slate-400 font-mono">
+            <span>✉️</span>
+            <span>{empleadoSeleccionado.correo_personal}</span>
+          </div>
+          {empleadoSeleccionado.telefono_personal && (
+            <>
+              <span className="text-slate-600 hidden sm:inline">&bull;</span>
+              <div className="flex items-center gap-1.5 bg-slate-800/70 border border-slate-700/60 px-2.5 py-1 rounded-lg text-slate-400 font-mono">
+                <span>📞</span>
+                <span>{empleadoSeleccionado.telefono_personal}</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -218,14 +237,21 @@ export default function EquiposPage() {
             <option value="">Todas las sedes</option>
             {sedes.map((s) => (
               <option key={s.id_sede} value={s.id_sede}>
-                {s.nombre_sede}
+                {s.nombre_sede} {s.id_sede === empleadoSeleccionado.id_sede_personal ? "⭐ (Sede del Responsable)" : ""}
               </option>
             ))}
           </select>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-400">
           <button
-            onClick={() => setFiltroSede(String(empleadoSeleccionado.id_sede_personal))}
+            onClick={() => {
+              const sedeEmpStr = String(empleadoSeleccionado.id_sede_personal);
+              if (filtroSede !== sedeEmpStr) {
+                setFiltroSede(sedeEmpStr);
+              } else {
+                cargarEquipos(sedeEmpStr);
+              }
+            }}
             className="text-purple-400 hover:text-purple-300 underline font-medium"
           >
             Restablecer a Sede del Empleado ({empleadoSeleccionado.nombre_sede_personal})
