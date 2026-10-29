@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import apiClient, {
   Socio,
@@ -8,6 +8,42 @@ import apiClient, {
   SesionOcupacion,
   Clase,
 } from "@/services/apiClient";
+
+const HERO_SLIDES = [
+  {
+    badge: "Temporada 2026 · Matrícula Gratis",
+    title: "Entrena a tu ritmo en espacios de alto nivel.",
+    subtitle:
+      "Zonas de musculación, peso libre y cardio de última generación. Planes flexibles sin permanencia forzosa.",
+    image:
+      "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1600&q=85",
+    primaryCta: { label: "Inscríbete ya", href: "/contratos" },
+    secondaryCta: { label: "Buscar gimnasio", href: "/socios/sedes" },
+    labelShort: "01 · Infraestructura",
+  },
+  {
+    badge: "Entrenamiento Grupal · Reserva en Línea",
+    title: "Clases dirigidas que impulsan tu energía.",
+    subtitle:
+      "HIIT Funcional, Indoor Cycling, Power & Fuerza y Mobility guiados por instructores certificados en cada sede.",
+    image:
+      "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1600&q=85",
+    primaryCta: { label: "Reservar clase", href: "/clases" },
+    secondaryCta: { label: "Ver planes", href: "/contratos" },
+    labelShort: "02 · Clases Exclusivas",
+  },
+  {
+    badge: "Experiencia Digital · Control en Vivo",
+    title: "Ingreso ágil y gestión total desde tu cuenta.",
+    subtitle:
+      "Valida tu acceso en torniquete con tu RUT, consulta tu estado de cuenta y gestiona tus pagos sin filas.",
+    image:
+      "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=1600&q=85",
+    primaryCta: { label: "Validar acceso", href: "/socios/torniquete" },
+    secondaryCta: { label: "Estado de cuenta", href: "/contratos/estado-cuenta" },
+    labelShort: "03 · Tu Espacio Digital",
+  },
+];
 
 const SEDE_IMAGES = [
   "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=900&q=80",
@@ -22,11 +58,142 @@ const CLASE_IMAGES = [
   "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=800&q=80",
 ];
 
+const MARQUEE_ITEMS = [
+  "Matrícula Costo $0",
+  "Musculación y Peso Libre",
+  "Clases Grupales con Reserva en Línea",
+  "Acceso Automatizado por Torniquete",
+  "Planes Sin Permanencia Forzosa",
+  "Conectado en Tiempo Real a SQL Server",
+];
+
+/**
+ * Componente de aparición suave al hacer scroll (IntersectionObserver + cubic-bezier)
+ */
+function Reveal({
+  children,
+  delayMs = 0,
+  className = "",
+}: {
+  children: React.ReactNode;
+  delayMs?: number;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        transitionDelay: `${delayMs}ms`,
+        transitionDuration: "850ms",
+        transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+      }}
+      className={`transition-all will-change-transform ${
+        visible
+          ? "opacity-100 translate-y-0 scale-100"
+          : "opacity-0 translate-y-7 scale-[0.99]"
+      } ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Línea de acento #ff6105 que se expande suavemente al entrar en pantalla
+ */
+function AccentRule({ centered = false }: { centered?: boolean }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.2 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        transitionDuration: "900ms",
+        transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+        transitionDelay: "150ms",
+      }}
+      className={`h-[2px] bg-[#ff6105] transition-transform ${
+        centered ? "w-[64px] mx-auto origin-center" : "w-[88px] origin-left"
+      } ${visible ? "scale-x-100" : "scale-x-0"}`}
+    />
+  );
+}
+
+/**
+ * Hook para animar contadores numéricos suavemente
+ */
+function useCountUp(target: number, durationMs = 1100) {
+  const [value, setValue] = useState(0);
+
+  useEffect(() => {
+    if (target <= 0) {
+      setValue(0);
+      return;
+    }
+    let startTime: number | null = null;
+    let animationFrame: number;
+
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / durationMs, 1);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(eased * target));
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(step);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [target, durationMs]);
+
+  return value;
+}
+
 export default function Home() {
   const [healthStatus, setHealthStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isWakingUp, setIsWakingUp] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [activeSlide, setActiveSlide] = useState(0);
 
   // Datos reales desde SQL Server (resumidos para la portada)
   const [socios, setSocios] = useState<Socio[]>([]);
@@ -40,6 +207,23 @@ export default function Home() {
   const [accesoIdentificador, setAccesoIdentificador] = useState("");
   const [accesoLoading, setAccesoLoading] = useState(false);
   const [accesoResultado, setAccesoResultado] = useState<any>(null);
+
+  // Detectar scroll para efecto glassmorphism en el header
+  useEffect(() => {
+    const onScroll = () => {
+      setScrolled(window.scrollY > 16);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Rotación automática de slides del Hero cada 6 segundos
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % HERO_SLIDES.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, []);
 
   const cargarResumen = useCallback(async () => {
     setLoadingData(true);
@@ -129,7 +313,10 @@ export default function Home() {
     (s) => (s.activo_socio ?? s.activo) === true
   ).length;
 
-  // Mostrar máximo 3 planes destacados en el inicio (estilo SmartFit)
+  const animatedSocios = useCountUp(totalSociosActivos);
+  const animatedSesiones = useCountUp(sesiones.length);
+
+  // Mostrar máximo 3 planes destacados en el inicio
   const planesDestacados = planes.slice(0, 3);
 
   // Mostrar máximo 3 sedes en el inicio
@@ -188,65 +375,81 @@ export default function Home() {
           },
         ];
 
+  const currentHero = HERO_SLIDES[activeSlide];
+
   return (
     <div className="min-h-screen bg-[#ffffff] text-[#0a0a0a] font-normal">
       {/* ===== Announcement Bar (#f3f4f3 Linen, 40px) ===== */}
       <div className="bg-[#f3f4f3] border-b border-[#e5e5e5] h-10 px-4 sm:px-8 flex items-center">
         <div className="max-w-[1200px] mx-auto w-full flex items-center justify-between text-[13px] text-[#292b2a]">
-          <span className="truncate">
-            Matrícula costo $0 en todas nuestras sedes · Entrena desde hoy
-          </span>
+          <div className="flex items-center gap-2.5 truncate">
+            <span className="w-2 h-2 rounded-full bg-[#ff6105] animate-pulse shrink-0" />
+            <span className="truncate">
+              Matrícula costo $0 en todas nuestras sedes · Entrena desde hoy
+            </span>
+          </div>
           <Link
             href="/contratos"
-            className="font-medium text-[#0a0a0a] hover:text-[#ff6105] transition-colors whitespace-nowrap shrink-0 ml-4"
+            className="group font-medium text-[#0a0a0a] hover:text-[#ff6105] transition-colors whitespace-nowrap shrink-0 ml-4 inline-flex items-center gap-1"
           >
-            Ver planes →
+            <span>Ver planes</span>
+            <span className="inline-block transition-transform duration-300 group-hover:translate-x-1">
+              →
+            </span>
           </Link>
         </div>
       </div>
 
-      {/* ===== Top Navigation (Bien alineado, sin saltos de línea + Menú Hamburguesa) ===== */}
-      <header className="sticky top-0 z-40 bg-[#ffffff]/95 backdrop-blur-md border-b border-[#e5e5e5] h-[72px] px-4 sm:px-8">
+      {/* ===== Top Navigation (Con micro-interacciones y transición de scroll) ===== */}
+      <header
+        className={`sticky top-0 z-40 transition-all duration-500 px-4 sm:px-8 ${
+          scrolled
+            ? "bg-[#ffffff]/92 backdrop-blur-xl border-b border-[#e5e5e5] h-[66px]"
+            : "bg-[#ffffff] border-b border-[#e5e5e5] h-[74px]"
+        }`}
+      >
         <div className="max-w-[1200px] mx-auto h-full flex items-center justify-between gap-4">
-          {/* Logo */}
+          {/* Logo con pulso sutil en el punto naranja */}
           <Link
             href="/"
-            className="flex items-center gap-2 text-[#0a0a0a] tracking-[-0.03em] text-[24px] font-medium whitespace-nowrap shrink-0"
+            className="group flex items-center gap-2 text-[#0a0a0a] tracking-[-0.03em] text-[24px] font-medium whitespace-nowrap shrink-0"
           >
-            <span>gimnasio</span>
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#ff6105]" />
+            <span className="transition-transform duration-300 group-hover:-translate-y-0.5">
+              gimnasio
+            </span>
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#ff6105] transition-transform duration-300 group-hover:scale-125" />
             <span className="font-light text-[#7a7b7b]">db</span>
           </Link>
 
-          {/* Links Centrales Concisos (Nunca hacen salto de línea) */}
+          {/* Links Centrales con subrayado animado desde la izquierda */}
           <nav className="hidden md:flex items-center gap-8 text-[15px] font-normal text-[#292b2a]">
             <Link
               href="/socios/sedes"
-              className="hover:text-[#ff6105] transition-colors whitespace-nowrap"
+              className="nav-link-premium hover:text-[#0a0a0a] whitespace-nowrap"
             >
               Gimnasios
             </Link>
             <Link
               href="/contratos"
-              className="hover:text-[#ff6105] transition-colors whitespace-nowrap"
+              className="nav-link-premium hover:text-[#0a0a0a] whitespace-nowrap"
             >
               Planes
             </Link>
             <Link
               href="/clases"
-              className="hover:text-[#ff6105] transition-colors whitespace-nowrap"
+              className="nav-link-premium hover:text-[#0a0a0a] whitespace-nowrap"
             >
               Clases
             </Link>
             <Link
               href="/contratos/estado-cuenta"
-              className="hover:text-[#ff6105] transition-colors whitespace-nowrap"
+              className="nav-link-premium hover:text-[#0a0a0a] whitespace-nowrap"
             >
               Tu Espacio
             </Link>
             <Link
               href="/socios/torniquete"
-              className="hover:text-[#ff6105] transition-colors whitespace-nowrap"
+              className="nav-link-premium hover:text-[#0a0a0a] whitespace-nowrap"
             >
               Recepción
             </Link>
@@ -256,14 +459,14 @@ export default function Home() {
           <div className="flex items-center gap-3 shrink-0">
             <Link
               href="/socios/login"
-              className="hidden sm:inline-flex items-center justify-center px-5 py-2.5 rounded-[24px] border border-[#e5e5e5] bg-[#ffffff] hover:bg-[#f3f4f3] text-[14px] font-normal text-[#292b2a] whitespace-nowrap transition-colors"
+              className="btn-secondary-pill hidden sm:inline-flex items-center justify-center px-5 py-2.5 border border-[#e5e5e5] bg-[#ffffff] hover:bg-[#f3f4f3] hover:border-[#0a0a0a] text-[14px] font-normal text-[#292b2a] whitespace-nowrap"
             >
               Iniciar sesión
             </Link>
 
             <Link
               href="/contratos"
-              className="inline-flex items-center justify-center px-6 py-2.5 rounded-[40px] bg-[#ff6105] hover:bg-[#e55600] text-[#ffffff] text-[14px] font-medium whitespace-nowrap transition-colors"
+              className="btn-primary-pill inline-flex items-center justify-center px-6 py-2.5 text-[14px] font-medium whitespace-nowrap"
             >
               Inscríbete ya
             </Link>
@@ -272,7 +475,7 @@ export default function Home() {
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-label="Abrir menú de navegación"
-              className="inline-flex items-center justify-center w-10 h-10 rounded-[24px] border border-[#e5e5e5] bg-[#ffffff] hover:bg-[#f3f4f3] text-[#0a0a0a] transition-colors shrink-0"
+              className="btn-secondary-pill inline-flex items-center justify-center w-10 h-10 border border-[#e5e5e5] bg-[#ffffff] hover:bg-[#f3f4f3] hover:border-[#0a0a0a] text-[#0a0a0a] shrink-0"
             >
               <svg
                 width="18"
@@ -293,366 +496,442 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ===== Drawer Menú Lateral (Estilo SmartFit para navegar a todos los módulos sin saturar el inicio) ===== */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-[#0a0a0a]/40 backdrop-blur-xs">
-          <div className="w-full max-w-[380px] bg-[#ffffff] h-full border-l border-[#e5e5e5] p-6 sm:p-8 flex flex-col justify-between overflow-y-auto">
-            <div className="space-y-8">
-              <div className="flex items-center justify-between pb-4 border-b border-[#e5e5e5]">
-                <span className="text-[20px] font-medium tracking-[-0.02em] text-[#0a0a0a]">
-                  Menú GimnasioDB
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setMenuOpen(false)}
-                  className="w-9 h-9 rounded-[24px] border border-[#e5e5e5] flex items-center justify-center text-[#292b2a] hover:text-[#0a0a0a]"
-                >
-                  ✕
-                </button>
-              </div>
+      {/* ===== Drawer Menú Lateral con Transición Suave (Slide-over) ===== */}
+      <div
+        className={`fixed inset-0 z-50 transition-all duration-500 ${
+          menuOpen
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
+        }`}
+      >
+        {/* Backdrop */}
+        <div
+          onClick={() => setMenuOpen(false)}
+          className="absolute inset-0 bg-[#0a0a0a]/45 backdrop-blur-xs transition-opacity duration-500"
+        />
 
-              {/* Grupo 1: Planes y Finanzas (Daniel) */}
-              <div className="space-y-2.5">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
-                  Planes, Contratos y Caja
-                </p>
-                <div className="flex flex-col space-y-1 text-[15px]">
-                  <Link
-                    href="/contratos"
-                    onClick={() => setMenuOpen(false)}
-                    className="py-2 text-[#0a0a0a] hover:text-[#ff6105] flex justify-between"
-                  >
-                    <span>Planes y Suscripción</span>
-                    <span>→</span>
-                  </Link>
-                  <Link
-                    href="/contratos/caja"
-                    onClick={() => setMenuOpen(false)}
-                    className="py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between"
-                  >
-                    <span>Caja y Recepción de Pagos</span>
-                    <span>→</span>
-                  </Link>
-                  <Link
-                    href="/contratos/estado-cuenta"
-                    onClick={() => setMenuOpen(false)}
-                    className="py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between"
-                  >
-                    <span>Estado de Cuenta del Socio</span>
-                    <span>→</span>
-                  </Link>
-                  <Link
-                    href="/contratos/personal"
-                    onClick={() => setMenuOpen(false)}
-                    className="py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between"
-                  >
-                    <span>Personal e Ingresos por Sede</span>
-                    <span>→</span>
-                  </Link>
-                </div>
-              </div>
+        {/* Panel Lateral */}
+        <aside
+          style={{
+            transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+          }}
+          className={`absolute top-0 right-0 w-full max-w-[390px] bg-[#ffffff] h-full border-l border-[#e5e5e5] p-6 sm:p-8 flex flex-col justify-between overflow-y-auto transition-transform duration-500 ${
+            menuOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          <div className="space-y-8">
+            <div className="flex items-center justify-between pb-4 border-b border-[#e5e5e5]">
+              <span className="text-[20px] font-medium tracking-[-0.02em] text-[#0a0a0a]">
+                Navegación GimnasioDB
+              </span>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                className="w-9 h-9 rounded-[24px] border border-[#e5e5e5] hover:border-[#0a0a0a] flex items-center justify-center text-[#292b2a] hover:text-[#0a0a0a] transition-all hover:rotate-90 duration-300"
+              >
+                ✕
+              </button>
+            </div>
 
-              {/* Grupo 2: Sedes y Socios (Carlos) */}
-              <div className="space-y-2.5 pt-4 border-t border-[#e5e5e5]">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
-                  Gimnasios, Socios y Acceso
-                </p>
-                <div className="flex flex-col space-y-1 text-[15px]">
+            {/* Grupo 1: Planes y Finanzas (Daniel) */}
+            <div className="space-y-2.5">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
+                Planes, Contratos y Caja
+              </p>
+              <div className="flex flex-col space-y-1 text-[15px]">
+                {[
+                  { label: "Planes y Suscripción", href: "/contratos" },
+                  { label: "Caja y Recepción de Pagos", href: "/contratos/caja" },
+                  {
+                    label: "Estado de Cuenta del Socio",
+                    href: "/contratos/estado-cuenta",
+                  },
+                  {
+                    label: "Personal e Ingresos por Sede",
+                    href: "/contratos/personal",
+                  },
+                ].map((item) => (
                   <Link
-                    href="/socios/sedes"
+                    key={item.href}
+                    href={item.href}
                     onClick={() => setMenuOpen(false)}
-                    className="py-2 text-[#0a0a0a] hover:text-[#ff6105] flex justify-between"
+                    className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5"
                   >
-                    <span>Nuestras Sedes y Reportes</span>
-                    <span>→</span>
+                    <span>{item.label}</span>
+                    <span className="transition-transform duration-300 group-hover:translate-x-1">
+                      →
+                    </span>
                   </Link>
-                  <Link
-                    href="/socios/torniquete"
-                    onClick={() => setMenuOpen(false)}
-                    className="py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between"
-                  >
-                    <span>Control de Acceso (Torniquete)</span>
-                    <span>→</span>
-                  </Link>
-                  <Link
-                    href="/socios"
-                    onClick={() => setMenuOpen(false)}
-                    className="py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between"
-                  >
-                    <span>Directorio de Socios</span>
-                    <span>→</span>
-                  </Link>
-                  <Link
-                    href="/socios/login"
-                    onClick={() => setMenuOpen(false)}
-                    className="py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between"
-                  >
-                    <span>Acceso y Perfil de Usuario</span>
-                    <span>→</span>
-                  </Link>
-                </div>
-              </div>
-
-              {/* Grupo 3: Clases y Equipos (Emilia) */}
-              <div className="space-y-2.5 pt-4 border-t border-[#e5e5e5]">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
-                  Clases Grupales y Equipamiento
-                </p>
-                <div className="flex flex-col space-y-1 text-[15px]">
-                  <Link
-                    href="/clases"
-                    onClick={() => setMenuOpen(false)}
-                    className="py-2 text-[#0a0a0a] hover:text-[#ff6105] flex justify-between"
-                  >
-                    <span>Catálogo y Reserva de Clases</span>
-                    <span>→</span>
-                  </Link>
-                  <Link
-                    href="/clases/instructor"
-                    onClick={() => setMenuOpen(false)}
-                    className="py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between"
-                  >
-                    <span>Portal del Instructor</span>
-                    <span>→</span>
-                  </Link>
-                  <Link
-                    href="/clases/programador"
-                    onClick={() => setMenuOpen(false)}
-                    className="py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between"
-                  >
-                    <span>Programador de Sesiones</span>
-                    <span>→</span>
-                  </Link>
-                  <Link
-                    href="/clases/equipos"
-                    onClick={() => setMenuOpen(false)}
-                    className="py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between"
-                  >
-                    <span>Inventario de Máquinas</span>
-                    <span>→</span>
-                  </Link>
-                </div>
+                ))}
               </div>
             </div>
 
-            <div className="pt-6 border-t border-[#e5e5e5]">
-              <Link
-                href="/contratos"
-                onClick={() => setMenuOpen(false)}
-                style={{
-                  boxShadow:
-                    "rgba(255, 97, 5, 0.6) 1px 6px 14px 0px, rgba(0, 0, 0, 0.06) 0px 1px 4px 0px",
-                }}
-                className="w-full py-3.5 px-6 rounded-[50px] bg-[#ff6105] text-[#ffffff] text-[15px] font-medium text-center block"
+            {/* Grupo 2: Sedes y Socios (Carlos) */}
+            <div className="space-y-2.5 pt-4 border-t border-[#e5e5e5]">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
+                Gimnasios, Socios y Acceso
+              </p>
+              <div className="flex flex-col space-y-1 text-[15px]">
+                {[
+                  { label: "Nuestras Sedes y Reportes", href: "/socios/sedes" },
+                  {
+                    label: "Control de Acceso (Torniquete)",
+                    href: "/socios/torniquete",
+                  },
+                  { label: "Directorio de Socios", href: "/socios" },
+                  { label: "Acceso y Perfil de Usuario", href: "/socios/login" },
+                ].map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5"
+                  >
+                    <span>{item.label}</span>
+                    <span className="transition-transform duration-300 group-hover:translate-x-1">
+                      →
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Grupo 3: Clases y Equipos (Emilia) */}
+            <div className="space-y-2.5 pt-4 border-t border-[#e5e5e5]">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
+                Clases Grupales y Equipamiento
+              </p>
+              <div className="flex flex-col space-y-1 text-[15px]">
+                {[
+                  { label: "Catálogo y Reserva de Clases", href: "/clases" },
+                  { label: "Portal del Instructor", href: "/clases/instructor" },
+                  {
+                    label: "Programador de Sesiones",
+                    href: "/clases/programador",
+                  },
+                  { label: "Inventario de Máquinas", href: "/clases/equipos" },
+                ].map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5"
+                  >
+                    <span>{item.label}</span>
+                    <span className="transition-transform duration-300 group-hover:translate-x-1">
+                      →
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-[#e5e5e5]">
+            <Link
+              href="/contratos"
+              onClick={() => setMenuOpen(false)}
+              className="btn-primary-pill w-full py-3.5 px-6 text-[15px] font-medium text-center block"
+            >
+              Inscríbete ya
+            </Link>
+          </div>
+        </aside>
+      </div>
+
+      {/* ===== BANNER PRINCIPAL HERO INTERACTIVO CON KEN BURNS ZOOM & SLIDES ===== */}
+      <section className="px-4 sm:px-8 pt-6 pb-14">
+        <div className="max-w-[1200px] mx-auto space-y-6">
+          <div className="relative rounded-[8px] overflow-hidden bg-[#202120] min-h-[500px] sm:min-h-[560px] flex flex-col justify-end">
+            {/* Imágenes de fondo con efecto Ken Burns y Crossfade */}
+            {HERO_SLIDES.map((slide, index) => {
+              const isActive = index === activeSlide;
+              return (
+                <div
+                  key={slide.labelShort}
+                  className={`absolute inset-0 transition-opacity duration-1000 ${
+                    isActive ? "opacity-100 z-0" : "opacity-0 -z-10"
+                  }`}
+                >
+                  <img
+                    src={slide.image}
+                    alt={slide.title}
+                    className={`w-full h-full object-cover opacity-55 ${
+                      isActive ? "animate-ken-burns" : ""
+                    }`}
+                  />
+                </div>
+              );
+            })}
+
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/45 to-transparent z-0" />
+
+            {/* Contenido del Slide Activo */}
+            <div className="relative z-10 p-6 sm:p-12 lg:p-16 grid grid-cols-1 lg:grid-cols-12 gap-8 items-end">
+              <div
+                key={activeSlide}
+                className="lg:col-span-8 space-y-5 animate-fade-in-scale"
               >
-                Inscríbete ya
+                <span className="inline-block px-3 py-1 rounded-[8px] bg-[#ff6105] text-[#ffffff] text-[12px] font-medium tracking-[0.04em] uppercase">
+                  {currentHero.badge}
+                </span>
+
+                <h1 className="text-[38px] sm:text-[56px] lg:text-[68px] font-light leading-[1.06] tracking-[-0.036em] text-[#ffffff]">
+                  {currentHero.title}
+                </h1>
+
+                <div className="w-[100px] h-[2px] bg-[#ff6105]" />
+
+                <p className="text-[16px] sm:text-[18px] text-[#e5e5e5] font-normal max-w-[560px] leading-[1.5]">
+                  {currentHero.subtitle}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-3.5 pt-2">
+                  <Link
+                    href={currentHero.primaryCta.href}
+                    className="btn-primary-pill group inline-flex items-center gap-2.5 px-8 py-4 text-[16px] font-medium tracking-[-0.01em] whitespace-nowrap"
+                  >
+                    <span>{currentHero.primaryCta.label}</span>
+                    <span className="transition-transform duration-300 group-hover:translate-x-1.5">
+                      →
+                    </span>
+                  </Link>
+
+                  <Link
+                    href={currentHero.secondaryCta.href}
+                    className="btn-secondary-pill px-6 py-4 bg-[#ffffff] hover:bg-[#f3f4f3] text-[#0a0a0a] text-[15px] font-medium whitespace-nowrap"
+                  >
+                    {currentHero.secondaryCta.label}
+                  </Link>
+                </div>
+              </div>
+
+              {/* Selector de Slides con Barra de Progreso Animada */}
+              <div className="lg:col-span-4 flex flex-col gap-2.5 lg:items-end">
+                <div className="w-full sm:w-[280px] space-y-2 bg-[#0a0a0a]/65 backdrop-blur-md border border-[#ffffff]/15 rounded-[5px] p-4">
+                  {HERO_SLIDES.map((s, idx) => {
+                    const active = idx === activeSlide;
+                    return (
+                      <button
+                        key={s.labelShort}
+                        type="button"
+                        onClick={() => setActiveSlide(idx)}
+                        className="w-full text-left py-1.5 group"
+                      >
+                        <div className="flex items-center justify-between text-[12px] mb-1.5">
+                          <span
+                            className={`transition-colors ${
+                              active
+                                ? "text-[#ffffff] font-medium"
+                                : "text-[#a2a3a2] group-hover:text-[#ffffff]"
+                            }`}
+                          >
+                            {s.labelShort}
+                          </span>
+                          {active && (
+                            <span className="text-[11px] text-[#ff6105] font-medium">
+                              Activo
+                            </span>
+                          )}
+                        </div>
+                        <div className="w-full h-[2px] bg-[#3c3e3d] overflow-hidden">
+                          {active && (
+                            <div
+                              key={`prog-${activeSlide}`}
+                              className="h-full bg-[#ff6105] animate-slide-progress"
+                            />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Barra Compacta de Datos Reales con Contadores Animados */}
+          <Reveal delayMs={100}>
+            <div className="grid grid-cols-2 lg:grid-cols-4 border border-[#e5e5e5] rounded-[5px] bg-[#ffffff] divide-y lg:divide-y-0 lg:divide-x divide-[#e5e5e5]">
+              <div className="p-5 flex items-center justify-between">
+                <div>
+                  <p className="text-[12px] uppercase tracking-[0.06em] text-[#7a7b7b]">
+                    Horario Lunes a Viernes
+                  </p>
+                  <p className="text-[20px] font-medium text-[#0a0a0a] mt-0.5">
+                    06:00 — 23:00 hrs
+                  </p>
+                </div>
+                <span className="w-2 h-2 rounded-full bg-[#ff6105] animate-pulse" />
+              </div>
+
+              <div className="p-5 flex items-center justify-between">
+                <div>
+                  <p className="text-[12px] uppercase tracking-[0.06em] text-[#7a7b7b]">
+                    Sábados y Domingos
+                  </p>
+                  <p className="text-[20px] font-medium text-[#0a0a0a] mt-0.5">
+                    08:00 — 18:00 hrs
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href="/socios"
+                className="group p-5 flex items-center justify-between hover:bg-[#f3f4f3] transition-colors"
+              >
+                <div>
+                  <p className="text-[12px] uppercase tracking-[0.06em] text-[#7a7b7b]">
+                    Comunidad Activa
+                  </p>
+                  <p className="text-[20px] font-medium text-[#0a0a0a] mt-0.5">
+                    {loadingData ? "..." : `${animatedSocios} socios activos`}
+                  </p>
+                </div>
+                <span className="text-[14px] text-[#7a7b7b] group-hover:text-[#ff6105] transition-transform duration-300 group-hover:translate-x-1">
+                  →
+                </span>
+              </Link>
+
+              <Link
+                href="/clases"
+                className="group p-5 flex items-center justify-between hover:bg-[#f3f4f3] transition-colors"
+              >
+                <div>
+                  <p className="text-[12px] uppercase tracking-[0.06em] text-[#7a7b7b]">
+                    Clases Programadas
+                  </p>
+                  <p className="text-[20px] font-medium text-[#0a0a0a] mt-0.5">
+                    {loadingData ? "..." : `${animatedSesiones} sesiones`}
+                  </p>
+                </div>
+                <span className="text-[14px] text-[#7a7b7b] group-hover:text-[#ff6105] transition-transform duration-300 group-hover:translate-x-1">
+                  →
+                </span>
               </Link>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== BANNER PRINCIPAL HERO CON FOTOGRAFÍA ===== */}
-      <section className="px-4 sm:px-8 pt-6 pb-16">
-        <div className="max-w-[1200px] mx-auto space-y-8">
-          <div className="relative rounded-[8px] overflow-hidden bg-[#202120] min-h-[480px] sm:min-h-[540px] flex items-end">
-            <img
-              src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1600&q=85"
-              alt="Instalaciones de GimnasioDB"
-              className="absolute inset-0 w-full h-full object-cover opacity-55"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/45 to-transparent" />
-
-            <div className="relative z-10 p-6 sm:p-12 lg:p-16 max-w-[760px] space-y-5">
-              <span className="inline-block px-3 py-1 rounded-[8px] bg-[#ff6105] text-[#ffffff] text-[12px] font-medium tracking-[0.04em] uppercase">
-                Temporada 2026 · Matrícula Gratis
-              </span>
-
-              <h1 className="text-[40px] sm:text-[56px] lg:text-[68px] font-light leading-[1.06] tracking-[-0.036em] text-[#ffffff]">
-                Entrena a tu ritmo en espacios de alto nivel.
-              </h1>
-
-              <div className="w-[100px] h-[2px] bg-[#ff6105]" />
-
-              <p className="text-[16px] sm:text-[18px] text-[#e5e5e5] font-normal max-w-[540px] leading-[1.5]">
-                Zonas de musculación, peso libre y clases grupales con reserva en
-                línea. Planes desde{" "}
-                <span className="text-[#ffffff] font-medium">$24.990 / mes</span>.
-              </p>
-
-              <div className="flex flex-wrap items-center gap-3.5 pt-2">
-                <Link
-                  href="/contratos"
-                  style={{
-                    boxShadow:
-                      "rgba(255, 97, 5, 0.6) 1px 6px 14px 0px, rgba(0, 0, 0, 0.06) 0px 1px 4px 0px",
-                  }}
-                  className="px-8 py-4 rounded-[50px] bg-[#ff6105] hover:bg-[#e55600] text-[#ffffff] text-[16px] font-medium tracking-[-0.01em] transition-all whitespace-nowrap"
-                >
-                  Inscríbete ya →
-                </Link>
-
-                <Link
-                  href="/socios/sedes"
-                  className="px-6 py-4 rounded-[24px] bg-[#ffffff] hover:bg-[#f3f4f3] text-[#0a0a0a] text-[15px] font-medium transition-colors whitespace-nowrap"
-                >
-                  Buscar gimnasio
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Barra Compacta de Datos Reales y Horario (Alineada en 4 bloques limpios) */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 border border-[#e5e5e5] rounded-[5px] bg-[#ffffff] divide-y lg:divide-y-0 lg:divide-x divide-[#e5e5e5]">
-            <div className="p-5 flex items-center justify-between">
-              <div>
-                <p className="text-[12px] uppercase tracking-[0.06em] text-[#7a7b7b]">
-                  Horario Lunes a Viernes
-                </p>
-                <p className="text-[20px] font-medium text-[#0a0a0a] mt-0.5">
-                  06:00 — 23:00 hrs
-                </p>
-              </div>
-              <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
-            </div>
-
-            <div className="p-5 flex items-center justify-between">
-              <div>
-                <p className="text-[12px] uppercase tracking-[0.06em] text-[#7a7b7b]">
-                  Sábados y Domingos
-                </p>
-                <p className="text-[20px] font-medium text-[#0a0a0a] mt-0.5">
-                  08:00 — 18:00 hrs
-                </p>
-              </div>
-            </div>
-
-            <Link
-              href="/socios"
-              className="p-5 flex items-center justify-between hover:bg-[#f3f4f3] transition-colors"
-            >
-              <div>
-                <p className="text-[12px] uppercase tracking-[0.06em] text-[#7a7b7b]">
-                  Comunidad Activa
-                </p>
-                <p className="text-[20px] font-medium text-[#0a0a0a] mt-0.5">
-                  {loadingData ? "..." : `${totalSociosActivos} socios activos`}
-                </p>
-              </div>
-              <span className="text-[14px] text-[#7a7b7b]">→</span>
-            </Link>
-
-            <Link
-              href="/clases"
-              className="p-5 flex items-center justify-between hover:bg-[#f3f4f3] transition-colors"
-            >
-              <div>
-                <p className="text-[12px] uppercase tracking-[0.06em] text-[#7a7b7b]">
-                  Clases Programadas
-                </p>
-                <p className="text-[20px] font-medium text-[#0a0a0a] mt-0.5">
-                  {loadingData ? "..." : `${sesiones.length} sesiones`}
-                </p>
-              </div>
-              <span className="text-[14px] text-[#7a7b7b]">→</span>
-            </Link>
-          </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* ===== SECCIÓN 1: ENCUENTRA TU SEDE MÁS CERCANA (Tarjetas con Foto -> /socios/sedes) ===== */}
-      <section className="py-16 sm:py-20 px-4 sm:px-8 bg-[#f3f4f3] border-t border-b border-[#e5e5e5]">
-        <div className="max-w-[1200px] mx-auto space-y-10">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-            <div className="space-y-3">
-              <p className="text-[12px] uppercase tracking-[0.08em] text-[#7a7b7b] font-medium">
-                Nuestras Ubicaciones
-              </p>
-              <h2 className="text-[32px] sm:text-[44px] font-light leading-[1.15] tracking-[-0.030em] text-[#0a0a0a]">
-                Encuentra tu sede más cercana
-              </h2>
-              <div className="w-[80px] h-[2px] bg-[#ff6105]" />
+      {/* ===== CINTA INFINITA DE MOVIMIENTO SUAVE (Marquee) ===== */}
+      <div className="bg-[#0a0a0a] text-[#ffffff] py-3.5 border-y border-[#202120] overflow-hidden">
+        <div className="animate-marquee flex items-center gap-10 text-[12px] uppercase tracking-[0.12em] font-medium">
+          {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
+            <div key={i} className="flex items-center gap-10 whitespace-nowrap">
+              <span>{item}</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#ff6105]" />
             </div>
+          ))}
+        </div>
+      </div>
 
-            <Link
-              href="/socios/sedes"
-              className="inline-flex items-center px-6 py-3 rounded-[24px] bg-[#ffffff] hover:bg-[#0a0a0a] text-[#0a0a0a] hover:text-[#ffffff] border border-[#e5e5e5] text-[14px] font-medium transition-colors whitespace-nowrap self-start sm:self-auto"
-            >
-              Ver todas las sedes →
-            </Link>
-          </div>
+      {/* ===== SECCIÓN 1: ENCUENTRA TU SEDE MÁS CERCANA (Tarjetas con Lift y Zoom Suave) ===== */}
+      <section className="py-20 sm:py-24 px-4 sm:px-8 bg-[#f3f4f3] border-b border-[#e5e5e5]">
+        <div className="max-w-[1200px] mx-auto space-y-12">
+          <Reveal>
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div className="space-y-3">
+                <p className="text-[12px] uppercase tracking-[0.08em] text-[#7a7b7b] font-medium">
+                  Nuestras Ubicaciones
+                </p>
+                <h2 className="text-[32px] sm:text-[44px] font-light leading-[1.15] tracking-[-0.030em] text-[#0a0a0a]">
+                  Encuentra tu sede más cercana
+                </h2>
+                <AccentRule />
+              </div>
+
+              <Link
+                href="/socios/sedes"
+                className="btn-secondary-pill group inline-flex items-center gap-2 px-6 py-3 bg-[#ffffff] hover:bg-[#0a0a0a] text-[#0a0a0a] hover:text-[#ffffff] border border-[#e5e5e5] hover:border-[#0a0a0a] text-[14px] font-medium whitespace-nowrap self-start sm:self-auto"
+              >
+                <span>Ver todas las sedes</span>
+                <span className="transition-transform duration-300 group-hover:translate-x-1">
+                  →
+                </span>
+              </Link>
+            </div>
+          </Reveal>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {sedesDestacadas.map((sede, index) => (
-              <div
-                key={sede.id_sede ?? index}
-                className="rounded-[5px] border border-[#e5e5e5] bg-[#ffffff] overflow-hidden flex flex-col justify-between"
-              >
-                <div>
-                  <div className="relative h-52 overflow-hidden bg-[#202120]">
-                    <img
-                      src={SEDE_IMAGES[index % SEDE_IMAGES.length]}
-                      alt={sede.nombre_sede}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                    <span className="absolute top-3 left-3 px-2.5 py-1 rounded-[8px] bg-[#0a0a0a]/80 text-[#ffffff] text-[11px] font-medium">
-                      Abierto · 06:00 a 23:00
-                    </span>
+              <Reveal key={sede.id_sede ?? index} delayMs={index * 120}>
+                <div className="card-premium-lift group rounded-[5px] border border-[#e5e5e5] hover:border-[#0a0a0a] bg-[#ffffff] overflow-hidden flex flex-col justify-between h-full">
+                  <div>
+                    <div className="relative h-56 overflow-hidden bg-[#202120]">
+                      <img
+                        src={SEDE_IMAGES[index % SEDE_IMAGES.length]}
+                        alt={sede.nombre_sede}
+                        className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <span className="absolute top-3 left-3 px-2.5 py-1 rounded-[8px] bg-[#0a0a0a]/80 backdrop-blur-xs text-[#ffffff] text-[11px] font-medium">
+                        Abierto · 06:00 a 23:00
+                      </span>
+                    </div>
+
+                    <div className="p-6 space-y-2">
+                      <h3 className="text-[22px] font-medium tracking-[-0.02em] text-[#0a0a0a] group-hover:text-[#ff6105] transition-colors">
+                        {sede.nombre_sede}
+                      </h3>
+                      <p className="text-[14px] text-[#7a7b7b] truncate">
+                        {sede.direccion_calle_sede ||
+                          "Zona de musculación, cardio y clases"}
+                        {sede.nombre_ciudad ? ` · ${sede.nombre_ciudad}` : ""}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="p-6 space-y-2">
-                    <h3 className="text-[22px] font-medium tracking-[-0.02em] text-[#0a0a0a]">
-                      {sede.nombre_sede}
-                    </h3>
-                    <p className="text-[14px] text-[#7a7b7b] truncate">
-                      {sede.direccion_calle_sede || "Zona de musculación, cardio y clases"}
-                      {sede.nombre_ciudad ? ` · ${sede.nombre_ciudad}` : ""}
-                    </p>
+                  <div className="px-6 pb-6 pt-3 border-t border-[#e5e5e5] flex items-center justify-between gap-2">
+                    <Link
+                      href="/socios/sedes"
+                      className="group/link inline-flex items-center gap-1 text-[14px] font-medium text-[#0a0a0a] hover:text-[#ff6105] transition-colors"
+                    >
+                      <span>Ver sede y métricas</span>
+                      <span className="transition-transform duration-300 group-hover/link:translate-x-1">
+                        →
+                      </span>
+                    </Link>
+                    <Link
+                      href="/contratos"
+                      className="btn-secondary-pill px-4 py-2 bg-[#ff6105] hover:bg-[#e55600] text-[#ffffff] text-[13px] font-medium whitespace-nowrap"
+                    >
+                      Inscríbete
+                    </Link>
                   </div>
                 </div>
-
-                <div className="px-6 pb-6 pt-3 border-t border-[#e5e5e5] flex items-center justify-between gap-2">
-                  <Link
-                    href="/socios/sedes"
-                    className="text-[14px] font-medium text-[#0a0a0a] hover:text-[#ff6105] transition-colors"
-                  >
-                    Ver sede y métricas →
-                  </Link>
-                  <Link
-                    href="/contratos"
-                    className="px-4 py-2 rounded-[24px] bg-[#ff6105] hover:bg-[#e55600] text-[#ffffff] text-[13px] font-medium transition-colors whitespace-nowrap"
-                  >
-                    Inscríbete
-                  </Link>
-                </div>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ===== SECCIÓN 2: ELIGE TU MEJOR PLAN (Solo 3 Planes, conciso -> /contratos) ===== */}
-      <section className="py-16 sm:py-24 px-4 sm:px-8 bg-[#ffffff]">
-        <div className="max-w-[1200px] mx-auto space-y-10">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-            <div className="space-y-3">
-              <p className="text-[12px] uppercase tracking-[0.08em] text-[#7a7b7b] font-medium">
-                Membresías Sin Permanencia Forzosa
-              </p>
-              <h2 className="text-[32px] sm:text-[44px] font-light leading-[1.15] tracking-[-0.030em] text-[#0a0a0a]">
-                Elige tu mejor plan
-              </h2>
-              <div className="w-[80px] h-[2px] bg-[#ff6105]" />
-            </div>
+      {/* ===== SECCIÓN 2: ELIGE TU MEJOR PLAN (Staggered Reveal + Hover Lift) ===== */}
+      <section className="py-20 sm:py-24 px-4 sm:px-8 bg-[#ffffff]">
+        <div className="max-w-[1200px] mx-auto space-y-12">
+          <Reveal>
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div className="space-y-3">
+                <p className="text-[12px] uppercase tracking-[0.08em] text-[#7a7b7b] font-medium">
+                  Membresías Sin Permanencia Forzosa
+                </p>
+                <h2 className="text-[32px] sm:text-[44px] font-light leading-[1.15] tracking-[-0.030em] text-[#0a0a0a]">
+                  Elige tu mejor plan
+                </h2>
+                <AccentRule />
+              </div>
 
-            <Link
-              href="/contratos"
-              className="inline-flex items-center px-6 py-3 rounded-[24px] bg-[#f3f4f3] hover:bg-[#e5e7eb] border border-[#e5e5e5] text-[#0a0a0a] text-[14px] font-medium transition-colors whitespace-nowrap self-start sm:self-auto"
-            >
-              Ver todos los planes y contratos →
-            </Link>
-          </div>
+              <Link
+                href="/contratos"
+                className="btn-secondary-pill group inline-flex items-center gap-2 px-6 py-3 bg-[#f3f4f3] hover:bg-[#0a0a0a] border border-[#e5e5e5] hover:border-[#0a0a0a] text-[#0a0a0a] hover:text-[#ffffff] text-[14px] font-medium whitespace-nowrap self-start sm:self-auto"
+              >
+                <span>Ver todos los planes y contratos</span>
+                <span className="transition-transform duration-300 group-hover:translate-x-1">
+                  →
+                </span>
+              </Link>
+            </div>
+          </Reveal>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {planesDestacados.map((plan, idx) => {
@@ -666,84 +945,78 @@ export default function Home() {
                 plan.precio_vigente_planmembresia ?? plan.precio_vigente ?? 29990
               );
               const precioMensual = Math.round(precioTotal / Math.max(1, meses));
-              const isFeatured = idx === 1 || (planesDestacados.length === 1 && idx === 0);
+              const isFeatured =
+                idx === 1 || (planesDestacados.length === 1 && idx === 0);
 
               return (
-                <div
-                  key={id}
-                  className={`rounded-[5px] p-7 flex flex-col justify-between ${
-                    isFeatured
-                      ? "bg-[#ffdfcd] border border-[#ffa069]"
-                      : "bg-[#ffffff] border border-[#e5e5e5]"
-                  }`}
-                >
-                  <div className="space-y-5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] uppercase tracking-[0.06em] text-[#7a7b7b] font-medium">
-                        {meses} {meses === 1 ? "Mes" : "Meses"}
-                      </span>
-                      {isFeatured && (
-                        <span className="px-2.5 py-0.5 rounded-[8px] bg-[#ff6105] text-[#ffffff] text-[12px] font-medium">
-                          Más conveniente
+                <Reveal key={id} delayMs={idx * 120}>
+                  <div
+                    className={`card-premium-lift rounded-[5px] p-7 flex flex-col justify-between h-full ${
+                      isFeatured
+                        ? "bg-[#ffdfcd] border border-[#ffa069] hover:border-[#ff6105]"
+                        : "bg-[#ffffff] border border-[#e5e5e5] hover:border-[#0a0a0a]"
+                    }`}
+                  >
+                    <div className="space-y-5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] uppercase tracking-[0.06em] text-[#7a7b7b] font-medium">
+                          {meses} {meses === 1 ? "Mes" : "Meses"}
                         </span>
-                      )}
+                        {isFeatured && (
+                          <span className="px-2.5 py-0.5 rounded-[8px] bg-[#ff6105] text-[#ffffff] text-[12px] font-medium">
+                            Más conveniente
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="text-[26px] font-medium tracking-[-0.02em] text-[#0a0a0a]">
+                        {nombre}
+                      </h3>
+
+                      <div className="pt-2">
+                        <p className="text-[12px] text-[#7a7b7b]">Desde</p>
+                        <p className="text-[38px] font-light tracking-[-0.03em] text-[#0a0a0a] leading-none mt-1">
+                          {formatCLP(precioMensual)}
+                          <span className="text-[14px] font-normal text-[#7a7b7b]">
+                            {" "}
+                            / mes
+                          </span>
+                        </p>
+                        <p className="text-[13px] text-[#292b2a] mt-2">
+                          Valor total plan: {formatCLP(precioTotal)}
+                        </p>
+                      </div>
+
+                      <ul className="space-y-2.5 pt-4 border-t border-[#e5e5e5] text-[14px] text-[#292b2a]">
+                        <li className="flex items-center gap-2.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#ff6105]" />
+                          <span>Acceso a todas las zonas de peso y cardio</span>
+                        </li>
+                        <li className="flex items-center gap-2.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#ff6105]" />
+                          <span>Clases grupales ilimitadas con reserva</span>
+                        </li>
+                        <li className="flex items-center gap-2.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#ff6105]" />
+                          <span>Sin cobro de matrícula ni mantención</span>
+                        </li>
+                      </ul>
                     </div>
 
-                    <h3 className="text-[26px] font-medium tracking-[-0.02em] text-[#0a0a0a]">
-                      {nombre}
-                    </h3>
-
-                    <div className="pt-2">
-                      <p className="text-[12px] text-[#7a7b7b]">Desde</p>
-                      <p className="text-[36px] font-light tracking-[-0.03em] text-[#0a0a0a] leading-none mt-1">
-                        {formatCLP(precioMensual)}
-                        <span className="text-[14px] font-normal text-[#7a7b7b]">
-                          {" "}
-                          / mes
-                        </span>
-                      </p>
-                      <p className="text-[13px] text-[#292b2a] mt-2">
-                        Valor total plan: {formatCLP(precioTotal)}
-                      </p>
+                    <div className="pt-8">
+                      <Link
+                        href="/contratos"
+                        className={`w-full py-3.5 px-6 text-[15px] font-medium text-center block ${
+                          isFeatured
+                            ? "btn-primary-pill"
+                            : "btn-secondary-pill bg-[#0a0a0a] hover:bg-[#ff6105] text-[#ffffff]"
+                        }`}
+                      >
+                        ¡Inscríbete ya!
+                      </Link>
                     </div>
-
-                    <ul className="space-y-2.5 pt-4 border-t border-[#e5e5e5] text-[14px] text-[#292b2a]">
-                      <li className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#ff6105]" />
-                        <span>Acceso a todas las zonas de peso y cardio</span>
-                      </li>
-                      <li className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#ff6105]" />
-                        <span>Clases grupales ilimitadas con reserva</span>
-                      </li>
-                      <li className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#ff6105]" />
-                        <span>Sin cobro de matrícula ni mantención</span>
-                      </li>
-                    </ul>
                   </div>
-
-                  <div className="pt-8">
-                    <Link
-                      href="/contratos"
-                      style={
-                        isFeatured
-                          ? {
-                              boxShadow:
-                                "rgba(255, 97, 5, 0.6) 1px 6px 14px 0px, rgba(0, 0, 0, 0.06) 0px 1px 4px 0px",
-                            }
-                          : undefined
-                      }
-                      className={`w-full py-3.5 px-6 text-[15px] font-medium text-center block transition-colors ${
-                        isFeatured
-                          ? "rounded-[50px] bg-[#ff6105] hover:bg-[#e55600] text-[#ffffff]"
-                          : "rounded-[24px] bg-[#0a0a0a] hover:bg-[#292b2a] text-[#ffffff]"
-                      }`}
-                    >
-                      ¡Inscríbete ya!
-                    </Link>
-                  </div>
-                </div>
+                </Reveal>
               );
             })}
           </div>
@@ -751,26 +1024,31 @@ export default function Home() {
       </section>
 
       {/* ===== SECCIÓN 3: CLASES EXCLUSIVAS (Tarjetas Visuales con Fotografía -> /clases) ===== */}
-      <section className="py-16 sm:py-20 px-4 sm:px-8 bg-[#f3f4f3] border-t border-b border-[#e5e5e5]">
-        <div className="max-w-[1200px] mx-auto space-y-10">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-            <div className="space-y-3">
-              <p className="text-[12px] uppercase tracking-[0.08em] text-[#7a7b7b] font-medium">
-                Salas Dirigidas e Instructores
-              </p>
-              <h2 className="text-[32px] sm:text-[44px] font-light leading-[1.15] tracking-[-0.030em] text-[#0a0a0a]">
-                Conoce nuestras clases exclusivas
-              </h2>
-              <div className="w-[80px] h-[2px] bg-[#ff6105]" />
-            </div>
+      <section className="py-20 sm:py-24 px-4 sm:px-8 bg-[#f3f4f3] border-t border-b border-[#e5e5e5]">
+        <div className="max-w-[1200px] mx-auto space-y-12">
+          <Reveal>
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div className="space-y-3">
+                <p className="text-[12px] uppercase tracking-[0.08em] text-[#7a7b7b] font-medium">
+                  Salas Dirigidas e Instructores
+                </p>
+                <h2 className="text-[32px] sm:text-[44px] font-light leading-[1.15] tracking-[-0.030em] text-[#0a0a0a]">
+                  Conoce nuestras clases exclusivas
+                </h2>
+                <AccentRule />
+              </div>
 
-            <Link
-              href="/clases"
-              className="inline-flex items-center px-6 py-3 rounded-[24px] bg-[#ffffff] hover:bg-[#0a0a0a] text-[#0a0a0a] hover:text-[#ffffff] border border-[#e5e5e5] text-[14px] font-medium transition-colors whitespace-nowrap self-start sm:self-auto"
-            >
-              Ver cartelera y reservar cupo →
-            </Link>
-          </div>
+              <Link
+                href="/clases"
+                className="btn-secondary-pill group inline-flex items-center gap-2 px-6 py-3 bg-[#ffffff] hover:bg-[#0a0a0a] text-[#0a0a0a] hover:text-[#ffffff] border border-[#e5e5e5] hover:border-[#0a0a0a] text-[14px] font-medium whitespace-nowrap self-start sm:self-auto"
+              >
+                <span>Ver cartelera y reservar cupo</span>
+                <span className="transition-transform duration-300 group-hover:translate-x-1">
+                  →
+                </span>
+              </Link>
+            </div>
+          </Reveal>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {clasesDestacadas.map((clase, idx) => {
@@ -784,60 +1062,64 @@ export default function Home() {
                 "Intermedio";
 
               return (
-                <Link
-                  key={clase.id_clase ?? idx}
-                  href="/clases"
-                  className="group rounded-[5px] border border-[#e5e5e5] bg-[#ffffff] overflow-hidden flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="relative h-48 overflow-hidden bg-[#202120]">
-                      <img
-                        src={CLASE_IMAGES[idx % CLASE_IMAGES.length]}
-                        alt={nombre}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        loading="lazy"
-                      />
-                      <span className="absolute bottom-3 left-3 px-2.5 py-0.5 rounded-[8px] bg-[#ff6105] text-[#ffffff] text-[11px] font-medium">
-                        {duracion} min · {nivel}
+                <Reveal key={clase.id_clase ?? idx} delayMs={idx * 100}>
+                  <Link
+                    href="/clases"
+                    className="card-premium-lift group rounded-[5px] border border-[#e5e5e5] hover:border-[#0a0a0a] bg-[#ffffff] overflow-hidden flex flex-col justify-between h-full"
+                  >
+                    <div>
+                      <div className="relative h-52 overflow-hidden bg-[#202120]">
+                        <img
+                          src={CLASE_IMAGES[idx % CLASE_IMAGES.length]}
+                          alt={nombre}
+                          className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                          loading="lazy"
+                        />
+                        <span className="absolute bottom-3 left-3 px-2.5 py-0.5 rounded-[8px] bg-[#ff6105] text-[#ffffff] text-[11px] font-medium">
+                          {duracion} min · {nivel}
+                        </span>
+                      </div>
+
+                      <div className="p-5 space-y-1.5">
+                        <h3 className="text-[20px] font-medium tracking-[-0.01em] text-[#0a0a0a] group-hover:text-[#ff6105] transition-colors">
+                          {nombre}
+                        </h3>
+                        <p className="text-[13px] text-[#7a7b7b]">
+                          Sesiones guiadas con control de cupos y asistencia.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="px-5 pb-5 text-[13px] font-medium text-[#0a0a0a] group-hover:text-[#ff6105] transition-colors inline-flex items-center gap-1">
+                      <span>Ver horarios</span>
+                      <span className="transition-transform duration-300 group-hover:translate-x-1">
+                        →
                       </span>
                     </div>
-
-                    <div className="p-5 space-y-1.5">
-                      <h3 className="text-[20px] font-medium tracking-[-0.01em] text-[#0a0a0a] group-hover:text-[#ff6105] transition-colors">
-                        {nombre}
-                      </h3>
-                      <p className="text-[13px] text-[#7a7b7b]">
-                        Sesiones guiadas con control de cupos y asistencia.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="px-5 pb-4 text-[13px] font-medium text-[#0a0a0a] group-hover:text-[#ff6105] transition-colors">
-                    Ver horarios →
-                  </div>
-                </Link>
+                  </Link>
+                </Reveal>
               );
             })}
           </div>
         </div>
       </section>
 
-      {/* ===== SECCIÓN 4: EXPERIENCIA E INFRAESTRUCTURA (Dark Feature Band #202120 con Foto) ===== */}
-      <section className="relative bg-[#202120] text-[#ffffff] py-24 px-4 sm:px-8 overflow-hidden">
+      {/* ===== SECCIÓN 4: EXPERIENCIA E INFRAESTRUCTURA (Dark Feature Band #202120) ===== */}
+      <section className="relative bg-[#202120] text-[#ffffff] py-28 px-4 sm:px-8 overflow-hidden">
         <img
           src="https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=1600&q=80"
           alt="Equipamiento de alto rendimiento"
-          className="absolute inset-0 w-full h-full object-cover opacity-25"
+          className="absolute inset-0 w-full h-full object-cover opacity-25 transition-transform duration-1000 hover:scale-105"
           loading="lazy"
         />
-        <div className="relative z-10 max-w-[1200px] mx-auto text-center space-y-6">
+        <Reveal className="relative z-10 max-w-[1200px] mx-auto text-center space-y-6">
           <p className="text-[12px] uppercase tracking-[0.1em] text-[#ffa069] font-medium">
             Tecnología de Primer Nivel
           </p>
           <h2 className="text-[36px] sm:text-[48px] font-light leading-[1.15] tracking-[-0.030em] text-[#ffffff] max-w-[700px] mx-auto">
             Equipamiento de última generación en cada sede.
           </h2>
-          <div className="w-[60px] h-[2px] bg-[#ff6105] mx-auto" />
+          <AccentRule centered />
           <p className="text-[16px] text-[#e5e5e5] max-w-[560px] mx-auto font-normal">
             Máquinas seleccionadas para entrenamiento de fuerza, resistencia y
             rehabilitación con registro de mantención al día.
@@ -845,115 +1127,113 @@ export default function Home() {
           <div className="flex flex-wrap items-center justify-center gap-4 pt-3">
             <Link
               href="/contratos"
-              style={{
-                boxShadow:
-                  "rgba(255, 97, 5, 0.6) 1px 6px 14px 0px, rgba(0, 0, 0, 0.06) 0px 1px 4px 0px",
-              }}
-              className="px-8 py-3.5 rounded-[50px] bg-[#ff6105] hover:bg-[#e55600] text-[#ffffff] text-[15px] font-medium transition-colors"
+              className="btn-primary-pill px-8 py-3.5 text-[15px] font-medium"
             >
               Inscríbete ya
             </Link>
             <Link
               href="/clases/equipos"
-              className="px-6 py-3.5 rounded-[24px] border border-[#e5e5e5]/40 hover:border-[#ffffff] text-[#ffffff] text-[15px] font-normal transition-colors"
+              className="btn-secondary-pill group inline-flex items-center gap-2 px-6 py-3.5 border border-[#e5e5e5]/40 hover:border-[#ffffff] hover:bg-[#ffffff]/10 text-[#ffffff] text-[15px] font-normal"
             >
-              Ver inventario de máquinas →
+              <span>Ver inventario de máquinas</span>
+              <span className="transition-transform duration-300 group-hover:translate-x-1">
+                →
+              </span>
             </Link>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* ===== SECCIÓN 5: TU ESPACIO DIGITAL & ACCESO RÁPIDO (Banner #ffdfcd Peach Wash + Imagen) ===== */}
-      <section className="py-16 sm:py-24 px-4 sm:px-8 bg-[#ffffff]">
+      <section className="py-20 sm:py-24 px-4 sm:px-8 bg-[#ffffff]">
         <div className="max-w-[1200px] mx-auto">
-          <div className="rounded-[5px] bg-[#ffdfcd] p-6 sm:p-12 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-            <div className="lg:col-span-7 space-y-5">
-              <span className="inline-block px-3 py-1 rounded-[8px] bg-[#ff6105] text-[#ffffff] text-[12px] font-medium">
-                Tu Espacio GimnasioDB
-              </span>
+          <Reveal>
+            <div className="rounded-[5px] bg-[#ffdfcd] p-6 sm:p-12 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+              <div className="lg:col-span-7 space-y-5">
+                <span className="inline-block px-3 py-1 rounded-[8px] bg-[#ff6105] text-[#ffffff] text-[12px] font-medium">
+                  Tu Espacio GimnasioDB
+                </span>
 
-              <h2 className="text-[32px] sm:text-[42px] font-light leading-[1.15] tracking-[-0.03em] text-[#0a0a0a]">
-                Gestiona tu membresía y valida tu acceso en segundos.
-              </h2>
+                <h2 className="text-[32px] sm:text-[42px] font-light leading-[1.15] tracking-[-0.03em] text-[#0a0a0a]">
+                  Gestiona tu membresía y valida tu acceso en segundos.
+                </h2>
 
-              <p className="text-[16px] text-[#292b2a] max-w-[540px]">
-                Ingresa tu RUT para verificar tu pase de torniquete en recepción o
-                accede directamente a tu estado de cuenta, recibos de caja y
-                reservas.
-              </p>
+                <AccentRule />
 
-              {/* Validador rápido de RUT (50px Input Pill) */}
-              <form
-                onSubmit={handleValidarAcceso}
-                className="flex flex-col sm:flex-row gap-3 max-w-[520px] pt-1"
-              >
-                <input
-                  type="text"
-                  placeholder="Ingresa tu RUT (ej. 12.345.678-9) o ID..."
-                  value={accesoIdentificador}
-                  onChange={(e) => setAccesoIdentificador(e.target.value)}
-                  className="flex-1 rounded-[50px] border border-[#e5e5e5] bg-[#ffffff] px-5 py-3.5 text-[15px] text-[#0a0a0a] placeholder:text-[#a2a3a2] focus:outline-none focus:ring-2 focus:ring-[#ff6105]/40"
-                />
-                <button
-                  type="submit"
-                  disabled={accesoLoading || !accesoIdentificador.trim()}
-                  className="px-7 py-3.5 rounded-[50px] bg-[#0a0a0a] hover:bg-[#292b2a] disabled:opacity-50 text-[#ffffff] text-[14px] font-medium whitespace-nowrap transition-colors"
+                <p className="text-[16px] text-[#292b2a] max-w-[540px]">
+                  Ingresa tu RUT para verificar tu pase de torniquete en recepción
+                  o accede directamente a tu estado de cuenta, recibos de caja y
+                  reservas.
+                </p>
+
+                {/* Validador rápido de RUT (50px Input Pill) */}
+                <form
+                  onSubmit={handleValidarAcceso}
+                  className="flex flex-col sm:flex-row gap-3 max-w-[520px] pt-1"
                 >
-                  {accesoLoading ? "Consultando..." : "Validar pase"}
-                </button>
-              </form>
+                  <input
+                    type="text"
+                    placeholder="Ingresa tu RUT (ej. 12.345.678-9) o ID..."
+                    value={accesoIdentificador}
+                    onChange={(e) => setAccesoIdentificador(e.target.value)}
+                    className="flex-1 rounded-[50px] border border-[#e5e5e5] bg-[#ffffff] px-5 py-3.5 text-[15px] text-[#0a0a0a] placeholder:text-[#a2a3a2] focus:outline-none focus:ring-2 focus:ring-[#ff6105]/40 transition-shadow"
+                  />
+                  <button
+                    type="submit"
+                    disabled={accesoLoading || !accesoIdentificador.trim()}
+                    className="btn-secondary-pill px-7 py-3.5 rounded-[50px] bg-[#0a0a0a] hover:bg-[#ff6105] disabled:opacity-50 text-[#ffffff] text-[14px] font-medium whitespace-nowrap"
+                  >
+                    {accesoLoading ? "Consultando..." : "Validar pase"}
+                  </button>
+                </form>
 
-              {accesoResultado && (
-                <div className="text-[14px] text-[#0a0a0a] pt-1">
-                  <span className="font-medium">
-                    {accesoResultado.acceso_permitido
-                      ? "Pase Autorizado: "
-                      : "Acceso Denegado: "}
-                  </span>
-                  <span className="text-[#292b2a]">{accesoResultado.motivo}</span>
+                {accesoResultado && (
+                  <div className="text-[14px] text-[#0a0a0a] pt-1 animate-fade-in-scale">
+                    <span className="font-medium">
+                      {accesoResultado.acceso_permitido
+                        ? "Pase Autorizado: "
+                        : "Acceso Denegado: "}
+                    </span>
+                    <span className="text-[#292b2a]">
+                      {accesoResultado.motivo}
+                    </span>
+                  </div>
+                )}
+
+                {/* Botones rápidos a los módulos de autogestión */}
+                <div className="flex flex-wrap gap-2.5 pt-2">
+                  {[
+                    { label: "Estado de Cuenta", href: "/contratos/estado-cuenta" },
+                    { label: "Módulo de Caja", href: "/contratos/caja" },
+                    { label: "Torniquete Recepción", href: "/socios/torniquete" },
+                    { label: "Personal y Finanzas", href: "/contratos/personal" },
+                  ].map((btn) => (
+                    <Link
+                      key={btn.href}
+                      href={btn.href}
+                      className="btn-secondary-pill group inline-flex items-center gap-1.5 px-4 py-2 bg-[#ffffff] border border-[#e5e5e5] hover:border-[#0a0a0a] text-[13px] font-medium text-[#0a0a0a]"
+                    >
+                      <span>{btn.label}</span>
+                      <span className="transition-transform duration-300 group-hover:translate-x-1">
+                        →
+                      </span>
+                    </Link>
+                  ))}
                 </div>
-              )}
+              </div>
 
-              {/* Botones rápidos a los módulos de autogestión */}
-              <div className="flex flex-wrap gap-2.5 pt-2">
-                <Link
-                  href="/contratos/estado-cuenta"
-                  className="px-4 py-2 rounded-[24px] bg-[#ffffff] border border-[#e5e5e5] hover:border-[#0a0a0a] text-[13px] font-medium text-[#0a0a0a] transition-colors"
-                >
-                  Estado de Cuenta →
-                </Link>
-                <Link
-                  href="/contratos/caja"
-                  className="px-4 py-2 rounded-[24px] bg-[#ffffff] border border-[#e5e5e5] hover:border-[#0a0a0a] text-[13px] font-medium text-[#0a0a0a] transition-colors"
-                >
-                  Módulo de Caja →
-                </Link>
-                <Link
-                  href="/socios/torniquete"
-                  className="px-4 py-2 rounded-[24px] bg-[#ffffff] border border-[#e5e5e5] hover:border-[#0a0a0a] text-[13px] font-medium text-[#0a0a0a] transition-colors"
-                >
-                  Torniquete Recepción →
-                </Link>
-                <Link
-                  href="/contratos/personal"
-                  className="px-4 py-2 rounded-[24px] bg-[#ffffff] border border-[#e5e5e5] hover:border-[#0a0a0a] text-[13px] font-medium text-[#0a0a0a] transition-colors"
-                >
-                  Personal y Finanzas →
-                </Link>
+              <div className="lg:col-span-5">
+                <div className="group rounded-[8px] overflow-hidden border border-[#ffa069]/40 bg-[#202120] h-72 sm:h-80 relative">
+                  <img
+                    src="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=900&q=80"
+                    alt="Experiencia Digital GimnasioDB"
+                    className="w-full h-full object-cover opacity-90 transition-transform duration-700 ease-out group-hover:scale-105"
+                    loading="lazy"
+                  />
+                </div>
               </div>
             </div>
-
-            <div className="lg:col-span-5">
-              <div className="rounded-[8px] overflow-hidden border border-[#ffa069]/40 bg-[#202120] h-72 sm:h-80 relative">
-                <img
-                  src="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=900&q=80"
-                  alt="Experiencia Digital GimnasioDB"
-                  className="w-full h-full object-cover opacity-90"
-                  loading="lazy"
-                />
-              </div>
-            </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
@@ -965,12 +1245,18 @@ export default function Home() {
               <p className="font-medium text-[#0a0a0a]">GimnasioDB</p>
               <ul className="space-y-1.5 text-[#7a7b7b]">
                 <li>
-                  <Link href="/socios/sedes" className="hover:text-[#0a0a0a]">
+                  <Link
+                    href="/socios/sedes"
+                    className="hover:text-[#ff6105] transition-colors"
+                  >
                     Nuestras Sedes
                   </Link>
                 </li>
                 <li>
-                  <Link href="/clases/equipos" className="hover:text-[#0a0a0a]">
+                  <Link
+                    href="/clases/equipos"
+                    className="hover:text-[#ff6105] transition-colors"
+                  >
                     Equipamiento
                   </Link>
                 </li>
@@ -981,19 +1267,25 @@ export default function Home() {
               <p className="font-medium text-[#0a0a0a]">Planes y Finanzas</p>
               <ul className="space-y-1.5 text-[#7a7b7b]">
                 <li>
-                  <Link href="/contratos" className="hover:text-[#0a0a0a]">
+                  <Link
+                    href="/contratos"
+                    className="hover:text-[#ff6105] transition-colors"
+                  >
                     Planes y Contratos
                   </Link>
                 </li>
                 <li>
-                  <Link href="/contratos/caja" className="hover:text-[#0a0a0a]">
+                  <Link
+                    href="/contratos/caja"
+                    className="hover:text-[#ff6105] transition-colors"
+                  >
                     Caja y Pagos
                   </Link>
                 </li>
                 <li>
                   <Link
                     href="/contratos/estado-cuenta"
-                    className="hover:text-[#0a0a0a]"
+                    className="hover:text-[#ff6105] transition-colors"
                   >
                     Estado de Cuenta
                   </Link>
@@ -1001,7 +1293,7 @@ export default function Home() {
                 <li>
                   <Link
                     href="/contratos/personal"
-                    className="hover:text-[#0a0a0a]"
+                    className="hover:text-[#ff6105] transition-colors"
                   >
                     Personal y Reportes
                   </Link>
@@ -1013,19 +1305,25 @@ export default function Home() {
               <p className="font-medium text-[#0a0a0a]">Entrenamiento</p>
               <ul className="space-y-1.5 text-[#7a7b7b]">
                 <li>
-                  <Link href="/clases" className="hover:text-[#0a0a0a]">
+                  <Link
+                    href="/clases"
+                    className="hover:text-[#ff6105] transition-colors"
+                  >
                     Reserva de Clases
                   </Link>
                 </li>
                 <li>
-                  <Link href="/clases/instructor" className="hover:text-[#0a0a0a]">
+                  <Link
+                    href="/clases/instructor"
+                    className="hover:text-[#ff6105] transition-colors"
+                  >
                     Portal Instructor
                   </Link>
                 </li>
                 <li>
                   <Link
                     href="/clases/programador"
-                    className="hover:text-[#0a0a0a]"
+                    className="hover:text-[#ff6105] transition-colors"
                   >
                     Programar Sesiones
                   </Link>
@@ -1037,17 +1335,26 @@ export default function Home() {
               <p className="font-medium text-[#0a0a0a]">Socios y Recepción</p>
               <ul className="space-y-1.5 text-[#7a7b7b]">
                 <li>
-                  <Link href="/socios/login" className="hover:text-[#0a0a0a]">
+                  <Link
+                    href="/socios/login"
+                    className="hover:text-[#ff6105] transition-colors"
+                  >
                     Iniciar Sesión
                   </Link>
                 </li>
                 <li>
-                  <Link href="/socios/torniquete" className="hover:text-[#0a0a0a]">
+                  <Link
+                    href="/socios/torniquete"
+                    className="hover:text-[#ff6105] transition-colors"
+                  >
                     Torniquete Recepción
                   </Link>
                 </li>
                 <li>
-                  <Link href="/socios" className="hover:text-[#0a0a0a]">
+                  <Link
+                    href="/socios"
+                    className="hover:text-[#ff6105] transition-colors"
+                  >
                     Padrón de Socios
                   </Link>
                 </li>
