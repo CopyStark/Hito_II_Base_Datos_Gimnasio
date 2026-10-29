@@ -53,6 +53,7 @@ router = APIRouter(
 # 1. CONSULTAS Y FILTROS DE SOCIOS
 # =========================================================================
 
+@router.get("", response_model=List[SocioResponse], include_in_schema=False)
 @router.get("/", response_model=List[SocioResponse], summary="Listar socios con filtros y paginación")
 def listar_socios(
     activo: Optional[bool] = Query(None, description="Filtrar por estado activo (true/false)"),
@@ -231,6 +232,7 @@ def obtener_socio_por_rut(rut_socio: str):
 # 2. REGISTRO, ACTUALIZACIÓN Y CONTROL DE ESTADO
 # =========================================================================
 
+@router.post("", response_model=SocioResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", response_model=SocioResponse, status_code=status.HTTP_201_CREATED, summary="Registrar nuevo socio")
 def registrar_socio(socio: SocioCreate):
     """

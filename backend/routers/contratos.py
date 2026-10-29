@@ -1,8 +1,9 @@
 """
 Módulo de Membresías, Contratos, Pagos, Personal y Finanzas
-Responsable: Persona 3
+Responsable: Persona 3 (Daniel Matus)
 Sincronizado con tablas: [dbo].[PlanMembresia], [dbo].[Contrato], [dbo].[Pago], [dbo].[Personal]
 Sincronizado con vista:  [dbo].[vw_Reporte_Ingresos_Por_Sede]
+Sincronizado con SPs:    [dbo].[sp_Emitir_Contrato_Con_Pago], [dbo].[sp_Registrar_Pago_Contrato], [dbo].[sp_Actualizar_Contratos_Vencidos]
 Convención: sufijos por tabla (_planmembresia, _contrato, _pago, _personal)
 
 REGLAS DE DESARROLLO (ESTRICTAS):
@@ -273,6 +274,24 @@ router = APIRouter(
 )
 
 
+def _traducir_error_sql(e: pyodbc.Error, operacion: str) -> HTTPException:
+    """
+    Traduce los códigos de error de negocio THROW de SQL Server (50010, 50020, 50030)
+    a respuestas HTTP semánticas (404, 409, 400).
+    """
+    msg = str(e)
+    if "50010" in msg:
+        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
+    if "50020" in msg:
+        return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=msg)
+    if "50030" in msg:
+        return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
+    return HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail=f"Error en SQL Server durante {operacion}: {msg}"
+    )
+
+
 # =========================================================================
 # 1. CATÁLOGO Y GESTIÓN DE PLANES DE MEMBRESÍA ([dbo].[PlanMembresia])
 # =========================================================================
@@ -471,7 +490,7 @@ def actualizar_plan(id_planmembresia: int, datos: PlanMembresiaUpdate):
 
 
 # =========================================================================
-# 2. CAJA Y REGISTRO DE PAGOS ([dbo].[Pago])
+# 2. CAJA Y REGISTRO DE PAGOS ([dbo].[Pago] / sp_Registrar_Pago_Contrato)
 # =========================================================================
 
 @router.get("/pagos", response_model=List[PagoDetalleResponse], summary="Listar pagos registrados en caja")
@@ -544,13 +563,31 @@ def listar_pagos(
 @router.post("/pagos", response_model=PagoResponse, status_code=status.HTTP_201_CREATED, summary="Registrar pago de contrato en caja")
 def registrar_pago(pago: PagoCreate):
     """
-    Registra un pago para un contrato en la tabla [Pago].
-    Valida que el contrato exista y que no se encuentre Cancelado.
+    Registra un pago para un contrato en la tabla [Pago] utilizando el procedimiento almacenado
+    [dbo].[sp_Registrar_Pago_Contrato] (con respaldo SQL explícito parametrizado).
     """
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
-                # 1. Comprobar que el contrato exista y revisar su estado
+                # Verificar si el SP sp_Registrar_Pago_Contrato está disponible en la BD
+                cursor.execute("SELECT OBJECT_ID('dbo.sp_Registrar_Pago_Contrato', 'P')")
+                sp_exists = cursor.fetchone()[0] is not None
+
+                if sp_exists:
+                    cursor.execute(
+                        "EXEC dbo.sp_Registrar_Pago_Contrato @id_contrato = ?, @monto_cancelado = ?, @medio_pago = ?",
+                        (pago.id_contrato_pago, pago.monto_cancelado_pago, pago.medio_pago)
+                    )
+                    res = cursor.fetchone()
+                    return {
+                        "id_pago": res[0],
+                        "id_contrato_pago": res[1],
+                        "fecha_pago": res[2],
+                        "monto_cancelado_pago": float(res[3]),
+                        "medio_pago": res[4]
+                    }
+
+                # Respaldo con SQL explícito parametrizado
                 cursor.execute(
                     """
                     SELECT id_contrato, estado_contrato, precio_pactado_contrato
@@ -573,7 +610,6 @@ def registrar_pago(pago: PagoCreate):
                         detail=f"No se puede registrar un pago para el contrato {pago.id_contrato_pago} porque está 'Cancelado'."
                     )
 
-                # 2. Insertar registro de pago con marca de tiempo del servidor SQL
                 insert_query = """
                     INSERT INTO Pago (id_contrato_pago, fecha_pago, monto_cancelado_pago, medio_pago)
                     OUTPUT INSERTED.id_pago, INSERTED.fecha_pago
@@ -594,10 +630,7 @@ def registrar_pago(pago: PagoCreate):
     except HTTPException:
         raise
     except pyodbc.Error as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al procesar pago en SQL Server: {str(e)}"
-        )
+        raise _traducir_error_sql(e, "registrar_pago")
 
 
 # =========================================================================
@@ -960,7 +993,7 @@ def obtener_estado_cuenta_socio(id_socio: int):
     - Información personal y sede de registro.
     - Contratos emitidos con monto pactado, monto abonado y saldo individual.
     - Historial detallado de recibos/pagos efectuados.
-    - Saldo pendiente total y estado financiero ('Al día' o 'Con deuda pendiente').
+    - Saldo pendiente total y estado financiero ('Al día' o 'Con saldo pendiente').
     """
     try:
         with get_db_connection() as conn:
@@ -1028,7 +1061,6 @@ def obtener_estado_cuenta_socio(id_socio: int):
                     c_dict = dict(zip(contratos_cols, row))
                     precio_pactado = float(c_dict["precio_pactado_contrato"])
                     pagado_contrato = float(c_dict["total_pagado"])
-                    # Si el contrato está cancelado, no genera deuda pendiente adicional
                     saldo_contrato = max(0.0, round(precio_pactado - pagado_contrato, 2)) if c_dict["estado_contrato"] != "Cancelado" else 0.0
 
                     c_dict["precio_pactado_contrato"] = precio_pactado
@@ -1107,6 +1139,7 @@ def obtener_estado_cuenta_socio(id_socio: int):
 # 6. EMISIÓN, CONSULTA Y CONTROL DE CONTRATOS ([dbo].[Contrato])
 # =========================================================================
 
+@router.get("", response_model=List[ContratoDetalleResponse], include_in_schema=False)
 @router.get("/", response_model=List[ContratoDetalleResponse], summary="Listar contratos con filtros y estado de pago")
 def listar_contratos(
     id_socio: Optional[int] = Query(None, gt=0, description="Filtrar por ID de socio"),
@@ -1194,6 +1227,7 @@ def listar_contratos(
         )
 
 
+@router.post("", response_model=ContratoResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", response_model=ContratoResponse, status_code=status.HTTP_201_CREATED, summary="Crear nuevo contrato de membresía")
 def crear_contrato(contrato: ContratoCreate):
     """
@@ -1265,11 +1299,11 @@ def crear_contrato(contrato: ContratoCreate):
         )
 
 
-@router.post("/emitir-con-pago", status_code=status.HTTP_201_CREATED, summary="Emitir contrato y registrar pago inicial de forma atómica")
+@router.post("/emitir-con-pago", status_code=status.HTTP_201_CREATED, summary="Emitir contrato y registrar pago inicial de forma atómica (SP)")
 def emitir_contrato_con_pago(payload: EmisionContratoConPagoRequest):
     """
-    Operación transaccional de Caja:
-    1. Valida socio y plan de membresía.
+    Operación transaccional de Caja mediante el procedimiento almacenado [dbo].[sp_Emitir_Contrato_Con_Pago]:
+    1. Valida socio (existencia y estado activo) y plan de membresía.
     2. Calcula automáticamente fecha_termino_contrato según duracion_meses_planmembresia del plan.
     3. Inserta el nuevo Contrato en estado 'Vigente'.
     4. Inserta el Pago en la misma transacción atómica (si falla el pago, se revierte el contrato).
@@ -1277,7 +1311,54 @@ def emitir_contrato_con_pago(payload: EmisionContratoConPagoRequest):
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
-                # 1. Validar socio
+                cursor.execute("SELECT OBJECT_ID('dbo.sp_Emitir_Contrato_Con_Pago', 'P')")
+                sp_exists = cursor.fetchone()[0] is not None
+
+                if sp_exists:
+                    cursor.execute(
+                        """
+                        EXEC dbo.sp_Emitir_Contrato_Con_Pago 
+                            @id_socio = ?,
+                            @id_planmembresia = ?,
+                            @fecha_inicio = ?,
+                            @precio_pactado = ?,
+                            @monto_pago_inicial = ?,
+                            @medio_pago = ?
+                        """,
+                        (
+                            payload.id_socio_contrato,
+                            payload.id_planmembresia_contrato,
+                            payload.fecha_inicio_contrato,
+                            payload.precio_pactado_contrato,
+                            payload.monto_pago_inicial,
+                            payload.medio_pago
+                        )
+                    )
+                    res = cursor.fetchone()
+                    return {
+                        "mensaje": "Contrato emitido y pago registrado exitosamente mediante sp_Emitir_Contrato_Con_Pago.",
+                        "contrato": {
+                            "id_contrato": res[0],
+                            "id_socio_contrato": res[1],
+                            "nombre_completo_socio": res[2],
+                            "id_planmembresia_contrato": res[3],
+                            "nombre_planmembresia": res[4],
+                            "fecha_inicio_contrato": res[5],
+                            "fecha_termino_contrato": res[6],
+                            "estado_contrato": res[7],
+                            "precio_pactado_contrato": float(res[8]),
+                            "saldo_pendiente": float(res[9])
+                        },
+                        "pago": {
+                            "id_pago": res[10],
+                            "id_contrato_pago": res[0],
+                            "fecha_pago": res[11],
+                            "monto_cancelado_pago": float(res[12]),
+                            "medio_pago": res[13]
+                        }
+                    }
+
+                # Respaldo con SQL explícito transaccional
                 cursor.execute(
                     "SELECT id_socio, nombre_completo_socio, activo_socio FROM Socio WHERE id_socio = ?",
                     (payload.id_socio_contrato,)
@@ -1288,8 +1369,12 @@ def emitir_contrato_con_pago(payload: EmisionContratoConPagoRequest):
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=f"El socio con ID {payload.id_socio_contrato} no existe."
                     )
+                if not bool(socio_row[2]):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="No se puede emitir un contrato para un socio inactivo."
+                    )
 
-                # 2. Obtener duración y precio vigente del plan
                 cursor.execute(
                     """
                     SELECT id_planmembresia, nombre_planmembresia, duracion_meses_planmembresia, precio_vigente_planmembresia
@@ -1310,7 +1395,12 @@ def emitir_contrato_con_pago(payload: EmisionContratoConPagoRequest):
                 precio_pactado = float(payload.precio_pactado_contrato) if payload.precio_pactado_contrato is not None else float(precio_vigente)
                 monto_pago = float(payload.monto_pago_inicial) if payload.monto_pago_inicial is not None else precio_pactado
 
-                # 3. Insertar contrato calculando fecha_termino_contrato con DATEADD en SQL Server
+                if monto_pago > precio_pactado:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="El monto del pago inicial no puede superar el precio pactado del contrato."
+                    )
+
                 insert_contrato_sql = """
                     INSERT INTO Contrato (
                         id_socio_contrato,
@@ -1339,7 +1429,6 @@ def emitir_contrato_con_pago(payload: EmisionContratoConPagoRequest):
                 fecha_inicio_db = contrato_insertado[1]
                 fecha_termino_db = contrato_insertado[2]
 
-                # 4. Insertar pago inicial en la misma transacción
                 insert_pago_sql = """
                     INSERT INTO Pago (id_contrato_pago, fecha_pago, monto_cancelado_pago, medio_pago)
                     OUTPUT INSERTED.id_pago, INSERTED.fecha_pago
@@ -1376,38 +1465,42 @@ def emitir_contrato_con_pago(payload: EmisionContratoConPagoRequest):
     except HTTPException:
         raise
     except pyodbc.Error as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error en la emisión atómica de contrato y pago: {str(e)}"
-        )
+        raise _traducir_error_sql(e, "emitir_contrato_con_pago")
 
 
-@router.post("/actualizar-vencidos", summary="Actualizar automáticamente el estado de contratos cuyo plazo haya expirado")
+@router.post("/actualizar-vencidos", summary="Actualizar automáticamente el estado de contratos cuyo plazo haya expirado (SP)")
 def actualizar_contratos_vencidos():
     """
     Cambia el estado a 'Vencido' en todos los contratos que figuren como 'Vigente'
-    pero cuya fecha_termino_contrato sea menor a la fecha actual del servidor.
+    pero cuya fecha_termino_contrato sea menor a la fecha actual del servidor,
+    utilizando [dbo].[sp_Actualizar_Contratos_Vencidos].
     """
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
-                update_sql = """
-                    UPDATE Contrato
-                    SET estado_contrato = 'Vencido'
-                    WHERE estado_contrato = 'Vigente'
-                      AND fecha_termino_contrato < CAST(GETDATE() AS DATE)
-                """
-                cursor.execute(update_sql)
-                afectados = cursor.rowcount if cursor.rowcount >= 0 else 0
+                cursor.execute("SELECT OBJECT_ID('dbo.sp_Actualizar_Contratos_Vencidos', 'P')")
+                sp_exists = cursor.fetchone()[0] is not None
+
+                if sp_exists:
+                    cursor.execute("EXEC dbo.sp_Actualizar_Contratos_Vencidos")
+                    row = cursor.fetchone()
+                    afectados = int(row[0]) if row else 0
+                else:
+                    update_sql = """
+                        UPDATE Contrato
+                        SET estado_contrato = 'Vencido'
+                        WHERE estado_contrato = 'Vigente'
+                          AND fecha_termino_contrato < CAST(GETDATE() AS DATE)
+                    """
+                    cursor.execute(update_sql)
+                    afectados = cursor.rowcount if cursor.rowcount >= 0 else 0
+
                 return {
                     "mensaje": "Proceso de actualización de contratos vencidos completado.",
                     "contratos_actualizados": afectados
                 }
     except pyodbc.Error as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al actualizar contratos vencidos: {str(e)}"
-        )
+        raise _traducir_error_sql(e, "actualizar_contratos_vencidos")
 
 
 @router.get("/{id_contrato}", response_model=ContratoDetalleResponse, summary="Obtener detalle de un contrato por ID")

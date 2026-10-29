@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import TeamCard from "@/components/TeamCard";
 import apiClient from "@/services/apiClient";
 
@@ -86,40 +87,82 @@ export default function Home() {
   };
   // --- FIN PANEL PERSONA 1 ---
 
-  // Comprobar la conexión automáticamente al cargar la página
-  useEffect(() => {
-    const checkConnection = async () => {
-      setLoading(true);
-      setErrorMsg(null);
-      try {
-        const data = await apiClient.health();
-        setHealthStatus(data);
-      } catch (err: any) {
-        setErrorMsg(err.message || "No se pudo conectar con el backend.");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const [isWakingUp, setIsWakingUp] = useState(false);
 
-    checkConnection();
+  // Comprobar la conexión con auto-reintento para cold-starts de Render
+  const checkConnection = useCallback(async (intentosRestantes = 3) => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const data = await apiClient.health();
+      setHealthStatus(data);
+      setIsWakingUp(false);
+      setLoading(false);
+    } catch (err: any) {
+      if (intentosRestantes > 1) {
+        setIsWakingUp(true);
+        // Si Render está suspendido (cold-start), reintentar automáticamente en 4 segundos
+        setTimeout(() => {
+          checkConnection(intentosRestantes - 1);
+        }, 4000);
+      } else {
+        setIsWakingUp(false);
+        setLoading(false);
+        setErrorMsg(err.message || "El servidor de Render está suspendido o tardó demasiado en responder.");
+      }
+    }
   }, []);
 
+  useEffect(() => {
+    checkConnection(3);
+  }, [checkConnection]);
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-black text-slate-100 py-12 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-black text-slate-100 pt-24 pb-16 px-4 sm:px-6 lg:px-8">
 
-      {/* ===== Panel Interactivo Persona 1: Socios & Acceso ===== */}
-      <div className="fixed top-4 left-4 z-50">
-        <button
-          id="btn-mostrar-clientes"
-          onClick={handleToggleClientes}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all duration-150 text-white text-sm font-semibold shadow-lg shadow-blue-900/50 border border-blue-400/30"
-        >
-          <span>{showClientes ? "🙈" : "👥"}</span>
-          {showClientes ? "Ocultar Panel Socios" : "Panel Persona 1 (Socios & Acceso)"}
-        </button>
+      {/* ===== Barra de Navegación Rápida Superior ===== */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-950/85 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-8 py-3">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">⚡</span>
+            <span className="font-extrabold text-base sm:text-lg tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
+              GimnasioDB Platform
+            </span>
+            <span className="hidden sm:inline-block text-[11px] px-2.5 py-0.5 rounded-full font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              API-First
+            </span>
+          </div>
 
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <Link
+              href="/socios"
+              id="btn-modulo-socios"
+              className="flex items-center gap-2 px-3.5 sm:px-4 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 active:scale-95 transition-all text-white text-xs sm:text-sm font-bold shadow-lg shadow-blue-900/50 border border-blue-400/40 ring-1 ring-blue-400/30"
+            >
+              <span>👥</span>
+              <span>Persona 1 (Carlos): Socios & Acceso</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>→</span>
+            </Link>
+
+            <Link
+              href="/clases"
+              id="btn-modulo-clases"
+              className="flex items-center gap-2 px-3.5 sm:px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-95 transition-all text-white text-xs sm:text-sm font-bold shadow-lg shadow-purple-900/50 border border-purple-400/40 ring-1 ring-purple-400/30"
+            >
+              <span>🏋️</span>
+              <span>Persona 2 (Emilia): Clases & Reservas</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>→</span>
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* ===== Panel Interactivo Persona 1: Socios & Acceso (Desplegable) ===== */}
+      <div className="fixed top-16 left-4 sm:left-8 z-50">
         {showClientes && (
-          <div className="mt-2 w-96 max-h-[85vh] overflow-y-auto rounded-2xl bg-slate-900/95 border border-blue-500/30 shadow-2xl backdrop-blur-xl p-4 space-y-4">
+          <div className="mt-2 w-96 max-h-[80vh] overflow-y-auto rounded-2xl bg-slate-900/95 border border-blue-500/30 shadow-2xl backdrop-blur-xl p-4 space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <div>
                 <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -319,21 +362,42 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="text-sm">
-              {loading && (
-                <span className="text-amber-400 font-medium text-xs bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg">
-                  ⏳ Verificando conexión con Render...
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm">
+              {loading && !isWakingUp && (
+                <span className="text-amber-400 font-medium text-xs bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                  <span>Verificando conexión con Render...</span>
                 </span>
               )}
+
+              {isWakingUp && (
+                <span className="text-purple-300 font-medium text-xs bg-purple-500/15 border border-purple-500/30 px-3 py-1.5 rounded-lg flex items-center gap-2 animate-pulse">
+                  <span>☕</span>
+                  <span>Despertando instancia Render (cold-start ~30s)...</span>
+                </span>
+              )}
+
               {!loading && healthStatus && (
-                <span className="text-emerald-400 font-medium text-xs bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
-                  ✅ Backend & Base de Datos En Línea
+                <span className="text-emerald-400 font-medium text-xs bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span>Backend & Base de Datos En Línea</span>
                 </span>
               )}
+
               {!loading && errorMsg && (
-                <span className="text-rose-400 font-medium text-xs bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-lg">
-                  ⚠️ Error al conectar con Render
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-rose-400 font-medium text-xs bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                    <span>⚠️</span>
+                    <span>Backend en reposo o no responde</span>
+                  </span>
+                  <button
+                    onClick={() => checkConnection(3)}
+                    className="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition-all flex items-center gap-1.5 active:scale-95 shadow-sm"
+                  >
+                    <span>🔄</span>
+                    <span>Reintentar Conexión</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -354,8 +418,16 @@ export default function Home() {
               roleTitle="Acceso, Socios & Sedes"
               moduleRoute="/socios"
               backendFile="backend/routers/auth_socios.py"
-              colorBorder="border-blue-500/40"
+              colorBorder="border-blue-500/50"
               badgeBg="bg-blue-600"
+              isLive={true}
+              actionButtonText="Ingresar al Módulo de Socios"
+              viewRoutes={{
+                "Gestión de Socios": "/socios",
+                "Torniquete & Acceso": "/socios/torniquete",
+                "Sedes & Reportes": "/socios/sedes",
+                "Login & Mi Perfil": "/socios/login",
+              }}
               databaseEntities={[
                 "Socio",
                 "Usuario",
@@ -371,20 +443,28 @@ export default function Home() {
                 "Gestión de infraestructura de Sedes y reporte analítico de socios por sede"
               ]}
               frontendViews={[
-                "Login Multi-rol",
                 "Gestión de Socios",
-                "Mi Perfil",
-                "Torniquete / Portería"
+                "Torniquete & Acceso",
+                "Sedes & Reportes",
+                "Login & Mi Perfil"
               ]}
             />
 
             <TeamCard
-              personNumber="Persona 2"
+              personNumber="Persona 2 (Emilia)"
               roleTitle="Clases, Sesiones & Asistencia"
               moduleRoute="/clases"
               backendFile="backend/routers/clases.py"
-              colorBorder="border-purple-500/40"
+              colorBorder="border-purple-500/50"
               badgeBg="bg-purple-600"
+              isLive={true}
+              actionButtonText="Ingresar al Módulo de Clases"
+              viewRoutes={{
+                "Catálogo y Reserva": "/clases",
+                "Portal del Instructor": "/clases/instructor",
+                "Programador de Sesiones": "/clases/programador",
+                "Inventario Equipos": "/clases/equipos",
+              }}
               databaseEntities={[
                 "Clase",
                 "Sesion",
@@ -410,12 +490,20 @@ export default function Home() {
             />
 
             <TeamCard
-              personNumber="Persona 3"
+              personNumber="Persona 3 (Daniel)"
               roleTitle="Membresías, Contratos & Finanzas"
               moduleRoute="/contratos"
               backendFile="backend/routers/contratos.py"
-              colorBorder="border-emerald-500/40"
+              colorBorder="border-emerald-500/50"
               badgeBg="bg-emerald-600"
+              isLive={true}
+              actionButtonText="Ingresar al Módulo de Contratos"
+              viewRoutes={{
+                "Estado de Cuenta": "/contratos/estado-cuenta",
+                "Generador de Contratos": "/contratos",
+                "Módulo de Caja": "/contratos/caja",
+                "Personal y Finanzas": "/contratos/personal",
+              }}
               databaseEntities={[
                 "PlanMembresia",
                 "Contrato",
@@ -431,9 +519,9 @@ export default function Home() {
                 "Gestión de Personal del gimnasio y reporte de ingresos por sede y período"
               ]}
               frontendViews={[
-                "Estado de Cuenta",
                 "Generador de Contratos",
                 "Módulo de Caja",
+                "Estado de Cuenta",
                 "Personal y Finanzas"
               ]}
             />
