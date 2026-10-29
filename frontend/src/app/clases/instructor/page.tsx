@@ -2,6 +2,22 @@
 
 import { useEffect, useState, useCallback } from "react";
 import {
+  UserCheck,
+  Calendar,
+  Clock,
+  MapPin,
+  RefreshCw,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  ChevronRight,
+  Check,
+  Mail,
+  Phone,
+  Lock,
+  Save,
+} from "lucide-react";
+import {
   clasesApi,
   InstructorItemResponse,
   SesionInstructorResponse,
@@ -69,10 +85,8 @@ export default function InstructorPage() {
 
         if (Array.isArray(data) && data.length > 0) {
           setInstructores(data);
-          // El primer instructor de la lista por defecto al cargar
           setInstructorSeleccionado(data[0]);
         } else {
-          // Fallback a instructorActual.ts
           setInstructores([]);
           setInstructorSeleccionado(INSTRUCTOR_ACTUAL);
         }
@@ -145,7 +159,6 @@ export default function InstructorPage() {
       const data = await clasesApi.getInscritosSesion(idSesion);
       setInscritos(data);
 
-      // Inicializar borradores de edición para cada inscripción
       const drafts: Record<number, AsistenciaDraft> = {};
       data.forEach((item) => {
         drafts[item.id_inscripcion] = {
@@ -221,12 +234,11 @@ export default function InstructorPage() {
     }));
   };
 
-  // 4. Guardar registro de asistencia (PATCH /clases/inscripciones/{id}/asistencia)
+  // 4. Guardar registro de asistencia
   const handleGuardarAsistencia = async (inscrito: InscritoEnSesionResponse) => {
     const draft = asistenciaDrafts[inscrito.id_inscripcion];
     if (!draft) return;
 
-    // Marcar estado guardando
     setAsistenciaDrafts((prev) => ({
       ...prev,
       [inscrito.id_inscripcion]: {
@@ -241,7 +253,6 @@ export default function InstructorPage() {
         observaciones: draft.observaciones,
       });
 
-      // Actualizar el registro en la lista local de inscritos
       setInscritos((prev) =>
         prev.map((item) =>
           item.id_inscripcion === inscrito.id_inscripcion
@@ -254,7 +265,6 @@ export default function InstructorPage() {
         )
       );
 
-      // Mostrar mensaje visual claro de éxito
       setToastFeedback({
         id: Date.now(),
         type: "success",
@@ -288,35 +298,39 @@ export default function InstructorPage() {
       {/* =========================================================================
           CABECERA DEL PORTAL DEL INSTRUCTOR
          ========================================================================= */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-            <span>🧑‍🏫</span> Portal del Instructor (sp_Sesiones_Por_Instructor)
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#ffdfcd] text-[#0a0a0a] border border-[#ff6105]/20">
+            <UserCheck className="w-3.5 h-3.5 text-[#ff6105]" />
+            <span>Portal del Instructor (sp_Sesiones_Por_Instructor)</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+
+          <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-[#0a0a0a]">
             Agenda de Sesiones
           </h1>
 
+          <div className="w-16 h-[2px] bg-[#ff6105] my-2" />
+
           {/* Información del Instructor Actual */}
-          <p className="text-xs sm:text-sm text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span>Instructor en sesión:</span>
-            <strong className="text-white font-semibold">
+          <div className="text-xs sm:text-sm text-[#7a7b7b] flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>Instructor:</span>
+            <strong className="text-[#0a0a0a] font-medium">
               {instructorSeleccionado.nombre_completo_instructor}
             </strong>
-            <span className="text-slate-600">&bull;</span>
-            <span>Correo:</span>
-            <span className="text-purple-300 font-mono">
-              {instructorSeleccionado.correo_instructor}
+            <span className="text-[#e5e5e5]">&bull;</span>
+            <span className="flex items-center gap-1 text-[#292b2a]">
+              <Mail className="w-3.5 h-3.5 text-[#ff6105]" />
+              <span className="font-mono">{instructorSeleccionado.correo_instructor}</span>
             </span>
             {instructorSeleccionado.rut_instructor && (
               <>
-                <span className="text-slate-600">&bull;</span>
-                <span className="text-slate-500 font-mono text-xs">
+                <span className="text-[#e5e5e5]">&bull;</span>
+                <span className="text-[#7a7b7b] font-mono text-xs">
                   RUT: {instructorSeleccionado.rut_instructor}
                 </span>
               </>
             )}
-          </p>
+          </div>
         </div>
 
         {/* Controles de Cabecera: Selector de Instructor y Botón Actualizar */}
@@ -324,7 +338,7 @@ export default function InstructorPage() {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="selector-instructor"
-              className="text-[11px] font-semibold uppercase tracking-wider text-slate-400"
+              className="text-[11px] font-medium uppercase tracking-wider text-[#7a7b7b]"
             >
               Seleccionar Instructor:
             </label>
@@ -333,7 +347,7 @@ export default function InstructorPage() {
               value={instructorSeleccionado.id_instructor}
               onChange={handleCambioInstructor}
               disabled={loadingInstructores && instructores.length === 0}
-              className="bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 font-medium shadow-inner cursor-pointer"
+              className="bg-white border border-[#e5e5e5] rounded-full px-4 py-2 text-xs sm:text-sm text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] font-medium cursor-pointer transition-colors"
             >
               {instructores.length > 0 ? (
                 instructores.map((inst) => (
@@ -353,9 +367,9 @@ export default function InstructorPage() {
           <button
             onClick={() => cargarSesiones()}
             disabled={loadingSesiones}
-            className="self-end sm:self-auto text-xs px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold transition-all shadow-lg shadow-purple-600/25 flex items-center justify-center gap-2 mt-auto"
+            className="self-end sm:self-auto text-xs px-5 py-2.5 rounded-full bg-[#ff6105] hover:bg-[#e05504] text-white font-medium transition-all duration-200 active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 mt-auto"
           >
-            <span className={loadingSesiones ? "animate-spin" : ""}>🔄</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${loadingSesiones ? "animate-spin" : ""}`} />
             <span>Actualizar Agenda</span>
           </button>
         </div>
@@ -364,27 +378,27 @@ export default function InstructorPage() {
       {/* =========================================================================
           FILTROS DE FECHA (DESDE / HASTA)
          ========================================================================= */}
-      <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-3">
+      <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-4 flex flex-col sm:flex-row items-center gap-3">
         <div className="w-full sm:w-auto flex-1">
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+          <label className="block text-[11px] font-medium uppercase tracking-wider text-[#7a7b7b] mb-1">
             Desde
           </label>
           <input
             type="date"
             value={filtroDesde}
             onChange={(e) => setFiltroDesde(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+            className="w-full bg-[#f3f4f3] border border-[#e5e5e5] rounded-full px-3.5 py-2 text-xs text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors"
           />
         </div>
         <div className="w-full sm:w-auto flex-1">
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+          <label className="block text-[11px] font-medium uppercase tracking-wider text-[#7a7b7b] mb-1">
             Hasta
           </label>
           <input
             type="date"
             value={filtroHasta}
             onChange={(e) => setFiltroHasta(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+            className="w-full bg-[#f3f4f3] border border-[#e5e5e5] rounded-full px-3.5 py-2 text-xs text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors"
           />
         </div>
         <div className="w-full sm:w-auto flex items-end">
@@ -393,7 +407,7 @@ export default function InstructorPage() {
               setFiltroDesde("");
               setFiltroHasta("");
             }}
-            className="w-full py-2 px-4 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/60"
+            className="w-full py-2 px-4 rounded-full text-xs font-medium bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] transition-all duration-200 active:scale-[0.98] border border-[#e5e5e5]"
           >
             Limpiar Rango
           </button>
@@ -402,11 +416,14 @@ export default function InstructorPage() {
 
       {/* Error de Sesiones */}
       {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between">
-          <span>⚠️ {errorMsg}</span>
+        <div className="p-4 rounded-[5px] bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
           <button
             onClick={() => cargarSesiones()}
-            className="text-xs underline hover:text-white"
+            className="text-xs underline hover:text-rose-950 font-medium"
           >
             Reintentar
           </button>
@@ -417,16 +434,16 @@ export default function InstructorPage() {
           LISTADO DE SESIONES ASIGNADAS AL INSTRUCTOR
          ========================================================================= */}
       {loadingSesiones ? (
-        <div className="py-16 text-center text-slate-400 text-sm">
-          <span className="animate-pulse">⏳ Consultando agenda de sesiones del instructor...</span>
+        <div className="py-16 text-center text-[#7a7b7b] text-sm">
+          <span className="animate-pulse">Consultando agenda de sesiones del instructor...</span>
         </div>
       ) : sesiones.length === 0 ? (
-        <div className="py-12 text-center text-slate-400 text-sm bg-slate-950/40 rounded-2xl border border-dashed border-slate-800">
-          <p className="text-3xl mb-2">📭</p>
-          <p className="font-semibold text-slate-300">
+        <div className="py-12 text-center text-[#7a7b7b] text-sm bg-white rounded-[5px] border border-dashed border-[#e5e5e5]">
+          <Calendar className="w-8 h-8 text-[#a2a3a2] mx-auto mb-2" />
+          <p className="font-medium text-[#0a0a0a]">
             No hay sesiones asignadas para este instructor en el rango seleccionado.
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-[#7a7b7b] mt-1">
             Puedes cambiar de instructor en el selector o modificar el filtro de fechas.
           </p>
         </div>
@@ -436,48 +453,48 @@ export default function InstructorPage() {
             <div
               key={s.id_sesion}
               onClick={() => handleAbrirSesion(s)}
-              className="bg-slate-950/80 border border-slate-800 hover:border-purple-500/60 rounded-2xl p-5 space-y-4 shadow-lg hover:shadow-2xl hover:shadow-purple-900/20 transition-all duration-200 cursor-pointer group flex flex-col justify-between"
+              className="bg-white border border-[#e5e5e5] hover:border-[#ff6105]/60 hover:-translate-y-0.5 rounded-[5px] p-5 space-y-4 transition-all duration-200 cursor-pointer group flex flex-col justify-between"
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <span className="text-[10px] font-mono text-slate-500 block">
+                    <span className="text-[10px] font-mono text-[#7a7b7b] block">
                       Sesión #{s.id_sesion}
                     </span>
-                    <h3 className="text-base font-bold text-white group-hover:text-purple-300 transition-colors">
+                    <h3 className="text-base font-medium text-[#0a0a0a] group-hover:text-[#ff6105] transition-colors">
                       {s.nombre_clase}
                     </h3>
                   </div>
-                  <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 shrink-0">
+                  <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-[#ffdfcd] text-[#0a0a0a] border border-[#ff6105]/20 shrink-0">
                     {s.total_inscritos} / {s.cupo_maximo_sesion} inscritos
                   </span>
                 </div>
 
-                <div className="text-xs space-y-1.5 text-slate-300 bg-slate-900/50 p-3 rounded-xl border border-slate-800/60">
+                <div className="text-xs space-y-1.5 text-[#292b2a] bg-[#f3f4f3] p-3 rounded-[5px] border border-[#e5e5e5]">
                   <p className="flex items-center gap-1.5">
-                    <span>📍</span>
-                    <span>Sede:</span>
-                    <strong className="text-white font-medium">{s.nombre_sede}</strong>
+                    <MapPin className="w-3.5 h-3.5 text-[#ff6105]" />
+                    <span className="text-[#7a7b7b]">Sede:</span>
+                    <strong className="text-[#0a0a0a] font-medium">{s.nombre_sede}</strong>
                   </p>
                   <p className="flex items-center gap-1.5">
-                    <span>📅</span>
-                    <span>Fecha:</span>
-                    <span className="font-mono text-purple-300 font-semibold">{s.fecha}</span>
-                    <span className="text-slate-600">&bull;</span>
-                    <span>⏰</span>
-                    <span>{s.hora}</span>
+                    <Calendar className="w-3.5 h-3.5 text-[#7a7b7b]" />
+                    <span className="text-[#7a7b7b]">Fecha:</span>
+                    <span className="font-mono text-[#0a0a0a] font-medium">{s.fecha}</span>
+                    <span className="text-[#e5e5e5]">&bull;</span>
+                    <Clock className="w-3.5 h-3.5 text-[#7a7b7b]" />
+                    <span className="font-mono text-[#0a0a0a] font-medium">{s.hora}</span>
                   </p>
                 </div>
               </div>
 
               {/* Botón / Indicador de acción */}
-              <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs">
-                <span className="text-slate-400 group-hover:text-slate-300 transition-colors">
+              <div className="pt-2 border-t border-[#e5e5e5] flex items-center justify-between text-xs">
+                <span className="text-[#7a7b7b] group-hover:text-[#292b2a] transition-colors">
                   Pase de Asistencia
                 </span>
-                <span className="text-purple-400 group-hover:text-purple-300 font-semibold flex items-center gap-1">
+                <span className="text-[#ff6105] font-medium flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                   <span>Ver inscritos</span>
-                  <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </span>
               </div>
             </div>
@@ -489,28 +506,38 @@ export default function InstructorPage() {
           MODAL: LISTADO DE INSCRITOS Y GESTIÓN DE ASISTENCIA
          ========================================================================= */}
       {modalAbierto && sesionSeleccionada && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fade-in">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fade-in-scale">
           <div
-            className="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl shadow-purple-950/40 relative overflow-hidden"
+            className="bg-white border border-[#e5e5e5] rounded-[8px] w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl relative overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="p-5 sm:p-6 border-b border-slate-800 flex items-start justify-between gap-4 bg-slate-900/60">
+            <div className="p-5 sm:p-6 border-b border-[#e5e5e5] flex items-start justify-between gap-4 bg-[#f3f4f3]">
               <div>
-                <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30 mb-1.5">
-                  <span>📋</span> Sesión #{sesionSeleccionada.id_sesion} &bull; Control de Asistencia
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#ffdfcd] text-[#0a0a0a] border border-[#ff6105]/20 mb-1.5">
+                  <UserCheck className="w-3 h-3 text-[#ff6105]" />
+                  <span>Sesión #{sesionSeleccionada.id_sesion} &bull; Control de Asistencia</span>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold text-white">
+                <h2 className="text-xl sm:text-2xl font-light tracking-tight text-[#0a0a0a]">
                   {sesionSeleccionada.nombre_clase}
                 </h2>
-                <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-300">
-                  <span>📍 {sesionSeleccionada.nombre_sede}</span>
-                  <span className="text-slate-600">&bull;</span>
-                  <span>📅 {sesionSeleccionada.fecha}</span>
-                  <span className="text-slate-600">&bull;</span>
-                  <span>⏰ {sesionSeleccionada.hora}</span>
-                  <span className="text-slate-600">&bull;</span>
-                  <span className="font-semibold text-purple-300">
+                <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-[#7a7b7b]">
+                  <span className="flex items-center gap-1 text-[#292b2a]">
+                    <MapPin className="w-3.5 h-3.5 text-[#ff6105]" />
+                    {sesionSeleccionada.nombre_sede}
+                  </span>
+                  <span className="text-[#e5e5e5]">&bull;</span>
+                  <span className="flex items-center gap-1 text-[#292b2a]">
+                    <Calendar className="w-3.5 h-3.5 text-[#7a7b7b]" />
+                    {sesionSeleccionada.fecha}
+                  </span>
+                  <span className="text-[#e5e5e5]">&bull;</span>
+                  <span className="flex items-center gap-1 text-[#292b2a]">
+                    <Clock className="w-3.5 h-3.5 text-[#7a7b7b]" />
+                    {sesionSeleccionada.hora}
+                  </span>
+                  <span className="text-[#e5e5e5]">&bull;</span>
+                  <span className="font-medium text-[#0a0a0a]">
                     Capacidad: {sesionSeleccionada.cupo_maximo_sesion} cupos
                   </span>
                 </div>
@@ -518,10 +545,10 @@ export default function InstructorPage() {
 
               <button
                 onClick={handleCerrarModal}
-                className="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 transition-colors border border-slate-700/60 shrink-0"
+                className="text-[#7a7b7b] hover:text-[#0a0a0a] p-2 rounded-full bg-white hover:bg-[#e5e7eb] transition-colors border border-[#e5e5e5] shrink-0"
                 title="Cerrar modal (Esc)"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -530,62 +557,64 @@ export default function InstructorPage() {
               {/* Notificación Toast interna del modal */}
               {toastFeedback && (
                 <div
-                  className={`p-3.5 rounded-2xl border text-xs sm:text-sm font-medium flex items-center justify-between gap-3 shadow-lg transition-all animate-fade-in ${
+                  className={`p-3.5 rounded-[5px] border text-xs sm:text-sm font-medium flex items-center justify-between gap-3 shadow-sm transition-all ${
                     toastFeedback.type === "success"
-                      ? "bg-emerald-950/80 border-emerald-500/50 text-emerald-200"
-                      : "bg-rose-950/80 border-rose-500/50 text-rose-200"
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                      : "bg-rose-50 border-rose-200 text-rose-800"
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <span className="text-lg">
-                      {toastFeedback.type === "success" ? "✅" : "⚠️"}
-                    </span>
+                    {toastFeedback.type === "success" ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    )}
                     <span>{toastFeedback.message}</span>
                   </div>
                   <button
                     onClick={() => setToastFeedback(null)}
-                    className="text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800/60"
+                    className="text-[#7a7b7b] hover:text-[#0a0a0a] p-1 rounded-full hover:bg-white"
                   >
-                    ✕
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               )}
 
               {/* Estado de Carga */}
               {loadingInscritos ? (
-                <div className="py-16 text-center text-slate-400 text-sm">
-                  <span className="animate-pulse">⏳ Consultando socios inscritos en la sesión...</span>
+                <div className="py-16 text-center text-[#7a7b7b] text-sm">
+                  <span className="animate-pulse">Consultando socios inscritos en la sesión...</span>
                 </div>
               ) : errorInscritos ? (
-                <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between">
-                  <span>⚠️ {errorInscritos}</span>
+                <div className="p-4 rounded-[5px] bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm flex items-center justify-between">
+                  <span>{errorInscritos}</span>
                   <button
                     onClick={() => cargarInscritos(sesionSeleccionada.id_sesion)}
-                    className="text-xs underline hover:text-white"
+                    className="text-xs underline hover:text-rose-950 font-medium"
                   >
                     Reintentar
                   </button>
                 </div>
               ) : inscritos.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-sm bg-slate-900/40 rounded-2xl border border-dashed border-slate-800">
-                  <p className="text-3xl mb-2">👥</p>
-                  <p className="font-semibold text-slate-300">
+                <div className="py-12 text-center text-[#7a7b7b] text-sm bg-[#f3f4f3] rounded-[5px] border border-dashed border-[#e5e5e5]">
+                  <UserCheck className="w-8 h-8 text-[#a2a3a2] mx-auto mb-2" />
+                  <p className="font-medium text-[#0a0a0a]">
                     No hay socios inscritos en esta sesión.
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-[#7a7b7b] mt-1">
                     Los socios pueden inscribirse desde la pestaña Catálogo y Reserva.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+                  <div className="flex items-center justify-between text-xs text-[#7a7b7b] px-1">
                     <span>
                       Total de inscripciones registradas:{" "}
-                      <strong className="text-white">{inscritos.length}</strong>
+                      <strong className="text-[#0a0a0a]">{inscritos.length}</strong>
                     </span>
                     <button
                       onClick={() => cargarInscritos(sesionSeleccionada.id_sesion)}
-                      className="text-purple-400 hover:text-purple-300 underline font-medium"
+                      className="text-[#ff6105] hover:underline font-medium"
                     >
                       Refrescar lista
                     </button>
@@ -598,35 +627,41 @@ export default function InstructorPage() {
                     return (
                       <div
                         key={inscrito.id_inscripcion}
-                        className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4 shadow-md"
+                        className="bg-white border border-[#e5e5e5] rounded-[5px] p-4 sm:p-5 space-y-4 shadow-none"
                       >
                         {/* Cabecera del Inscrito */}
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                           <div>
                             <div className="flex items-center gap-2">
-                              <h3 className="text-sm sm:text-base font-bold text-white">
+                              <h3 className="text-sm sm:text-base font-medium text-[#0a0a0a]">
                                 {inscrito.nombre_completo_socio}
                               </h3>
-                              <span className="text-xs font-mono text-slate-500">
+                              <span className="text-xs font-mono text-[#7a7b7b]">
                                 #{inscrito.id_socio_inscripcion}
                               </span>
                             </div>
 
-                            <p className="text-xs text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                              <span>✉️ {inscrito.correo_socio}</span>
-                              <span className="text-slate-600">&bull;</span>
-                              <span>📞 {inscrito.telefono_socio}</span>
-                            </p>
+                            <div className="text-xs text-[#7a7b7b] mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                              <span className="flex items-center gap-1 text-[#292b2a]">
+                                <Mail className="w-3.5 h-3.5 text-[#ff6105]" />
+                                {inscrito.correo_socio}
+                              </span>
+                              <span className="text-[#e5e5e5]">&bull;</span>
+                              <span className="flex items-center gap-1 text-[#292b2a]">
+                                <Phone className="w-3.5 h-3.5 text-[#7a7b7b]" />
+                                {inscrito.telefono_socio}
+                              </span>
+                            </div>
                           </div>
 
                           {/* Badges de Estado y Asistencia Actual */}
                           <div className="flex items-center gap-2 flex-wrap sm:justify-end">
                             {/* Estado Inscripción */}
                             <span
-                              className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${
+                              className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${
                                 esInscrito
-                                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                                  : "bg-rose-500/20 text-rose-300 border-rose-500/30"
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : "bg-rose-50 text-rose-700 border-rose-200"
                               }`}
                             >
                               {inscrito.estado_inscripcion}
@@ -634,16 +669,16 @@ export default function InstructorPage() {
 
                             {/* Asistencia Registrada en BD */}
                             {inscrito.asistio_inscripcion === true ? (
-                              <span className="text-[11px] px-2 py-0.5 rounded-lg font-semibold bg-emerald-950 text-emerald-400 border border-emerald-800/80">
-                                ✓ Asistió
+                              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                                <Check className="w-3 h-3" /> Asistió
                               </span>
                             ) : inscrito.asistio_inscripcion === false ? (
-                              <span className="text-[11px] px-2 py-0.5 rounded-lg font-semibold bg-rose-950 text-rose-400 border border-rose-800/80">
-                                ✗ No Asistió
+                              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
+                                <X className="w-3 h-3" /> No Asistió
                               </span>
                             ) : (
-                              <span className="text-[11px] px-2 py-0.5 rounded-lg font-semibold bg-amber-950/70 text-amber-400 border border-amber-800/80">
-                                ⏳ Pendiente
+                              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5]">
+                                Pendiente
                               </span>
                             )}
                           </div>
@@ -651,34 +686,34 @@ export default function InstructorPage() {
 
                         {/* Controles de Asistencia y Observaciones */}
                         {!esInscrito ? (
-                          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3 text-xs text-slate-400 flex items-center gap-2">
-                            <span>🔒</span>
+                          <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-3 text-xs text-[#7a7b7b] flex items-center gap-2">
+                            <Lock className="w-3.5 h-3.5 text-[#a2a3a2] shrink-0" />
                             <span>
-                              Inscripción en estado <strong>{inscrito.estado_inscripcion}</strong>. El registro de asistencia solo está permitido para inscripciones activas.
+                              Inscripción en estado <strong className="text-[#0a0a0a]">{inscrito.estado_inscripcion}</strong>. El registro de asistencia solo está permitido para inscripciones activas.
                             </span>
                           </div>
                         ) : (
-                          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-3">
+                          <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-3.5 space-y-3">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                               {/* Toggle Asistió / No Asistió */}
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold text-slate-300">
-                                  Control de Asistencia:
+                                <span className="text-xs font-medium text-[#292b2a]">
+                                  Asistencia:
                                 </span>
-                                <div className="inline-flex rounded-xl p-1 bg-slate-900 border border-slate-800">
+                                <div className="inline-flex rounded-full p-1 bg-white border border-[#e5e5e5]">
                                   <button
                                     type="button"
                                     onClick={() =>
                                       setDraftAsistio(inscrito.id_inscripcion, true)
                                     }
                                     disabled={draft?.saving}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
                                       draft?.asistio === true
-                                        ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-1 ring-emerald-400"
-                                        : "text-slate-400 hover:text-emerald-300 hover:bg-slate-800"
+                                        ? "bg-emerald-600 text-white shadow-sm"
+                                        : "text-[#7a7b7b] hover:text-[#0a0a0a]"
                                     }`}
                                   >
-                                    <span>✓</span>
+                                    <Check className="w-3 h-3" />
                                     <span>Asistió</span>
                                   </button>
                                   <button
@@ -687,13 +722,13 @@ export default function InstructorPage() {
                                       setDraftAsistio(inscrito.id_inscripcion, false)
                                     }
                                     disabled={draft?.saving}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
                                       draft?.asistio === false
-                                        ? "bg-rose-600 text-white shadow-md shadow-rose-600/30 ring-1 ring-rose-400"
-                                        : "text-slate-400 hover:text-rose-300 hover:bg-slate-800"
+                                        ? "bg-rose-600 text-white shadow-sm"
+                                        : "text-[#7a7b7b] hover:text-[#0a0a0a]"
                                     }`}
                                   >
-                                    <span>✕</span>
+                                    <X className="w-3 h-3" />
                                     <span>No Asistió</span>
                                   </button>
                                 </div>
@@ -704,16 +739,16 @@ export default function InstructorPage() {
                                 type="button"
                                 onClick={() => handleGuardarAsistencia(inscrito)}
                                 disabled={draft?.saving}
-                                className="py-2 px-4 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/25 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 self-end sm:self-auto"
+                                className="py-2 px-5 rounded-full text-xs font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5 self-end sm:self-auto"
                               >
                                 {draft?.saving ? (
                                   <>
-                                    <span className="animate-spin">🔄</span>
+                                    <RefreshCw className="w-3 h-3 animate-spin" />
                                     <span>Guardando...</span>
                                   </>
                                 ) : (
                                   <>
-                                    <span>💾</span>
+                                    <Save className="w-3.5 h-3.5" />
                                     <span>Guardar Asistencia</span>
                                   </>
                                 )}
@@ -722,7 +757,7 @@ export default function InstructorPage() {
 
                             {/* Campo de texto para Observaciones */}
                             <div>
-                              <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                              <label className="block text-[11px] font-medium text-[#7a7b7b] mb-1">
                                 Observaciones de Asistencia (opcional):
                               </label>
                               <input
@@ -737,7 +772,7 @@ export default function InstructorPage() {
                                 disabled={draft?.saving}
                                 maxLength={500}
                                 placeholder="Ej: Puntual, presentó molestias en tobillo, retiro anticipado..."
-                                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+                                className="w-full bg-white border border-[#e5e5e5] rounded-full px-4 py-2 text-xs text-[#0a0a0a] placeholder-[#a2a3a2] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors"
                               />
                             </div>
                           </div>
@@ -750,13 +785,13 @@ export default function InstructorPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-800 bg-slate-900/60 flex items-center justify-between text-xs text-slate-400">
+            <div className="p-4 border-t border-[#e5e5e5] bg-[#f3f4f3] flex items-center justify-between text-xs text-[#7a7b7b]">
               <span>
-                Presiona <kbd className="px-1.5 py-0.5 rounded bg-slate-800 font-mono text-slate-300">Esc</kbd> para salir
+                Presiona <kbd className="px-1.5 py-0.5 rounded bg-white border border-[#e5e5e5] font-mono text-[#0a0a0a]">Esc</kbd> para salir
               </span>
               <button
                 onClick={handleCerrarModal}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold transition-colors border border-slate-700/60"
+                className="px-4 py-2 rounded-full bg-white hover:bg-[#e5e7eb] text-[#292b2a] font-medium transition-colors border border-[#e5e5e5]"
               >
                 Cerrar Panel
               </button>

@@ -2,6 +2,22 @@
 
 import { useEffect, useState, useCallback } from "react";
 import {
+  Wrench,
+  Plus,
+  User,
+  Building,
+  Briefcase,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Trash2,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  RefreshCw,
+} from "lucide-react";
+import {
   clasesApi,
   EquipamientoItemResponse,
   SedeSimpleResponse,
@@ -73,9 +89,7 @@ export default function EquiposPage() {
     if (encontrado) {
       setEmpleadoSeleccionado(encontrado);
       const nuevaSedeStr = String(encontrado.id_sede_personal);
-      // Sincroniza la sede por defecto para nuevos registros
       setNuevaSede(encontrado.id_sede_personal);
-      // Sincroniza la sede del filtro con la sede del empleado responsable
       if (filtroSede !== nuevaSedeStr) {
         setFiltroSede(nuevaSedeStr);
       } else {
@@ -103,7 +117,7 @@ export default function EquiposPage() {
       });
       setFeedback({
         type: "success",
-        message: `¡Equipamiento #${res.id_equipamiento} registrado correctamente en sede!`,
+        message: `Equipamiento #${res.id_equipamiento} registrado correctamente en sede.`,
       });
       setNuevoNombre("");
       setNuevaFecha("");
@@ -132,44 +146,46 @@ export default function EquiposPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/30 mb-2">
-            <span>⚙️</span> Inventario de Equipos (vw_Inventario_Equipos)
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#ffdfcd] text-[#0a0a0a] border border-[#ff6105]/20 mb-2">
+            <Wrench className="w-3.5 h-3.5 text-[#ff6105]" />
+            <span>Inventario de Equipos (vw_Inventario_Equipos)</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+          <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-[#0a0a0a]">
             Equipamiento &amp; Máquinas
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <div className="w-16 h-[2px] bg-[#ff6105] my-2" />
+          <p className="text-xs sm:text-sm text-[#7a7b7b]">
             Control de inventario, cálculo de antigüedad y registro por sede.
           </p>
         </div>
 
         <button
           onClick={handleAbrirModalRegistro}
-          className="self-start sm:self-auto text-xs px-4 py-2.5 rounded-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/30 transition-all flex items-center gap-1.5"
+          className="self-start sm:self-auto text-xs px-5 py-2.5 rounded-full font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-sm transition-all duration-200 active:scale-[0.98] flex items-center gap-1.5"
         >
-          <span>+</span>
+          <Plus className="w-3.5 h-3.5" />
           <span>Registrar Equipo</span>
         </button>
       </div>
 
       {/* Selector de Personal / Empleado Responsable */}
-      <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-3.5 shadow-lg">
+      <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-4 sm:p-5 flex flex-col gap-3.5">
         {/* Fila 1: Label + Select de Empleado */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <label
             htmlFor="selector-empleado"
-            className="text-xs font-semibold uppercase tracking-wider text-purple-300 flex items-center gap-1.5 shrink-0"
+            className="text-xs font-medium uppercase tracking-wider text-[#292b2a] flex items-center gap-1.5 shrink-0"
           >
-            <span>👷</span>
+            <User className="w-3.5 h-3.5 text-[#ff6105]" />
             <span>Personal Responsable:</span>
           </label>
           <select
             id="selector-empleado"
             value={empleadoSeleccionado.id_personal}
             onChange={(e) => handleCambiarEmpleado(Number(e.target.value))}
-            className="w-full sm:w-auto flex-1 max-w-2xl bg-slate-900 border border-purple-500/30 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 font-medium cursor-pointer shadow-inner"
+            className="w-full sm:w-auto flex-1 max-w-2xl bg-white border border-[#e5e5e5] rounded-full px-4 py-2 text-xs sm:text-sm text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] font-medium cursor-pointer transition-colors"
           >
             {PERSONAL_RESPONSABLE_MOCK.map((emp) => (
               <option key={emp.id_personal} value={emp.id_personal}>
@@ -179,29 +195,29 @@ export default function EquiposPage() {
           </select>
         </div>
 
-        {/* Fila 2: Badges con datos del empleado distribuidos en filas/wrap sin solapamiento */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs bg-slate-900/70 p-3 rounded-xl border border-slate-800">
-          <div className="flex items-center gap-1.5 bg-purple-950/40 border border-purple-500/30 px-2.5 py-1 rounded-lg text-purple-200 font-medium">
-            <span>🏢</span>
-            <span>Sede asignada:</span>
-            <strong className="text-white font-bold">{empleadoSeleccionado.nombre_sede_personal}</strong>
+        {/* Fila 2: Badges con datos del empleado */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs bg-[#f3f4f3] p-3 rounded-[5px] border border-[#e5e5e5]">
+          <div className="flex items-center gap-1.5 bg-[#ffdfcd] border border-[#ff6105]/20 px-3 py-1 rounded-full text-[#0a0a0a] font-medium">
+            <Building className="w-3.5 h-3.5 text-[#ff6105]" />
+            <span>Sede:</span>
+            <strong className="text-[#0a0a0a]">{empleadoSeleccionado.nombre_sede_personal}</strong>
           </div>
-          <span className="text-slate-600 hidden sm:inline">&bull;</span>
-          <div className="flex items-center gap-1.5 bg-slate-800/70 border border-slate-700/60 px-2.5 py-1 rounded-lg text-slate-300">
-            <span>💼</span>
+          <span className="text-[#e5e5e5] hidden sm:inline">&bull;</span>
+          <div className="flex items-center gap-1.5 bg-white border border-[#e5e5e5] px-3 py-1 rounded-full text-[#292b2a]">
+            <Briefcase className="w-3.5 h-3.5 text-[#7a7b7b]" />
             <span>Cargo:</span>
-            <strong className="text-slate-100">{empleadoSeleccionado.cargo_personal}</strong>
+            <strong className="text-[#0a0a0a]">{empleadoSeleccionado.cargo_personal}</strong>
           </div>
-          <span className="text-slate-600 hidden sm:inline">&bull;</span>
-          <div className="flex items-center gap-1.5 bg-slate-800/70 border border-slate-700/60 px-2.5 py-1 rounded-lg text-slate-400 font-mono">
-            <span>✉️</span>
+          <span className="text-[#e5e5e5] hidden sm:inline">&bull;</span>
+          <div className="flex items-center gap-1.5 bg-white border border-[#e5e5e5] px-3 py-1 rounded-full text-[#7a7b7b] font-mono text-[11px]">
+            <Mail className="w-3.5 h-3.5 text-[#7a7b7b]" />
             <span>{empleadoSeleccionado.correo_personal}</span>
           </div>
           {empleadoSeleccionado.telefono_personal && (
             <>
-              <span className="text-slate-600 hidden sm:inline">&bull;</span>
-              <div className="flex items-center gap-1.5 bg-slate-800/70 border border-slate-700/60 px-2.5 py-1 rounded-lg text-slate-400 font-mono">
-                <span>📞</span>
+              <span className="text-[#e5e5e5] hidden sm:inline">&bull;</span>
+              <div className="flex items-center gap-1.5 bg-white border border-[#e5e5e5] px-3 py-1 rounded-full text-[#7a7b7b] font-mono text-[11px]">
+                <Phone className="w-3.5 h-3.5 text-[#7a7b7b]" />
                 <span>{empleadoSeleccionado.telefono_personal}</span>
               </div>
             </>
@@ -212,37 +228,51 @@ export default function EquiposPage() {
       {/* Feedback Banner */}
       {feedback && (
         <div
-          className={`p-4 rounded-2xl border flex items-center justify-between text-xs sm:text-sm ${
+          role="status"
+          aria-live="polite"
+          className={`p-4 rounded-[5px] border flex items-center justify-between text-xs sm:text-sm ${
             feedback.type === "success"
-              ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-200"
-              : "bg-rose-950/40 border-rose-500/40 text-rose-200"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-rose-50 border-rose-200 text-rose-800"
           }`}
         >
-          <span>{feedback.message}</span>
-          <button onClick={() => setFeedback(null)} className="text-slate-400 hover:text-white">✕</button>
+          <div className="flex items-center gap-2">
+            {feedback.type === "success" ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{feedback.message}</span>
+          </div>
+          <button
+            onClick={() => setFeedback(null)}
+            className="text-[#7a7b7b] hover:text-[#0a0a0a] p-1 rounded-full hover:bg-black/5"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
       {/* Filtro por Sede */}
-      <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 shrink-0">
+          <label className="text-xs font-medium uppercase tracking-wider text-[#7a7b7b] shrink-0">
             Filtrar por Sede:
           </label>
           <select
             value={filtroSede}
             onChange={(e) => setFiltroSede(e.target.value)}
-            className="bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
+            className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-full px-3.5 py-1.5 text-xs text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] cursor-pointer transition-colors"
           >
             <option value="">Todas las sedes</option>
             {sedes.map((s) => (
               <option key={s.id_sede} value={s.id_sede}>
-                {s.nombre_sede} {s.id_sede === empleadoSeleccionado.id_sede_personal ? "⭐ (Sede del Responsable)" : ""}
+                {s.nombre_sede} {s.id_sede === empleadoSeleccionado.id_sede_personal ? "(Sede del Responsable)" : ""}
               </option>
             ))}
           </select>
         </div>
-        <div className="flex items-center gap-3 text-xs text-slate-400">
+        <div className="flex items-center gap-3 text-xs text-[#7a7b7b]">
           <button
             onClick={() => {
               const sedeEmpStr = String(empleadoSeleccionado.id_sede_personal);
@@ -252,12 +282,12 @@ export default function EquiposPage() {
                 cargarEquipos(sedeEmpStr);
               }
             }}
-            className="text-purple-400 hover:text-purple-300 underline font-medium"
+            className="text-[#ff6105] hover:underline font-medium"
           >
             Restablecer a Sede del Empleado ({empleadoSeleccionado.nombre_sede_personal})
           </button>
-          <span className="text-slate-600">&bull;</span>
-          <span className="font-mono text-slate-500">
+          <span className="text-[#e5e5e5]">&bull;</span>
+          <span className="font-mono text-[#7a7b7b]">
             {equipos.length} máquinas registradas
           </span>
         </div>
@@ -265,48 +295,57 @@ export default function EquiposPage() {
 
       {/* Grilla de Equipos */}
       {loading ? (
-        <div className="py-12 text-center text-slate-400 text-sm animate-pulse">
-          ⏳ Consultando inventario de equipamiento...
+        <div className="py-12 text-center text-[#7a7b7b] text-sm animate-pulse">
+          Consultando inventario de equipamiento...
         </div>
       ) : equipos.length === 0 ? (
-        <div className="py-12 text-center text-slate-400 text-sm bg-slate-950/40 rounded-2xl border border-dashed border-slate-800">
-          <p className="text-3xl mb-2">🏋️‍♂️</p>
-          <p className="font-semibold text-slate-300">No se encontraron equipos registrados.</p>
+        <div className="py-12 text-center text-[#7a7b7b] text-sm bg-white rounded-[5px] border border-dashed border-[#e5e5e5]">
+          <Wrench className="w-8 h-8 text-[#a2a3a2] mx-auto mb-2" />
+          <p className="font-medium text-[#0a0a0a]">No se encontraron equipos registrados.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {equipos.map((eq) => (
             <div
               key={eq.id_equipamiento}
-              className="bg-slate-950/80 border border-slate-800 hover:border-purple-500/40 rounded-2xl p-5 space-y-3 shadow-lg flex flex-col justify-between"
+              className="bg-white border border-[#e5e5e5] hover:border-[#ff6105]/40 hover:-translate-y-0.5 rounded-[5px] p-5 space-y-3 transition-all duration-200 flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <span className="text-[10px] font-mono text-slate-500 block">
+                    <span className="text-[10px] font-mono text-[#7a7b7b] block">
                       Equipo #{eq.id_equipamiento}
                     </span>
-                    <h3 className="text-base font-bold text-white">
+                    <h3 className="text-base font-medium text-[#0a0a0a]">
                       {eq.nombre_descriptivo_equipamiento}
                     </h3>
                   </div>
-                  <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 shrink-0">
+                  <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5] shrink-0">
                     {eq.antiguedad_anios} {eq.antiguedad_anios === 1 ? "año" : "años"}
                   </span>
                 </div>
 
-                <div className="text-xs space-y-1 text-slate-300 mt-2">
-                  <p>📍 Sede: <strong className="text-white">{eq.nombre_sede}</strong></p>
-                  <p>📅 Adquirido: <span className="font-mono text-purple-300">{eq.fecha_adquisicion_equipamiento}</span></p>
+                <div className="text-xs space-y-1.5 text-[#292b2a] mt-2">
+                  <p className="flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#ff6105]" />
+                    <span className="text-[#7a7b7b]">Sede:</span>
+                    <strong className="text-[#0a0a0a]">{eq.nombre_sede}</strong>
+                  </p>
+                  <p className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-[#7a7b7b]" />
+                    <span className="text-[#7a7b7b]">Adquirido:</span>
+                    <span className="font-mono text-[#0a0a0a]">{eq.fecha_adquisicion_equipamiento}</span>
+                  </p>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-800/80 flex justify-end">
+              <div className="pt-2 border-t border-[#e5e5e5] flex justify-end">
                 <button
                   onClick={() => handleEliminar(eq.id_equipamiento)}
-                  className="text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-2.5 py-1 rounded-lg transition-colors border border-transparent hover:border-rose-500/20"
+                  className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1 rounded-full transition-colors border border-transparent hover:border-rose-200 flex items-center gap-1"
                 >
-                  Eliminar
+                  <Trash2 className="w-3 h-3" />
+                  <span>Eliminar</span>
                 </button>
               </div>
             </div>
@@ -316,26 +355,26 @@ export default function EquiposPage() {
 
       {/* Modal / Formulario Registrar Equipo */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in-scale">
+          <div className="bg-white border border-[#e5e5e5] rounded-[8px] p-6 sm:p-8 max-w-md w-full space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#e5e5e5] pb-3">
               <div>
-                <h3 className="text-lg font-bold text-white">Registrar Equipamiento</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Responsable: <span className="text-purple-300">{empleadoSeleccionado.nombre_completo_personal}</span>
+                <h3 className="text-lg font-medium text-[#0a0a0a]">Registrar Equipamiento</h3>
+                <p className="text-xs text-[#7a7b7b] mt-0.5">
+                  Responsable: <span className="text-[#ff6105] font-medium">{empleadoSeleccionado.nombre_completo_personal}</span>
                 </p>
               </div>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-[#7a7b7b] hover:text-[#0a0a0a] p-1 rounded-full hover:bg-[#f3f4f3]"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleCrearEquipo} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-400 uppercase tracking-wider mb-1">
+                <label className="block text-[#7a7b7b] uppercase tracking-wider mb-1">
                   Nombre descriptivo
                 </label>
                 <input
@@ -344,19 +383,19 @@ export default function EquiposPage() {
                   value={nuevoNombre}
                   onChange={(e) => setNuevoNombre(e.target.value)}
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500 text-sm"
+                  className="w-full bg-white border border-[#e5e5e5] rounded-full px-4 py-2 text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] text-sm transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 uppercase tracking-wider mb-1">
+                <label className="block text-[#7a7b7b] uppercase tracking-wider mb-1">
                   Sede Asignada
                 </label>
                 <select
                   value={nuevaSede}
                   onChange={(e) => setNuevaSede(Number(e.target.value))}
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500 text-sm"
+                  className="w-full bg-white border border-[#e5e5e5] rounded-full px-4 py-2 text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] text-sm transition-colors"
                 >
                   {sedes.map((s) => (
                     <option key={s.id_sede} value={s.id_sede}>
@@ -367,7 +406,7 @@ export default function EquiposPage() {
               </div>
 
               <div>
-                <label className="block text-slate-400 uppercase tracking-wider mb-1">
+                <label className="block text-[#7a7b7b] uppercase tracking-wider mb-1">
                   Fecha de Adquisición (No futura)
                 </label>
                 <input
@@ -375,7 +414,7 @@ export default function EquiposPage() {
                   value={nuevaFecha}
                   onChange={(e) => setNuevaFecha(e.target.value)}
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500 text-sm"
+                  className="w-full bg-white border border-[#e5e5e5] rounded-full px-4 py-2 text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] text-sm transition-colors"
                 />
               </div>
 
@@ -383,16 +422,23 @@ export default function EquiposPage() {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-full text-[#7a7b7b] hover:text-[#0a0a0a] hover:bg-[#f3f4f3] border border-[#e5e5e5] transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={guardando}
-                  className="px-4 py-2 rounded-xl font-bold bg-purple-600 hover:bg-purple-500 text-white transition-colors"
+                  className="px-5 py-2.5 rounded-full font-medium bg-[#ff6105] hover:bg-[#e05504] text-white transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {guardando ? "Guardando..." : "Registrar"}
+                  {guardando ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Guardando...</span>
+                    </>
+                  ) : (
+                    <span>Registrar</span>
+                  )}
                 </button>
               </div>
             </form>

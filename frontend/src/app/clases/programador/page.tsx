@@ -2,6 +2,19 @@
 
 import { useEffect, useState, useCallback } from "react";
 import {
+  Calendar,
+  Clock,
+  MapPin,
+  User,
+  Users,
+  Dumbbell,
+  RefreshCw,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  Plus,
+} from "lucide-react";
+import {
   clasesApi,
   ClaseResponse,
   SedeSimpleResponse,
@@ -63,7 +76,7 @@ export default function ProgramadorPage() {
       const res = await clasesApi.programarSesion(body);
       setFeedback({
         type: "success",
-        message: `¡Sesión #${res.id_sesion} programada exitosamente!`,
+        message: `Sesión #${res.id_sesion} programada exitosamente en el sistema.`,
       });
     } catch (err: any) {
       const errorMsg = err.data?.detail || err.message || "Error al programar la sesión.";
@@ -79,14 +92,16 @@ export default function ProgramadorPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-8">
       {/* Header */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-xl">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/30 mb-2">
-          <span>🗓️</span> Programador de Sesiones (sp_Programar_Sesion)
+      <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#ffdfcd] text-[#0a0a0a] border border-[#ff6105]/20 mb-2">
+          <Calendar className="w-3.5 h-3.5 text-[#ff6105]" />
+          <span>Programador de Sesiones (sp_Programar_Sesion)</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+        <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-[#0a0a0a]">
           Nueva Sesión de Clase
         </h1>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">
+        <div className="w-16 h-[2px] bg-[#ff6105] my-2" />
+        <p className="text-xs sm:text-sm text-[#7a7b7b]">
           Crea una nueva sesión en el calendario del gimnasio asignando sede, instructor, horario y cupo máximo.
         </p>
       </div>
@@ -94,28 +109,45 @@ export default function ProgramadorPage() {
       {/* Feedback Alert */}
       {feedback && (
         <div
-          className={`p-4 rounded-2xl border flex items-center justify-between text-xs sm:text-sm ${
+          role="status"
+          aria-live="polite"
+          className={`p-4 rounded-[5px] border flex items-center justify-between text-xs sm:text-sm ${
             feedback.type === "success"
-              ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-200"
-              : "bg-rose-950/40 border-rose-500/40 text-rose-200"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-rose-50 border-rose-200 text-rose-800"
           }`}
         >
-          <span>{feedback.message}</span>
-          <button onClick={() => setFeedback(null)} className="text-slate-400 hover:text-white">✕</button>
+          <div className="flex items-center gap-2">
+            {feedback.type === "success" ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{feedback.message}</span>
+          </div>
+          <button
+            onClick={() => setFeedback(null)}
+            className="text-[#7a7b7b] hover:text-[#0a0a0a] p-1 rounded-full hover:bg-black/5"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
       {/* Formulario */}
-      <form onSubmit={handleSubmit} className="bg-slate-950/80 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-5 shadow-2xl">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 space-y-5 shadow-none"
+      >
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+          <label className="block text-xs font-medium uppercase tracking-wider text-[#7a7b7b] mb-1.5">
             Disciplina / Clase
           </label>
           <select
             value={idClase}
             onChange={(e) => setIdClase(Number(e.target.value))}
             required
-            className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+            className="w-full bg-white border border-[#e5e5e5] rounded-full px-4 py-2.5 text-sm text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors"
           >
             {clases.map((c) => (
               <option key={c.id_clase} value={c.id_clase}>
@@ -127,14 +159,14 @@ export default function ProgramadorPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+            <label className="block text-xs font-medium uppercase tracking-wider text-[#7a7b7b] mb-1.5">
               Sede
             </label>
             <select
               value={idSede}
               onChange={(e) => setIdSede(Number(e.target.value))}
               required
-              className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="w-full bg-white border border-[#e5e5e5] rounded-full px-4 py-2.5 text-sm text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors"
             >
               {sedes.map((s) => (
                 <option key={s.id_sede} value={s.id_sede}>
@@ -145,13 +177,13 @@ export default function ProgramadorPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+            <label className="block text-xs font-medium uppercase tracking-wider text-[#7a7b7b] mb-1.5">
               Instructor (Opcional)
             </label>
             <select
               value={idInstructor}
               onChange={(e) => setIdInstructor(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="w-full bg-white border border-[#e5e5e5] rounded-full px-4 py-2.5 text-sm text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors"
             >
               <option value="">Sin instructor asignado</option>
               {instructores.map((i) => (
@@ -165,7 +197,7 @@ export default function ProgramadorPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+            <label className="block text-xs font-medium uppercase tracking-wider text-[#7a7b7b] mb-1.5">
               Fecha (Futura)
             </label>
             <input
@@ -173,12 +205,12 @@ export default function ProgramadorPage() {
               value={fechaSesion}
               onChange={(e) => setFechaSesion(e.target.value)}
               required
-              className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="w-full bg-white border border-[#e5e5e5] rounded-full px-4 py-2.5 text-sm text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+            <label className="block text-xs font-medium uppercase tracking-wider text-[#7a7b7b] mb-1.5">
               Hora Inicio
             </label>
             <input
@@ -187,12 +219,12 @@ export default function ProgramadorPage() {
               value={horaSesion}
               onChange={(e) => setHoraSesion(e.target.value)}
               required
-              className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="w-full bg-white border border-[#e5e5e5] rounded-full px-4 py-2.5 text-sm text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+            <label className="block text-xs font-medium uppercase tracking-wider text-[#7a7b7b] mb-1.5">
               Cupo Máximo
             </label>
             <input
@@ -202,7 +234,7 @@ export default function ProgramadorPage() {
               value={cupoMaximo}
               onChange={(e) => setCupoMaximo(Number(e.target.value))}
               required
-              className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="w-full bg-white border border-[#e5e5e5] rounded-full px-4 py-2.5 text-sm text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors"
             />
           </div>
         </div>
@@ -210,9 +242,19 @@ export default function ProgramadorPage() {
         <button
           type="submit"
           disabled={loadingForm}
-          className="w-full py-3 px-4 rounded-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/30 transition-all disabled:opacity-50 text-sm mt-4"
+          className="w-full py-3 px-6 rounded-full font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 text-sm mt-4 flex items-center justify-center gap-2"
         >
-          {loadingForm ? "⏳ Programando sesión..." : "Guardar y Publicar Sesión"}
+          {loadingForm ? (
+            <>
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              <span>Programando sesión...</span>
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4" />
+              <span>Guardar y Publicar Sesión</span>
+            </>
+          )}
         </button>
       </form>
     </div>

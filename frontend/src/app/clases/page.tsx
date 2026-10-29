@@ -2,6 +2,23 @@
 
 import { useEffect, useState, useCallback } from "react";
 import {
+  Sparkles,
+  User,
+  Tag,
+  MapPin,
+  Calendar,
+  Clock,
+  RefreshCw,
+  CheckCircle2,
+  AlertTriangle,
+  Info,
+  X,
+  ChevronRight,
+  Check,
+  ArrowDown,
+  Dumbbell,
+} from "lucide-react";
+import {
   clasesApi,
   ClaseResponse,
   SesionDisponibleResponse,
@@ -193,13 +210,12 @@ export default function ClasesPage() {
 
       setFeedback({
         type: "success",
-        message: `¡Inscripción exitosa! Has reservado tu cupo para la sesión #${id_sesion}.`,
+        message: `Inscripción exitosa. Has reservado tu cupo para la sesión #${id_sesion}.`,
       });
 
       // Refrescar ambas listas inmediatamente
       await Promise.all([cargarSesiones(), cargarMisInscripciones(socioActual.id_socio)]);
     } catch (err: any) {
-      // Mostrar exactamente el mensaje retornado por la API (409, 400, etc.)
       const errorMsg =
         err.data?.detail ||
         err.message ||
@@ -251,13 +267,13 @@ export default function ClasesPage() {
   const getBadgeNivel = (nivel: string) => {
     switch (nivel?.toLowerCase()) {
       case "principiante":
-        return "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
       case "intermedio":
-        return "bg-cyan-500/10 text-cyan-400 border-cyan-500/30";
+        return "bg-sky-50 text-sky-700 border-sky-200";
       case "avanzado":
-        return "bg-amber-500/10 text-amber-400 border-amber-500/30";
+        return "bg-amber-50 text-amber-700 border-amber-200";
       default:
-        return "bg-slate-500/10 text-slate-400 border-slate-500/30";
+        return "bg-[#f3f4f3] text-[#7a7b7b] border-[#e5e5e5]";
     }
   };
 
@@ -269,37 +285,42 @@ export default function ClasesPage() {
   );
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-10">
       {/* Hero / Encabezado de la Pantalla */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-purple-950/40 via-slate-900/60 to-indigo-950/40 border border-purple-500/20 rounded-3xl p-6 sm:p-10 shadow-2xl backdrop-blur-xl">
-        <div className="relative z-10 max-w-4xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30 mb-4">
-            <span>✨</span> Portal del Socio &bull; Reserva de Clases
+      <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 relative">
+        <div className="max-w-4xl">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#ffdfcd] text-[#0a0a0a] border border-[#ff6105]/20 mb-3">
+            <Sparkles className="w-3.5 h-3.5 text-[#ff6105]" />
+            <span>Portal del Socio &bull; Reserva de Clases</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-3">
+
+          <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-[#0a0a0a]">
             Catálogo de Clases &amp; Reserva de Cupos
           </h1>
-          <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+
+          <div className="w-16 h-[2px] bg-[#ff6105] my-3" />
+
+          <p className="text-[#7a7b7b] text-sm sm:text-base leading-relaxed">
             Explora las disciplinas disponibles, consulta las sesiones programadas
             en cada sede con disponibilidad de cupos en tiempo real y reserva tu
             asistencia de forma inmediata.
           </p>
 
           {/* Selector Dinámico de Socio para Testeo de Inscripciones */}
-          <div className="mt-6 pt-5 border-t border-purple-500/20 flex flex-col gap-3 bg-slate-950/60 p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-lg">
+          <div className="mt-6 pt-5 border-t border-[#e5e5e5] flex flex-col gap-3 bg-[#f3f4f3] p-4 sm:p-5 rounded-[5px] border border-[#e5e5e5]">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <label
                 htmlFor="selector-socio-hero"
-                className="text-xs font-semibold uppercase tracking-wider text-purple-300 flex items-center gap-1.5 shrink-0"
+                className="text-xs font-medium uppercase tracking-wider text-[#292b2a] flex items-center gap-1.5 shrink-0"
               >
-                <span>👤</span>
+                <User className="w-3.5 h-3.5 text-[#ff6105]" />
                 <span>Socio en sesión (Pruebas):</span>
               </label>
               <select
                 id="selector-socio-hero"
                 value={socioActual.id_socio}
                 onChange={(e) => handleCambiarSocio(Number(e.target.value))}
-                className="w-full sm:w-auto bg-slate-900 border border-purple-500/40 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-inner cursor-pointer"
+                className="w-full sm:w-auto bg-white border border-[#e5e5e5] rounded-full px-4 py-2 text-xs sm:text-sm text-[#0a0a0a] font-medium focus:outline-none focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] cursor-pointer transition-colors"
               >
                 {SOCIOS_PRUEBA.map((s) => (
                   <option key={s.id_socio} value={s.id_socio}>
@@ -309,24 +330,24 @@ export default function ClasesPage() {
               </select>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs bg-slate-900/80 p-3 rounded-xl border border-slate-800/80">
-              <span className="text-purple-300 font-semibold flex items-center gap-1">
-                <span>🏷️</span>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs bg-white p-3 rounded-[5px] border border-[#e5e5e5]">
+              <span className="text-[#0a0a0a] font-medium flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-[#ff6105]" />
                 <span>{socioActual.nombre_completo_socio}</span>
               </span>
-              <span className="text-slate-600 hidden sm:inline">&bull;</span>
-              <span className="bg-slate-800/80 px-2.5 py-1 rounded-lg text-slate-300 border border-slate-700/60 font-mono">
-                RUT: <strong className="text-white">{socioActual.rut_socio}</strong>
+              <span className="text-[#e5e5e5] hidden sm:inline">&bull;</span>
+              <span className="bg-[#f3f4f3] px-2.5 py-1 rounded-full text-[#292b2a] border border-[#e5e5e5] font-mono text-[11px]">
+                RUT: <strong className="text-[#0a0a0a]">{socioActual.rut_socio}</strong>
               </span>
-              <span className="text-slate-600 hidden sm:inline">&bull;</span>
-              <span className="bg-slate-800/80 px-2.5 py-1 rounded-lg text-slate-300 border border-slate-700/60 font-mono">
-                Correo: <strong className="text-white">{socioActual.correo_socio}</strong>
+              <span className="text-[#e5e5e5] hidden sm:inline">&bull;</span>
+              <span className="bg-[#f3f4f3] px-2.5 py-1 rounded-full text-[#292b2a] border border-[#e5e5e5] font-mono text-[11px]">
+                Correo: <strong className="text-[#0a0a0a]">{socioActual.correo_socio}</strong>
               </span>
               {socioActual.nombre_sede_registro && (
                 <>
-                  <span className="text-slate-600 hidden sm:inline">&bull;</span>
-                  <span className="text-purple-400 font-medium">
-                    Sede: {socioActual.nombre_sede_registro}
+                  <span className="text-[#e5e5e5] hidden sm:inline">&bull;</span>
+                  <span className="text-[#7a7b7b] font-medium">
+                    Sede: <strong className="text-[#0a0a0a]">{socioActual.nombre_sede_registro}</strong>
                   </span>
                 </>
               )}
@@ -335,36 +356,42 @@ export default function ClasesPage() {
         </div>
       </div>
 
-      {/* Alerta Flotante Fija (Toast en la esquina) para no perderse con el scroll */}
+      {/* Alerta Flotante Fija (Toast) */}
       {feedback && (
-        <div className="fixed bottom-6 right-6 z-50 max-w-sm sm:max-w-md w-full p-4 rounded-2xl border shadow-2xl backdrop-blur-xl animate-fade-in flex items-start justify-between gap-3 bg-slate-950/95 border-purple-500/40">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-50 max-w-sm sm:max-w-md w-full p-4 rounded-[5px] border border-[#e5e5e5] shadow-lg bg-white flex items-start justify-between gap-3 animate-fade-in-scale"
+        >
           <div className="flex items-start gap-3">
-            <span className="text-2xl shrink-0">
-              {feedback.type === "success"
-                ? "✅"
-                : feedback.type === "error"
-                ? "⚠️"
-                : "ℹ️"}
+            <span className="shrink-0 mt-0.5">
+              {feedback.type === "success" ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              ) : feedback.type === "error" ? (
+                <AlertTriangle className="w-5 h-5 text-[#ff6105]" />
+              ) : (
+                <Info className="w-5 h-5 text-[#292b2a]" />
+              )}
             </span>
             <div>
-              <strong className="block text-sm font-semibold text-white">
+              <strong className="block text-sm font-medium text-[#0a0a0a]">
                 {feedback.type === "success"
                   ? "Operación Exitosa"
                   : feedback.type === "error"
-                  ? "Aviso de la Base de Datos"
+                  ? "Aviso del Sistema"
                   : "Información"}
               </strong>
-              <p className="text-xs sm:text-sm mt-0.5 text-slate-300 leading-relaxed">
+              <p className="text-xs sm:text-sm mt-0.5 text-[#7a7b7b] leading-relaxed">
                 {feedback.message}
               </p>
             </div>
           </div>
           <button
             onClick={() => setFeedback(null)}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800/60 shrink-0"
+            className="text-[#7a7b7b] hover:text-[#0a0a0a] p-1 rounded-full hover:bg-[#f3f4f3] shrink-0 transition-colors"
             title="Cerrar notificación"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -372,15 +399,14 @@ export default function ClasesPage() {
       {/* =========================================================================
           SECCIÓN 1: MIS INSCRIPCIONES
          ========================================================================= */}
-      <section className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-xl space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+      <section className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e5e5e5] pb-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-2xl">🎟️</span>
-              <h2 className="text-xl sm:text-2xl font-bold text-white">
+              <h2 className="text-xl font-medium tracking-tight text-[#0a0a0a]">
                 Mis Inscripciones
               </h2>
-              <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+              <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-[#ffdfcd] text-[#0a0a0a] border border-[#ff6105]/20">
                 {
                   misInscripciones.filter((i) => i.estado_inscripcion === "Inscrito")
                     .length
@@ -388,7 +414,8 @@ export default function ClasesPage() {
                 activas
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            <div className="w-12 h-[2px] bg-[#ff6105] mt-1 mb-2" />
+            <p className="text-xs sm:text-sm text-[#7a7b7b]">
               Historial y estado de tus reservas en sesiones del gimnasio.
             </p>
           </div>
@@ -396,24 +423,24 @@ export default function ClasesPage() {
           <button
             onClick={() => cargarMisInscripciones()}
             disabled={loadingInscripciones}
-            className="self-start sm:self-auto text-xs px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1.5 border border-slate-700/60"
+            className="self-start sm:self-auto text-xs px-4 py-2 rounded-full bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] font-medium transition-all duration-200 active:scale-[0.98] flex items-center gap-1.5 border border-[#e5e5e5]"
           >
-            <span className={loadingInscripciones ? "animate-spin" : ""}>🔄</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${loadingInscripciones ? "animate-spin" : ""}`} />
             <span>Actualizar</span>
           </button>
         </div>
 
         {loadingInscripciones ? (
-          <div className="py-8 text-center text-slate-400 text-sm">
-            <span className="animate-pulse">⏳ Cargando tus inscripciones...</span>
+          <div className="py-8 text-center text-[#7a7b7b] text-sm">
+            <span className="animate-pulse">Cargando tus inscripciones...</span>
           </div>
         ) : misInscripciones.length === 0 ? (
-          <div className="py-10 text-center text-slate-400 text-sm bg-slate-950/40 rounded-2xl border border-dashed border-slate-800">
-            <p className="text-2xl mb-2">📋</p>
-            <p className="font-medium text-slate-300">
+          <div className="py-10 text-center text-[#7a7b7b] text-sm bg-[#f3f4f3] rounded-[5px] border border-dashed border-[#e5e5e5]">
+            <Calendar className="w-8 h-8 text-[#a2a3a2] mx-auto mb-2" />
+            <p className="font-medium text-[#0a0a0a]">
               No tienes inscripciones registradas todavía.
             </p>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-[#7a7b7b] mt-1">
               Explora las sesiones disponibles más abajo y haz clic en &quot;Inscribirme&quot;.
             </p>
           </div>
@@ -425,54 +452,58 @@ export default function ClasesPage() {
               return (
                 <div
                   key={inscripcion.id_inscripcion}
-                  className={`p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
+                  className={`p-5 rounded-[5px] border transition-all duration-200 flex flex-col justify-between gap-4 ${
                     estaInscrito
-                      ? "bg-slate-950/70 border-slate-700/60 hover:border-purple-500/40"
-                      : "bg-slate-950/40 border-slate-800/40 opacity-75"
+                      ? "bg-[#ffdfcd]/20 border-[#ff6105]/40 hover:border-[#ff6105] hover:-translate-y-0.5"
+                      : "bg-white border-[#e5e5e5] opacity-75"
                   }`}
                 >
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 block">
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-[#7a7b7b] block">
                           Inscripción #{inscripcion.id_inscripcion}
                         </span>
-                        <h3 className="text-base font-bold text-white">
+                        <h3 className="text-base font-medium text-[#0a0a0a]">
                           {inscripcion.nombre_clase}
                         </h3>
                       </div>
                       <span
-                        className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
+                        className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${
                           estaInscrito
-                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                            : "bg-slate-500/15 text-slate-400 border-slate-500/30"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-[#f3f4f3] text-[#7a7b7b] border-[#e5e5e5]"
                         }`}
                       >
                         {inscripcion.estado_inscripcion}
                       </span>
                     </div>
 
-                    <div className="text-xs space-y-1.5 text-slate-300">
+                    <div className="text-xs space-y-1.5 text-[#292b2a]">
                       <p className="flex items-center gap-1.5">
-                        <span className="text-slate-500">📍 Sede:</span>
-                        <strong className="text-white">{inscripcion.nombre_sede}</strong>
+                        <MapPin className="w-3.5 h-3.5 text-[#ff6105]" />
+                        <span className="text-[#7a7b7b]">Sede:</span>
+                        <strong className="text-[#0a0a0a]">{inscripcion.nombre_sede}</strong>
                       </p>
                       <p className="flex items-center gap-1.5">
-                        <span className="text-slate-500">📅 Fecha:</span>
-                        <span className="font-mono text-purple-300 font-semibold">
+                        <Calendar className="w-3.5 h-3.5 text-[#7a7b7b]" />
+                        <span className="text-[#7a7b7b]">Fecha:</span>
+                        <span className="font-mono text-[#0a0a0a] font-medium">
                           {inscripcion.fecha_sesion}
                         </span>
-                        <span className="text-slate-600">&bull;</span>
-                        <span className="font-mono text-purple-300 font-semibold">
+                        <span className="text-[#e5e5e5]">&bull;</span>
+                        <Clock className="w-3.5 h-3.5 text-[#7a7b7b]" />
+                        <span className="font-mono text-[#0a0a0a] font-medium">
                           {inscripcion.hora_sesion}
                         </span>
                       </p>
                       <p className="flex items-center gap-1.5">
-                        <span className="text-slate-500">⏱️ Duración:</span>
+                        <Clock className="w-3.5 h-3.5 text-[#7a7b7b]" />
+                        <span className="text-[#7a7b7b]">Duración:</span>
                         <span>{inscripcion.duracion_minutos_clase} min</span>
                       </p>
                       {inscripcion.observaciones_inscripcion && (
-                        <p className="text-[11px] text-slate-400 italic bg-slate-900/60 p-2 rounded-lg border border-slate-800">
+                        <p className="text-[11px] text-[#7a7b7b] italic bg-white p-2 rounded-[5px] border border-[#e5e5e5]">
                           &quot;{inscripcion.observaciones_inscripcion}&quot;
                         </p>
                       )}
@@ -483,12 +514,12 @@ export default function ClasesPage() {
                     <button
                       onClick={() => handleCancelar(inscripcion.id_inscripcion)}
                       disabled={actionLoadingId === inscripcion.id_inscripcion}
-                      className="w-full text-xs py-2 px-3 rounded-xl font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all disabled:opacity-50"
+                      className="w-full text-xs py-2 px-3 rounded-full font-medium bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
                     >
                       {actionLoadingId === inscripcion.id_inscripcion ? (
-                        <span>⏳ Cancelando...</span>
+                        <span>Cancelando...</span>
                       ) : (
-                        <span>✕ Cancelar Inscripción</span>
+                        <span>Cancelar Inscripción</span>
                       )}
                     </button>
                   )}
@@ -502,47 +533,45 @@ export default function ClasesPage() {
       {/* =========================================================================
           SECCIÓN 2: SESIONES DISPONIBLES & RESERVA
          ========================================================================= */}
-      <section className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-xl space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+      <section className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e5e5e5] pb-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">📅</span>
-              <h2 className="text-xl sm:text-2xl font-bold text-white">
-                Sesiones Disponibles
-              </h2>
-            </div>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            <h2 className="text-xl font-medium tracking-tight text-[#0a0a0a]">
+              Sesiones Disponibles
+            </h2>
+            <div className="w-12 h-[2px] bg-[#ff6105] mt-1 mb-2" />
+            <p className="text-xs sm:text-sm text-[#7a7b7b]">
               Filtra por fecha, sede o clase para reservar tu cupo en tiempo real.
             </p>
           </div>
 
-          <span className="text-xs font-mono text-slate-400 self-start sm:self-auto bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+          <span className="text-xs font-mono text-[#7a7b7b] self-start sm:self-auto bg-[#f3f4f3] px-3 py-1.5 rounded-full border border-[#e5e5e5]">
             {sesiones.length} sesiones encontradas
           </span>
         </div>
 
         {/* Barra de Filtros */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3 bg-slate-950/70 p-4 rounded-2xl border border-slate-800/80">
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3 bg-[#f3f4f3] p-4 rounded-[5px] border border-[#e5e5e5]">
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            <label className="block text-[11px] font-medium uppercase tracking-wider text-[#7a7b7b] mb-1">
               Fecha
             </label>
             <input
               type="date"
               value={filtroFecha}
               onChange={(e) => setFiltroFecha(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
+              className="w-full bg-white border border-[#e5e5e5] rounded-full px-3.5 py-2 text-xs sm:text-sm text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            <label className="block text-[11px] font-medium uppercase tracking-wider text-[#7a7b7b] mb-1">
               Sede
             </label>
             <select
               value={filtroSede}
               onChange={(e) => setFiltroSede(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
+              className="w-full bg-white border border-[#e5e5e5] rounded-full px-3.5 py-2 text-xs sm:text-sm text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors"
             >
               <option value="">Todas las sedes</option>
               {sedes.map((s) => (
@@ -554,13 +583,13 @@ export default function ClasesPage() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            <label className="block text-[11px] font-medium uppercase tracking-wider text-[#7a7b7b] mb-1">
               Disciplina / Clase
             </label>
             <select
               value={filtroClase}
               onChange={(e) => setFiltroClase(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
+              className="w-full bg-white border border-[#e5e5e5] rounded-full px-3.5 py-2 text-xs sm:text-sm text-[#0a0a0a] focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors"
             >
               <option value="">Todas las disciplinas</option>
               {clases.map((c) => (
@@ -578,7 +607,7 @@ export default function ClasesPage() {
                 setFiltroSede("");
                 setFiltroClase("");
               }}
-              className="w-full py-2 px-3 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/60"
+              className="w-full py-2 px-3 rounded-full text-xs font-medium bg-white hover:bg-[#e5e7eb] text-[#292b2a] transition-all duration-200 active:scale-[0.98] border border-[#e5e5e5]"
             >
               Limpiar Filtros
             </button>
@@ -587,16 +616,16 @@ export default function ClasesPage() {
 
         {/* Grilla de Sesiones */}
         {loadingSesiones ? (
-          <div className="py-12 text-center text-slate-400 text-sm">
-            <span className="animate-pulse">⏳ Consultando sesiones disponibles...</span>
+          <div className="py-12 text-center text-[#7a7b7b] text-sm">
+            <span className="animate-pulse">Consultando sesiones disponibles...</span>
           </div>
         ) : sesiones.length === 0 ? (
-          <div className="py-12 text-center text-slate-400 text-sm bg-slate-950/40 rounded-2xl border border-dashed border-slate-800">
-            <p className="text-3xl mb-2">🔍</p>
-            <p className="font-semibold text-slate-300">
+          <div className="py-12 text-center text-[#7a7b7b] text-sm bg-[#f3f4f3] rounded-[5px] border border-dashed border-[#e5e5e5]">
+            <Calendar className="w-8 h-8 text-[#a2a3a2] mx-auto mb-2" />
+            <p className="font-medium text-[#0a0a0a]">
               No hay sesiones disponibles para los filtros seleccionados.
             </p>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-[#7a7b7b] mt-1">
               Prueba cambiando la fecha o seleccionando todas las sedes.
             </p>
           </div>
@@ -610,27 +639,27 @@ export default function ClasesPage() {
               return (
                 <div
                   key={sesion.id_sesion}
-                  className="bg-slate-950/80 border border-slate-800 hover:border-purple-500/50 rounded-2xl p-5 transition-all shadow-lg flex flex-col justify-between gap-5 group"
+                  className="bg-white border border-[#e5e5e5] hover:border-[#ff6105]/50 hover:-translate-y-0.5 rounded-[5px] p-5 transition-all duration-200 flex flex-col justify-between gap-5 group"
                 >
                   <div className="space-y-3.5">
                     {/* Header de la tarjeta */}
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="text-[10px] font-mono text-slate-500 block">
+                        <span className="text-[10px] font-mono text-[#7a7b7b] block">
                           Sesión #{sesion.id_sesion}
                         </span>
-                        <h3 className="text-lg font-bold text-white group-hover:text-purple-300 transition-colors">
+                        <h3 className="text-base sm:text-lg font-medium text-[#0a0a0a] group-hover:text-[#ff6105] transition-colors">
                           {sesion.nombre_clase}
                         </h3>
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap justify-end">
                         {sinCupo && (
-                          <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse">
+                          <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-rose-50 text-rose-700 border border-rose-200">
                             Agotado
                           </span>
                         )}
                         <span
-                          className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${getBadgeNivel(
+                          className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${getBadgeNivel(
                             sesion.nivel_exigencia_clase
                           )}`}
                         >
@@ -640,31 +669,33 @@ export default function ClasesPage() {
                     </div>
 
                     {/* Detalles */}
-                    <div className="space-y-2 text-xs text-slate-300">
+                    <div className="space-y-2 text-xs text-[#292b2a]">
                       <p className="flex items-center gap-1.5">
-                        <span className="text-slate-500">📍 Sede:</span>
-                        <strong className="text-white">{sesion.nombre_sede}</strong>
+                        <MapPin className="w-3.5 h-3.5 text-[#ff6105]" />
+                        <span className="text-[#7a7b7b]">Sede:</span>
+                        <strong className="text-[#0a0a0a]">{sesion.nombre_sede}</strong>
                       </p>
                       <p className="flex items-center gap-1.5">
-                        <span className="text-slate-500">🧑‍🏫 Instructor:</span>
-                        <span className="text-slate-300">
+                        <User className="w-3.5 h-3.5 text-[#7a7b7b]" />
+                        <span className="text-[#7a7b7b]">Instructor:</span>
+                        <span className="text-[#0a0a0a]">
                           {sesion.nombre_completo_instructor || (
-                            <span className="italic text-slate-500">
+                            <span className="italic text-[#a2a3a2]">
                               Sin asignar
                             </span>
                           )}
                         </span>
                       </p>
-                      <div className="flex items-center justify-between bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-800">
+                      <div className="flex items-center justify-between bg-[#f3f4f3] px-3 py-2 rounded-[5px] border border-[#e5e5e5]">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-purple-400">📅</span>
-                          <span className="font-mono font-semibold text-white">
+                          <Calendar className="w-3.5 h-3.5 text-[#ff6105]" />
+                          <span className="font-mono font-medium text-[#0a0a0a]">
                             {sesion.fecha_sesion}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-purple-400">⏰</span>
-                          <span className="font-mono font-semibold text-white">
+                          <Clock className="w-3.5 h-3.5 text-[#ff6105]" />
+                          <span className="font-mono font-medium text-[#0a0a0a]">
                             {sesion.hora_sesion}
                           </span>
                         </div>
@@ -674,14 +705,14 @@ export default function ClasesPage() {
                     {/* Indicador de Cupos */}
                     <div className="pt-1">
                       <div className="flex items-center justify-between text-xs mb-1.5">
-                        <span className="text-slate-400">Disponibilidad:</span>
+                        <span className="text-[#7a7b7b]">Disponibilidad:</span>
                         <span
-                          className={`font-bold ${
+                          className={`font-medium ${
                             sinCupo
-                              ? "text-rose-400"
+                              ? "text-rose-600"
                               : cuposLibres <= 3
-                              ? "text-amber-400"
-                              : "text-emerald-400"
+                              ? "text-amber-600"
+                              : "text-emerald-700"
                           }`}
                         >
                           {sinCupo
@@ -689,15 +720,15 @@ export default function ClasesPage() {
                             : `${cuposLibres} de ${sesion.cupo_maximo_sesion} cupos`}
                         </span>
                       </div>
-                      {/* Barra de progreso visual */}
-                      <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
+                      {/* Barra de progreso */}
+                      <div className="w-full bg-[#e5e5e5] h-2 rounded-full overflow-hidden">
                         <div
                           className={`h-full transition-all ${
                             sinCupo
                               ? "bg-rose-500"
                               : cuposLibres <= 3
                               ? "bg-amber-500"
-                              : "bg-emerald-500"
+                              : "bg-[#ff6105]"
                           }`}
                           style={{
                             width: `${Math.min(
@@ -717,29 +748,32 @@ export default function ClasesPage() {
                   {/* Botón de Acción */}
                   <div>
                     {yaInscrito ? (
-                      <div className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 text-center">
-                        ✓ Ya estás inscrito en esta sesión
+                      <div className="w-full py-2.5 px-4 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 text-center flex items-center justify-center gap-1.5">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Inscrito en esta sesión</span>
                       </div>
                     ) : sinCupo ? (
                       <button
                         disabled
-                        className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-rose-950/40 text-rose-400 border border-rose-800/60 cursor-not-allowed text-center flex items-center justify-center gap-1.5"
+                        className="w-full py-2.5 px-4 rounded-full text-xs font-medium bg-[#f3f4f3] text-[#a2a3a2] border border-[#e5e5e5] cursor-not-allowed text-center"
                       >
-                        <span>🚫</span>
-                        <span>Agotado (Sin cupos disponibles)</span>
+                        Agotado (Sin cupos disponibles)
                       </button>
                     ) : (
                       <button
                         onClick={() => handleInscribir(sesion.id_sesion)}
                         disabled={actionLoadingId === sesion.id_sesion}
-                        className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/30 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        className="w-full py-2.5 px-6 rounded-full text-xs sm:text-sm font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5"
                       >
                         {actionLoadingId === sesion.id_sesion ? (
-                          <span>⏳ Reservando cupo...</span>
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Reservando cupo...</span>
+                          </>
                         ) : (
                           <>
                             <span>Inscribirme</span>
-                            <span>→</span>
+                            <ChevronRight className="w-4 h-4" />
                           </>
                         )}
                       </button>
@@ -755,25 +789,23 @@ export default function ClasesPage() {
       {/* =========================================================================
           SECCIÓN 3: CATÁLOGO DE DISCIPLINAS
          ========================================================================= */}
-      <section className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-xl space-y-6">
-        <div className="flex items-center gap-2 border-b border-slate-800/80 pb-4">
-          <span className="text-2xl">🥋</span>
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white">
-              Catálogo de Disciplinas
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Conoce la oferta de clases registradas en el gimnasio, su duración y nivel de exigencia.
-            </p>
-          </div>
+      <section className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 space-y-6">
+        <div className="border-b border-[#e5e5e5] pb-4">
+          <h2 className="text-xl font-medium tracking-tight text-[#0a0a0a]">
+            Catálogo de Disciplinas
+          </h2>
+          <div className="w-12 h-[2px] bg-[#ff6105] mt-1 mb-2" />
+          <p className="text-xs sm:text-sm text-[#7a7b7b]">
+            Conoce la oferta de clases registradas en el gimnasio, su duración y nivel de exigencia.
+          </p>
         </div>
 
         {loadingClases ? (
-          <div className="py-8 text-center text-slate-400 text-sm">
-            <span className="animate-pulse">⏳ Cargando catálogo...</span>
+          <div className="py-8 text-center text-[#7a7b7b] text-sm">
+            <span className="animate-pulse">Cargando catálogo...</span>
           </div>
         ) : clases.length === 0 ? (
-          <div className="py-8 text-center text-slate-400 text-sm">
+          <div className="py-8 text-center text-[#7a7b7b] text-sm">
             No hay clases registradas en la base de datos.
           </div>
         ) : (
@@ -781,24 +813,25 @@ export default function ClasesPage() {
             {clases.map((clase) => (
               <div
                 key={clase.id_clase}
-                className="bg-slate-950/70 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 flex flex-col justify-between gap-3 transition-colors"
+                className="bg-white border border-[#e5e5e5] hover:border-[#ff6105]/40 hover:-translate-y-0.5 rounded-[5px] p-5 flex flex-col justify-between gap-3 transition-all duration-200"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="font-bold text-white text-base">
+                    <h3 className="font-medium text-[#0a0a0a] text-base">
                       {clase.nombre_clase}
                     </h3>
                     <span
-                      className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${getBadgeNivel(
+                      className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${getBadgeNivel(
                         clase.nivel_exigencia_clase
                       )}`}
                     >
                       {clase.nivel_exigencia_clase}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                    <span>⏱️ Duración estimada:</span>
-                    <strong className="text-slate-200">
+                  <p className="text-xs text-[#7a7b7b] flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[#ff6105]" />
+                    <span>Duración estimada:</span>
+                    <strong className="text-[#0a0a0a]">
                       {clase.duracion_minutos_clase} minutos
                     </strong>
                   </p>
@@ -809,9 +842,10 @@ export default function ClasesPage() {
                     setFiltroClase(String(clase.id_clase));
                     window.scrollTo({ top: 400, behavior: "smooth" });
                   }}
-                  className="text-xs py-1.5 px-3 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-purple-300 font-semibold transition-colors text-center border border-slate-700/50"
+                  className="text-xs py-2 px-3 rounded-full bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] font-medium transition-all duration-200 active:scale-[0.98] text-center border border-[#e5e5e5] flex items-center justify-center gap-1.5"
                 >
-                  Ver sesiones de esta clase &darr;
+                  <span>Ver sesiones de esta clase</span>
+                  <ArrowDown className="w-3.5 h-3.5 text-[#ff6105]" />
                 </button>
               </div>
             ))}
