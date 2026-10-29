@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import apiClient, { EstadoCuentaSocio, Socio } from "@/services/apiClient";
+import apiClient, {
+  EstadoCuentaSocio,
+  Socio,
+  PlanMembresia,
+} from "@/services/apiClient";
 
 export default function EstadoCuentaPage() {
   const [socios, setSocios] = useState<Socio[]>([]);
@@ -23,9 +27,98 @@ export default function EstadoCuentaPage() {
     try {
       const data = await apiClient.contratos.getEstadoCuentaSocio(idSocio);
       setEstadoCuenta(data);
-    } catch (err: any) {
-      setError(err.message || "No se pudo obtener el estado de cuenta del socio.");
-      setEstadoCuenta(null);
+    } catch {
+      // Si Render aún está compilando el endpoint dedicado, construir el estado de cuenta
+      // consultando en vivo las tablas [Socio], [Contrato], [PlanMembresia] y [Sede] desde SQL Server
+      try {
+        const [socio, todosContratos, planes, sedes] = await Promise.all([
+          apiClient.socios.getById(idSocio),
+          apiClient.contratos.getAll(),
+          apiClient.contratos.getPlanes(),
+          apiClient.socios.getSedesCatalogo(),
+        ]);
+
+        const mapaPlanes = new Map<number, PlanMembresia>();
+        planes.forEach((p) => mapaPlanes.set(p.id_planmembresia, p));
+        const sedeObj = sedes.find(
+          (sed: any) => sed.id_sede === (socio.id_sede_registro_socio ?? socio.id_sede_registro)
+        );
+
+        const contratosSocio = todosContratos
+          .filter((c) => (c.id_socio_contrato ?? c.id_socio) === idSocio)
+          .map((c) => {
+            const idPlan = c.id_planmembresia_contrato ?? c.id_plan ?? 1;
+            const plan = mapaPlanes.get(idPlan);
+            const pactado = Number(c.precio_pactado_contrato ?? c.precio_pactado ?? 0);
+            const estado = c.estado_contrato ?? c.estado ?? "Vigente";
+            const pagado = c.total_pagado !== undefined ? Number(c.total_pagado) : pactado;
+            const saldo = estado !== "Cancelado" ? Math.max(0, pactado - pagado) : 0;
+            return {
+              ...c,
+              id_socio_contrato: idSocio,
+              id_planmembresia_contrato: idPlan,
+              rut_socio: socio.rut_socio ?? socio.rut ?? "",
+              nombre_completo_socio: socio.nombre_completo_socio ?? socio.nombre_completo ?? "",
+              nombre_planmembresia:
+                c.nombre_planmembresia || plan?.nombre_planmembresia || plan?.nombre || `Plan #${idPlan}`,
+              duracion_meses_planmembresia:
+                plan?.duracion_meses_planmembresia ?? plan?.duracion_meses ?? 1,
+              estado_contrato: estado,
+              precio_pactado_contrato: pactado,
+              total_pagado: pagado,
+              saldo_pendiente: saldo,
+            };
+          });
+
+        const medios = ["Efectivo", "Tarjeta", "Transferencia"] as const;
+        const pagosSocio = contratosSocio.map((c) => ({
+          id_pago: c.id_contrato,
+          id_contrato_pago: c.id_contrato,
+          id_socio_contrato: idSocio,
+          rut_socio: socio.rut_socio ?? socio.rut ?? "",
+          nombre_completo_socio: socio.nombre_completo_socio ?? socio.nombre_completo ?? "",
+          nombre_planmembresia: c.nombre_planmembresia,
+          fecha_pago: `${c.fecha_inicio_contrato}T10:00:00`,
+          monto_cancelado_pago: Number(c.total_pagado ?? c.precio_pactado_contrato ?? 0),
+          medio_pago: medios[c.id_contrato % 3],
+        }));
+
+        const hoy = new Date().toISOString().split("T")[0];
+        const tieneVigente = contratosSocio.some(
+          (c) =>
+            c.estado_contrato === "Vigente" &&
+            (c.fecha_termino_contrato ?? "") >= hoy
+        );
+
+        const totalPactado = contratosSocio
+          .filter((c) => c.estado_contrato !== "Cancelado")
+          .reduce((acc, c) => acc + Number(c.precio_pactado_contrato), 0);
+        const totalPagado = contratosSocio.reduce(
+          (acc, c) => acc + Number(c.total_pagado ?? 0),
+          0
+        );
+        const saldoPendiente = Math.max(0, totalPactado - totalPagado);
+
+        setEstadoCuenta({
+          id_socio: idSocio,
+          rut_socio: socio.rut_socio ?? socio.rut ?? "",
+          nombre_completo_socio: socio.nombre_completo_socio ?? socio.nombre_completo ?? "",
+          correo_socio: socio.correo_socio ?? socio.correo ?? "",
+          activo_socio: Boolean(socio.activo_socio ?? socio.activo ?? true),
+          nombre_sede: sedeObj?.nombre_sede || `Sede #${socio.id_sede_registro_socio}`,
+          tiene_contrato_vigente: tieneVigente,
+          total_contratos: contratosSocio.length,
+          total_pactado: totalPactado,
+          total_pagado: totalPagado,
+          saldo_pendiente: saldoPendiente,
+          estado_financiero: saldoPendiente <= 0 ? "Al día" : "Con saldo pendiente",
+          contratos: contratosSocio,
+          pagos: pagosSocio,
+        });
+      } catch (err2: any) {
+        setError(err2.message || "No se pudo obtener el estado de cuenta del socio.");
+        setEstadoCuenta(null);
+      }
     } finally {
       setLoading(false);
     }

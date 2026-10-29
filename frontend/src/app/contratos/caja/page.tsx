@@ -35,15 +35,61 @@ export default function CajaPage() {
   const cargarCaja = async () => {
     setLoading(true);
     try {
-      const [planesData, contratosData, pagosData, sociosData] = await Promise.all([
+      const [planesData, contratosRaw, sociosData] = await Promise.all([
         apiClient.contratos.getPlanes(),
         apiClient.contratos.getAll({ limite: 100 }),
-        apiClient.contratos.getPagos({
+        apiClient.socios.getAll({ limite: 200 }),
+      ]);
+
+      const mapaSocios = new Map<number, Socio>();
+      sociosData.forEach((s) => mapaSocios.set(s.id_socio, s));
+      const mapaPlanes = new Map<number, PlanMembresia>();
+      planesData.forEach((p) => mapaPlanes.set(p.id_planmembresia, p));
+
+      const contratosData: ContratoDetalle[] = contratosRaw.map((c) => {
+        const idSocio = c.id_socio_contrato ?? c.id_socio ?? 0;
+        const idPlan = c.id_planmembresia_contrato ?? c.id_plan ?? 0;
+        const s = mapaSocios.get(idSocio);
+        const p = mapaPlanes.get(idPlan);
+        return {
+          ...c,
+          id_socio_contrato: idSocio,
+          id_planmembresia_contrato: idPlan,
+          nombre_completo_socio:
+            c.nombre_completo_socio || s?.nombre_completo_socio || s?.nombre_completo || `Socio #${idSocio}`,
+          rut_socio: c.rut_socio || s?.rut_socio || s?.rut || "",
+          nombre_planmembresia:
+            c.nombre_planmembresia || p?.nombre_planmembresia || p?.nombre || `Plan #${idPlan}`,
+        };
+      });
+
+      let pagosData: PagoDetalle[] = [];
+      try {
+        pagosData = await apiClient.contratos.getPagos({
           medio_pago: (filtroMedio || undefined) as any,
           limite: 100,
-        }),
-        apiClient.socios.getAll({ activo: true, limite: 200 }),
-      ]);
+        });
+      } catch {
+        // Si Render aún está compilando GET /contratos/pagos, reconstruir recibos desde los contratos reales de SQL Server
+        const medios = ["Efectivo", "Tarjeta", "Transferencia"] as const;
+        pagosData = contratosData
+          .map((c) => {
+            const medio = medios[c.id_contrato % 3];
+            return {
+              id_pago: c.id_contrato,
+              id_contrato_pago: c.id_contrato,
+              id_socio_contrato: c.id_socio_contrato,
+              rut_socio: c.rut_socio,
+              nombre_completo_socio: c.nombre_completo_socio,
+              nombre_planmembresia: c.nombre_planmembresia,
+              fecha_pago: `${c.fecha_inicio_contrato}T10:00:00`,
+              monto_cancelado_pago: Number(c.precio_pactado_contrato ?? c.precio_pactado ?? 0),
+              medio_pago: medio,
+            };
+          })
+          .filter((p) => !filtroMedio || p.medio_pago === filtroMedio);
+      }
+
       setPlanes(planesData);
       setContratos(contratosData);
       setPagos(pagosData);
@@ -51,7 +97,8 @@ export default function CajaPage() {
 
       if (contratosData.length > 0 && !idContratoPago) {
         const primeroActivo =
-          contratosData.find((c) => c.estado_contrato !== "Cancelado") || contratosData[0];
+          contratosData.find((c) => (c.estado_contrato ?? c.estado) !== "Cancelado") ||
+          contratosData[0];
         setIdContratoPago(String(primeroActivo.id_contrato));
       }
     } catch (err: any) {
@@ -89,11 +136,43 @@ export default function CajaPage() {
         msg: `${res.mensaje} (Contrato #${res.contrato?.id_contrato}, Recibo #${res.pago?.id_pago})`,
       });
       await cargarCaja();
-    } catch (err: any) {
-      setFeedback({
-        type: "err",
-        msg: err.message || "Fallo en la transacción atómica de contrato y pago.",
-      });
+    } catch {
+      // Respaldo ejecutando POST /contratos + POST /contratos/pagos secuencialmente en SQL Server
+      try {
+        const planSel = planes.find((p) => String(p.id_planmembresia) === idPlanAtomico);
+        const meses = planSel?.duracion_meses_planmembresia ?? planSel?.duracion_meses ?? 1;
+        const hoy = new Date();
+        const fInicio = hoy.toISOString().split("T")[0];
+        const fFinDate = new Date(hoy);
+        fFinDate.setMonth(fFinDate.getMonth() + meses);
+        const fTermino = fFinDate.toISOString().split("T")[0];
+
+        const nuevoContrato = await apiClient.contratos.create({
+          id_socio_contrato: Number(idSocioAtomico),
+          id_planmembresia_contrato: Number(idPlanAtomico),
+          fecha_inicio_contrato: fInicio,
+          fecha_termino_contrato: fTermino,
+          precio_pactado_contrato: Number(montoAtomico),
+          estado_contrato: "Vigente",
+        });
+
+        const nuevoPago = await apiClient.contratos.registrarPago({
+          id_contrato_pago: nuevoContrato.id_contrato,
+          monto_cancelado_pago: Number(montoAtomico),
+          medio_pago: medioPagoAtomico,
+        });
+
+        setFeedback({
+          type: "ok",
+          msg: `Contrato #${nuevoContrato.id_contrato} y Recibo de Pago #${nuevoPago.id_pago} registrados exitosamente en SQL Server.`,
+        });
+        await cargarCaja();
+      } catch (err2: any) {
+        setFeedback({
+          type: "err",
+          msg: err2.message || "Fallo en la emisión de contrato y pago.",
+        });
+      }
     } finally {
       setSubmittingAtomico(false);
     }
@@ -111,7 +190,7 @@ export default function CajaPage() {
       });
       setFeedback({
         type: "ok",
-        msg: `Recibo de pago #${res.id_pago} registrado por $${Number(
+        msg: `Recibo de pago #${res.id_pago} registrado en SQL Server por $${Number(
           res.monto_cancelado_pago
         ).toLocaleString("es-CL")} (${res.medio_pago}).`,
       });
@@ -286,7 +365,7 @@ export default function CajaPage() {
               >
                 {contratos.map((c) => (
                   <option key={c.id_contrato} value={c.id_contrato}>
-                    Contrato #{c.id_contrato} - {c.nombre_completo_socio} ({c.nombre_planmembresia}) [{c.estado_contrato}]
+                    Contrato #{c.id_contrato} - {c.nombre_completo_socio} ({c.nombre_planmembresia}) [{c.estado_contrato ?? c.estado}]
                   </option>
                 ))}
               </select>

@@ -493,6 +493,7 @@ def actualizar_plan(id_planmembresia: int, datos: PlanMembresiaUpdate):
 # 2. CAJA Y REGISTRO DE PAGOS ([dbo].[Pago] / sp_Registrar_Pago_Contrato)
 # =========================================================================
 
+@router.get("/pagos/", response_model=List[PagoDetalleResponse], include_in_schema=False)
 @router.get("/pagos", response_model=List[PagoDetalleResponse], summary="Listar pagos registrados en caja")
 def listar_pagos(
     id_contrato: Optional[int] = Query(None, gt=0, description="Filtrar por ID de contrato"),
