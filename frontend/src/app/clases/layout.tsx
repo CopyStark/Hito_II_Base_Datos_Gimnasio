@@ -10,6 +10,7 @@ import {
   Wrench,
   BarChart3,
   ArrowLeft,
+  ChevronDown,
 } from "lucide-react";
 import {
   SOCIOS_PRUEBA,
@@ -34,25 +35,25 @@ const NAV_ITEMS: NavItem[] = [
     description: "Catálogo de disciplinas, sesiones disponibles y reserva",
   },
   {
-    name: "Portal del Instructor",
+    name: "Portal Instructor",
     href: "/clases/instructor",
     icon: UserCheck,
     description: "Agenda de sesiones del instructor y pase de lista",
   },
   {
-    name: "Programador de Sesiones",
+    name: "Programador",
     href: "/clases/programador",
     icon: Calendar,
     description: "Creación y programación de nuevas sesiones de clase",
   },
   {
-    name: "Inventario de Equipos",
+    name: "Inventario",
     href: "/clases/equipos",
     icon: Wrench,
     description: "Gestión de máquinas y equipamiento por sede",
   },
   {
-    name: "Reportes de Clases",
+    name: "Reportes",
     href: "/clases/reportes",
     icon: BarChart3,
     description: "Ocupación y ranking de clases más demandadas",
@@ -66,6 +67,7 @@ export default function ClasesLayout({
 }) {
   const pathname = usePathname();
   const [socioActual, setSocioActual] = useState<SocioActual>(SOCIOS_PRUEBA[0]);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     setSocioActual(getStoredSocioActual());
@@ -73,6 +75,14 @@ export default function ClasesLayout({
       setSocioActual(s);
     });
     return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setScrolled(window.scrollY > 12);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   const handleCambiarSocio = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -85,47 +95,60 @@ export default function ClasesLayout({
   };
 
   return (
-    <div className="min-h-screen bg-[#f3f4f3] text-[#0a0a0a] flex flex-col font-sans">
+    <div className="min-h-screen bg-[#f8f9f8] text-[#0a0a0a] flex flex-col font-sans">
       {/* Top Navigation Header */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#e5e5e5] transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <header
+        className={`sticky top-0 z-40 transition-all duration-300 border-b border-[#e5e5e5] ${
+          scrolled
+            ? "bg-white/92 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.03)]"
+            : "bg-white"
+        }`}
+      >
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-8">
           <div className="flex items-center justify-between h-16 gap-3">
             {/* Brand & Module Badge */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 sm:gap-4">
               <Link
                 href="/"
-                className="text-xs sm:text-sm font-medium text-[#7a7b7b] hover:text-[#0a0a0a] transition-colors flex items-center gap-1.5"
+                className="group text-xs sm:text-[13px] font-normal text-[#7a7b7b] hover:text-[#0a0a0a] transition-colors duration-200 flex items-center gap-1.5"
                 title="Volver al Portal General"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
+                <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" />
                 <span className="hidden sm:inline">Inicio</span>
               </Link>
 
-              <span className="text-[#e5e5e5]">/</span>
+              <span className="h-4 w-[1px] bg-[#e5e5e5]" />
 
-              <div className="flex items-center gap-2.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#ff6105]" />
-                <span className="font-bold text-base sm:text-lg tracking-tight text-[#0a0a0a]">
-                  GimnasioDB
-                </span>
-                <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#ffdfcd] text-[#0a0a0a] border border-[#ff6105]/20">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <Link
+                  href="/"
+                  className="group flex items-center text-[20px] sm:text-[22px] tracking-[-0.03em] whitespace-nowrap shrink-0"
+                >
+                  <span className="font-semibold text-[#0a0a0a] transition-transform duration-300 group-hover:-translate-y-0.5">
+                    gimnasio
+                  </span>
+                  <span className="text-[#ff6105] font-black"> • </span>
+                  <span className="font-normal text-[#292b2a]">db</span>
+                </Link>
+
+                <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5] whitespace-nowrap">
                   Módulo Clases
                 </span>
               </div>
             </div>
 
-            {/* Selector Dinámico de Socio en Sesión */}
+            {/* Selector Compacto de Socio en Sesión */}
             <div className="flex items-center gap-2 text-xs">
-              <div className="flex items-center gap-2 bg-[#f3f4f3] border border-[#e5e5e5] rounded-full px-3 py-1.5 text-[#292b2a] shadow-sm hover:border-[#ff6105]/40 transition-colors">
-                <span className="w-2 h-2 rounded-full bg-[#ff6105] shrink-0"></span>
-                <span className="hidden md:inline text-[#7a7b7b] text-[11px] font-medium uppercase tracking-wider">
-                  Socio en sesión:
+              <div className="relative flex items-center gap-2 bg-[#f3f4f3]/80 hover:bg-[#f3f4f3] border border-[#e5e5e5] hover:border-[#ff6105]/40 rounded-full pl-3 pr-7 py-1.5 text-[#292b2a] transition-all duration-200">
+                <span className="w-2 h-2 rounded-full bg-[#ff6105] shrink-0" />
+                <span className="hidden md:inline text-[#7a7b7b] text-[11px] font-normal">
+                  Socio:
                 </span>
                 <select
                   aria-label="Seleccionar Socio de prueba"
                   value={socioActual.id_socio}
                   onChange={handleCambiarSocio}
-                  className="bg-transparent text-[#0a0a0a] font-medium focus:outline-none cursor-pointer text-xs pr-1"
+                  className="appearance-none bg-transparent text-[#0a0a0a] font-medium focus:outline-none cursor-pointer text-xs"
                 >
                   {SOCIOS_PRUEBA.map((s) => (
                     <option
@@ -133,16 +156,20 @@ export default function ClasesLayout({
                       value={s.id_socio}
                       className="bg-white text-[#0a0a0a]"
                     >
-                      {s.nombre_completo_socio} (#{s.id_socio})
+                      {s.nombre_completo_socio}
                     </option>
                   ))}
                 </select>
+                <ChevronDown className="w-3.5 h-3.5 text-[#7a7b7b] pointer-events-none absolute right-2.5" />
               </div>
             </div>
           </div>
 
           {/* Sub-navigation Tabs */}
-          <nav className="flex items-center gap-1 overflow-x-auto py-2 -mb-px scrollbar-none border-t border-[#e5e5e5]/80">
+          <nav
+            aria-label="Navegación del módulo de clases"
+            className="flex items-center gap-1.5 overflow-x-auto py-2.5 scrollbar-none border-t border-[#e5e5e5]/70"
+          >
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive =
@@ -154,14 +181,24 @@ export default function ClasesLayout({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200 ${
+                  title={item.description}
+                  className={`group relative flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-[13px] whitespace-nowrap transition-all duration-300 ease-out ${
                     isActive
-                      ? "bg-white text-[#0a0a0a] shadow-sm border border-[#e5e5e5] rounded-full relative after:absolute after:bottom-0 after:left-4 after:right-4 after:h-[2px] after:bg-[#ff6105]"
-                      : "text-[#7a7b7b] hover:text-[#0a0a0a] hover:bg-white/60 border border-transparent rounded-full"
+                      ? "bg-white text-[#0a0a0a] font-medium shadow-sm border border-[#e5e5e5]"
+                      : "text-[#7a7b7b] font-normal border border-transparent hover:bg-[#f3f4f3] hover:text-[#0a0a0a] hover:-translate-y-0.5"
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? "text-[#ff6105]" : "text-[#7a7b7b]"}`} />
+                  <Icon
+                    className={`w-3.5 h-3.5 transition-colors duration-300 ${
+                      isActive
+                        ? "text-[#ff6105]"
+                        : "text-[#7a7b7b] group-hover:text-[#0a0a0a]"
+                    }`}
+                  />
                   <span>{item.name}</span>
+                  {isActive && (
+                    <span className="absolute bottom-0 left-4 right-4 h-[2px] rounded-full bg-[#ff6105]" />
+                  )}
                 </Link>
               );
             })}
@@ -169,15 +206,19 @@ export default function ClasesLayout({
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in-scale">
-        {children}
+      {/* Main Content Area with Smooth Entrance Transition per Route */}
+      <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-8 py-8 sm:py-10">
+        <div key={pathname} className="animate-fade-in-scale">
+          {children}
+        </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[#e5e5e5] bg-white py-6 text-center text-xs text-[#7a7b7b]">
-        <p>
-          GimnasioDB – Módulo Clases, Sesiones e Inscripciones &bull; Sistema de Diseño Amp Minimalista
+      {/* Official Footer */}
+      <footer className="border-t border-[#e5e5e5] bg-white py-6 px-4 text-center text-xs sm:text-sm text-[#7a7b7b]">
+        <p className="tracking-[-0.01em]">
+          <span className="font-medium text-[#0a0a0a]">gimnasiodb</span>
+          <span className="mx-1.5 text-[#a2a3a2]">·</span>
+          <span>Red de Gimnasios &amp; Gestión Deportiva</span>
         </p>
       </footer>
     </div>
