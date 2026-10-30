@@ -40,7 +40,7 @@ Sistema integral de gestión de gimnasios con arquitectura modular **API-First**
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Carlos** | Persona 1 | `/socios` | `backend/routers/auth_socios.py` | `Socio`, `Usuario`, `Rol`, `Sede`<br>`vw_Reporte_Socios_Por_Sede` | Login multi-rol (SHA2_512), perfil del socio, gestión de socios (alta, baja, filtros), control de acceso en torniquetes y sedes. |
 | **Emilia** | Persona 2 | `/clases` | `backend/routers/clases.py` | `Clase`, `Sesion`, `Inscripcion`, `Instructor`, `Equipamiento`<br>`vw_Reporte_Ocupacion_Clases`<br>`vw_Ranking_Clases_Demandadas` | Catálogo de clases, programación de sesiones, reserva/cancelación para socios, portal del instructor con asistencia y equipamiento. |
-| **Integrante 3** | Persona 3 | `/contratos` | `backend/routers/contratos.py` | `PlanMembresia`, `Contrato`, `Pago`, `Personal`<br>`vw_Reporte_Ingresos_Por_Sede` | Planes de membresía, emisión de contratos, caja y pagos atómicos, estado de cuenta/saldo del socio, personal y reporte de ingresos. |
+| **Daniel** | Persona 3 | `/contratos` | `backend/routers/contratos.py` | `PlanMembresia`, `Contrato`, `Pago`, `Personal`<br>`vw_Reporte_Ingresos_Por_Sede` | Planes de membresía, emisión de contratos, caja y pagos atómicos, estado de cuenta/saldo del socio, personal y reporte de ingresos. |
 
 ---
 
@@ -109,7 +109,17 @@ La aplicación web abrirá en [http://localhost:3000](http://localhost:3000) con
 │   │   └── contratos.py      # Persona 3
 │   └── schemas/              # Modelos Pydantic de validación
 ├── database/
-│   └── seed_inicial.sql      # Script T-SQL con geografía, sedes, planes y socios
+│   ├── GimnasioDB_DDL.sql    # Esquema relacional, restricciones y vistas analíticas
+│   ├── GimnasioDB_Seed.sql   # Datos de prueba iniciales (geografía, sedes, planes, socios)
+│   ├── sp_socios.sql         # Vistas y procedimientos almacenados (Persona 1)
+│   ├── sp_clases.sql         # Vistas y procedimientos almacenados (Persona 2)
+│   ├── sp_equipos.sql        # Procedimientos almacenados de equipamiento (Persona 2)
+│   └── sp_contratos.sql      # Vistas y procedimientos almacenados (Persona 3)
+├── docs/
+│   ├── DESIGN.md             # Guía de estilo visual (amp System)
+│   ├── pruebas_socios.md     # Plan de pruebas y defensa técnica (Persona 1)
+│   ├── pruebas_clases.md     # Plan de pruebas y defensa técnica (Persona 2)
+│   └── pruebas_contratos.md  # Plan de pruebas y defensa técnica (Persona 3)
 ├── frontend/
 │   ├── package.json          # Next.js 14, React 18, TailwindCSS
 │   ├── next.config.js        # Configuración para despliegue

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   sociosApi,
   SocioDetail,
@@ -13,7 +14,10 @@ interface FeedbackState {
   message: string;
 }
 
-export default function SociosDirectorioPage() {
+function SociosDirectorioContent() {
+  const searchParams = useSearchParams();
+  const initialSedeParam = searchParams.get("sede") || "";
+
   // Data states
   const [socios, setSocios] = useState<SocioDetail[]>([]);
   const [sedes, setSedes] = useState<SedeSimpleResponse[]>([]);
@@ -23,7 +27,7 @@ export default function SociosDirectorioPage() {
   // Filters
   const [buscar, setBuscar] = useState("");
   const [filtroActivo, setFiltroActivo] = useState<"todos" | "activos" | "inactivos">("todos");
-  const [filtroSede, setFiltroSede] = useState<string>("");
+  const [filtroSede, setFiltroSede] = useState<string>(initialSedeParam);
 
   // Feedback
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
@@ -105,6 +109,12 @@ export default function SociosDirectorioPage() {
   }, [filtroActivo, filtroSede, buscar]);
 
   useEffect(() => {
+    if (initialSedeParam) {
+      setFiltroSede(initialSedeParam);
+    }
+  }, [initialSedeParam]);
+
+  useEffect(() => {
     loadSedes();
   }, [loadSedes]);
 
@@ -157,9 +167,8 @@ export default function SociosDirectorioPage() {
       }
       setFeedback({
         type: "success",
-        message: `Estado de ${socio.nombre_completo_socio} cambiado a ${
-          nuevoEstado ? "ACTIVO" : "INACTIVO"
-        }.`,
+        message: `Estado de ${socio.nombre_completo_socio} cambiado a ${nuevoEstado ? "ACTIVO" : "INACTIVO"
+          }.`,
       });
     } catch (err: any) {
       setFeedback({
@@ -400,13 +409,12 @@ export default function SociosDirectorioPage() {
       {/* ===== Feedback Notification Toast ===== */}
       {feedback && (
         <div
-          className={`flex items-center justify-between p-4 rounded-[5px] text-xs font-normal border transition-all ${
-            feedback.type === "success"
+          className={`flex items-center justify-between p-4 rounded-[5px] text-xs font-normal border transition-all ${feedback.type === "success"
               ? "bg-amp-linen border-amp-orange text-amp-ink"
               : feedback.type === "error"
-              ? "bg-[#fff2f0] border-[#ffccc7] text-amp-ink"
-              : "bg-amp-linen border-amp-hairline text-amp-carbon"
-          }`}
+                ? "bg-[#fff2f0] border-[#ffccc7] text-amp-ink"
+                : "bg-amp-linen border-amp-hairline text-amp-carbon"
+            }`}
         >
           <div className="flex items-center gap-2.5">
             <span className="w-2 h-2 rounded-full bg-amp-orange"></span>
@@ -540,11 +548,10 @@ export default function SociosDirectorioPage() {
               <button
                 key={tab}
                 onClick={() => setFiltroActivo(tab)}
-                className={`px-3 py-1 rounded-[24px] text-xs capitalize transition-all ${
-                  filtroActivo === tab
+                className={`px-3 py-1 rounded-[24px] text-xs capitalize transition-all ${filtroActivo === tab
                     ? "bg-amp-orange text-amp-white font-medium"
                     : "text-amp-slate hover:text-amp-ink font-normal"
-                }`}
+                  }`}
               >
                 {tab}
               </button>
@@ -652,17 +659,15 @@ export default function SociosDirectorioPage() {
                         <button
                           onClick={() => handleToggleEstado(s)}
                           disabled={updatingId === s.id_socio}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-[8px] text-xs font-medium border transition-all ${
-                            s.activo_socio
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-[8px] text-xs font-medium border transition-all ${s.activo_socio
                               ? "bg-amp-linen text-amp-ink border-amp-orange"
                               : "bg-amp-bone text-amp-slate border-amp-hairline"
-                          }`}
+                            }`}
                           title="Clic para alternar estado"
                         >
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              s.activo_socio ? "bg-amp-orange" : "bg-amp-slate"
-                            }`}
+                            className={`w-1.5 h-1.5 rounded-full ${s.activo_socio ? "bg-amp-orange" : "bg-amp-slate"
+                              }`}
                           ></span>
                           <span>{s.activo_socio ? "Activo" : "Inactivo"}</span>
                         </button>
@@ -1069,5 +1074,20 @@ export default function SociosDirectorioPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SociosDirectorioPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-16 text-center text-amp-slate">
+          <div className="w-6 h-6 border-2 border-amp-orange border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+          <p className="text-xs font-normal">Cargando directorio de socios...</p>
+        </div>
+      }
+    >
+      <SociosDirectorioContent />
+    </Suspense>
   );
 }

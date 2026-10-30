@@ -60,10 +60,12 @@ function TorniqueteContent() {
 
   // Preset buttons for quick validation tests
   const presetTests = [
-    { label: "Socio #1 (Daniel Matus)", value: "1" },
-    { label: "RUT 18.765.432-K", value: "18.765.432-K" },
-    { label: "Socio #2 (Camila)", value: "2" },
-    { label: "No Registrado (9999)", value: "9999" },
+    { label: "Socio #1 · Daniel Matus (Permitido)", value: "1" },
+    { label: "RUT 18.765.432-K (Permitido)", value: "18.765.432-K" },
+    { label: "Socia #2 · Emilia Osorio (Permitido)", value: "2" },
+    { label: "Socia #13 · Inactiva (Denegado)", value: "13" },
+    { label: "Socia #15 · Sin Contrato (Denegado)", value: "15" },
+    { label: "No Registrado #9999 (Denegado)", value: "9999" },
   ];
 
   return (

@@ -149,8 +149,9 @@ Para ejecutar las pruebas en Swagger UI (`/docs`) o frontend, se cuenta con los 
 | **1** | `18.765.432-K` | Daniel Matus | `daniel.matus@alumnos.cl` | Sede 1 (Moneda) | **Socio Activo con Contrato Vigente**. Login: `socio1` / `Clave#socio1`. Acceso en torniquete: **PERMITIDO**. |
 | **2** | `19.123.456-7` | Emilia Osorio | `emilia.osorio@alumnos.cl` | Sede 2 | Socio Activo con Contrato Vigente. Ideal para edición y actualización. |
 | **3** | `19.987.654-3` | Yulissa Ulloa | `yulissa.ulloa@alumnos.cl` | Sede 1 | Socio Activo con Contrato Vigente. |
-| **10** | Generado | Socio #10 | `socio10@alumnos.cl` | Sede Central | Socio Activo pero con **Contrato Vencido**. Acceso en torniquete: **DENEGADO (Sin contrato vigente)**. |
-| **13** | Generado | Socio #13 | `socio13@alumnos.cl` | Sede 1 | **Socio Inactivo** (`activo_socio = 0`). Login: **403 Forbidden**. Torniquete: **DENEGADO (Socio desactivado)**. |
+| **10** | `12.809.624-7` | Vicente Rodríguez Bravo | `socio10@alumnos.cl` | Sede 8 | Socio Activo con Contrato en el Seed. |
+| **13** | `12.988.962-0` | Catalina López Reyes | `socio13@alumnos.cl` | Sede 5 | **Socio Inactivo** (`activo_socio = 0`). Login (`socio13` / `Clave#socio13`): **403 Forbidden**. Torniquete: **DENEGADO (Socio desactivado)**. |
+| **15** | `13.108.521-2` | Antonia Contreras Herrera | `socio15@alumnos.cl` | Sede 1 | Socio Activo pero con **Contrato Cancelado / Sin Vigencia**. Acceso en torniquete: **DENEGADO (Sin contrato vigente)**. |
 
 ---
 
@@ -173,7 +174,7 @@ Para ejecutar las pruebas en Swagger UI (`/docs`) o frontend, se cuenta con los 
 | **CP-S13** | Error (Clave errónea) | `POST /socios/login` | `{"username_o_correo": "socio1", "password": "PasswordIncorrecta"}` | `401 Unauthorized` | *"Credenciales inválidas. Verifique su usuario/correo y contraseña."* |
 | **CP-S14** | Error (Inactivo) | `POST /socios/login` | Credenciales de socio con `activo_socio = 0` | `403 Forbidden` | *"La cuenta de este socio se encuentra inactiva. Comuníquese con administración."* |
 | **CP-S15** | Acceso (Permitido) | `GET /socios/acceso/validar/1` | `identificador = 1` | `200 OK` | `acceso_permitido: true` (Socio activo y contrato vigente). |
-| **CP-S16** | Acceso (Vencido) | `GET /socios/acceso/validar/10` | `identificador = 10` | `200 OK` | `acceso_permitido: false`, motivo: *"Sin contrato vigente al día de hoy"*. |
+| **CP-S16** | Acceso (Sin Vigencia) | `GET /socios/acceso/validar/15` | `identificador = 15` | `200 OK` | `acceso_permitido: false`, motivo: *"Sin contrato vigente al día de hoy"*. |
 | **CP-S17** | Acceso (Inactivo) | `GET /socios/acceso/validar/13` | `identificador = 13` | `200 OK` | `acceso_permitido: false`, motivo: *"Socio desactivado en el sistema"*. |
 | **CP-S18** | Vista Analítica | `GET /socios/reportes/por-sede`| Sin parámetros | `200 OK` | Retorna distribución de socios por sede y estado de membresía. |
 

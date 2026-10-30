@@ -62,11 +62,12 @@ export default function SociosLoginPage() {
     setErrorMsg(null);
   };
 
-  // Preset demo accounts for quick testing
+  // Preset demo accounts for quick testing (synchronized with GimnasioDB_Seed.sql)
   const demoAccounts = [
-    { label: "Administrador General", user: "admin", pass: "Clave#admin", rol: "Admin" },
-    { label: "Instructor Juan Pérez", user: "juan.instructor", pass: "Clave#juan123", rol: "Instructor" },
-    { label: "Socio Registrado", user: "daniel.matus@alumnos.cl", pass: "Clave#socio1", rol: "Socio" },
+    { label: "Socio #1 · Daniel Matus (Activo)", user: "daniel.matus@alumnos.cl", pass: "Clave#socio1", rol: "Socio" },
+    { label: "Socia #2 · Emilia Osorio (Activa)", user: "socio2", pass: "Clave#socio2", rol: "Socio" },
+    { label: "Socia #3 · Yulissa Ulloa (Activa)", user: "socio3", pass: "Clave#socio3", rol: "Socio" },
+    { label: "Socia #13 · Catalina López (Inactiva / 403)", user: "socio13", pass: "Clave#socio13", rol: "Inactivo" },
   ];
 
   return (
