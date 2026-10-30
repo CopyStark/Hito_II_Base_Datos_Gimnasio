@@ -77,204 +77,228 @@ export default function SedesReportesPage() {
   }, [reporte]);
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="rounded-3xl bg-gradient-to-r from-blue-950/70 via-slate-900/90 to-cyan-950/60 border border-blue-900/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-300 border border-blue-500/20 mb-3">
-            <span>🏢</span>
-            <span>GET /socios/sedes/catalogo &bull; GET /socios/reportes/por-sede</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Sedes & Reporte Analítico
-          </h1>
-          <p className="text-sm text-slate-300 mt-1 max-w-2xl">
-            Catálogo de infraestructura de sedes y distribución de membresías por sucursal consultando
-            directamente la vista oficial de base de datos <code className="text-cyan-300">vw_Reporte_Socios_Por_Sede</code>.
-          </p>
-        </div>
+    <div className="space-y-12">
+      {/* Editorial Section Heading (amp: weight 300, negative tracking, orange accent rule) */}
+      <section className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="badge-step">
+                Step 3 &bull; Infraestructura
+              </span>
+              <span className="badge-neutral">
+                vw_Reporte_Socios_Por_Sede
+              </span>
+            </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold border border-slate-700 transition-all flex items-center gap-2 active:scale-95"
-          >
-            <span className={loading ? "animate-spin" : ""}>🔄</span>
-            <span>Actualizar Datos</span>
-          </button>
-          <Link
-            href="/socios"
-            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-all active:scale-95 shadow-md"
-          >
-            Ver Socios
-          </Link>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-light text-amp-ink tracking-[-0.030em] leading-[1.15]">
+              Sedes & Reporte Analítico
+            </h1>
+            <div className="h-[2.5px] w-24 bg-amp-orange mt-3"></div>
+
+            <p className="text-sm text-amp-carbon mt-3 max-w-2xl font-normal leading-relaxed">
+              Catálogo de infraestructura de sedes y distribución de contratos por sucursal consultando
+              directamente la vista oficial de base de datos en SQL Server <code className="text-amp-orange font-mono">vw_Reporte_Socios_Por_Sede</code>.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchData}
+              disabled={loading}
+              className="btn-secondary-pill px-4 py-2.5 bg-amp-white hover:bg-amp-linen text-amp-carbon text-xs font-normal border border-amp-hairline flex items-center gap-2"
+            >
+              <span className={loading ? "animate-spin" : ""}>↻</span>
+              <span>Actualizar Datos</span>
+            </button>
+            <Link
+              href="/socios"
+              className="btn-primary-pill text-xs font-medium px-4 py-2.5"
+            >
+              Ver Socios →
+            </Link>
+          </div>
         </div>
-      </div>
+      </section>
 
       {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-950/80 border border-rose-500/40 text-rose-200 text-sm flex items-center justify-between">
+        <div className="p-4 rounded-[5px] bg-[#fff2f0] border border-[#ffccc7] text-xs text-amp-ink flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span>⚠️</span>
+            <span className="text-amp-orange">⚠️</span>
             <span>{errorMsg}</span>
           </div>
           <button
             onClick={fetchData}
-            className="text-xs px-2.5 py-1 rounded-lg bg-rose-900 hover:bg-rose-800 text-white font-semibold"
+            className="btn-secondary-pill text-xs px-2.5 py-1 bg-amp-white border border-amp-hairline text-amp-carbon"
           >
             Reintentar
           </button>
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-lg">
-          <span className="text-xs text-slate-400 block mb-1">Sedes Operativas</span>
-          <span className="text-3xl font-black text-white">{sedes.length}</span>
-          <span className="text-[11px] text-slate-500 block mt-1">Con cobertura nacional</span>
+      {/* KPI Cards (amp: 5px radius, 1px border #e5e5e5, featured Peach Wash card for key metric) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="card-ghost p-4">
+          <span className="text-xs text-amp-slate font-normal block">Sedes Operativas</span>
+          <span className="text-2xl sm:text-3xl font-light text-amp-ink tracking-tight mt-1 block">
+            {sedes.length}
+          </span>
+          <span className="text-[11px] text-amp-slate block mt-1">Cobertura nacional</span>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900/80 border border-emerald-900/30 shadow-lg">
-          <span className="text-xs text-emerald-400 block mb-1">Membresías Vigentes</span>
-          <span className="text-3xl font-black text-emerald-300">{stats.vigentes}</span>
-          <span className="text-[11px] text-emerald-500/80 block mt-1">Acceso permitido</span>
+        {/* Featured Card (Peach Wash) */}
+        <div className="card-peach p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-amp-carbon font-medium">Membresías Vigentes</span>
+            <span className="w-2 h-2 rounded-full bg-amp-orange"></span>
+          </div>
+          <span className="text-2xl sm:text-3xl font-medium text-amp-ink tracking-tight mt-1 block">
+            {stats.vigentes}
+          </span>
+          <span className="text-[11px] text-amp-carbon block mt-1">Acceso autorizado</span>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900/80 border border-amber-900/30 shadow-lg">
-          <span className="text-xs text-amber-400 block mb-1">Membresías Vencidas</span>
-          <span className="text-3xl font-black text-amber-300">{stats.vencidos}</span>
-          <span className="text-[11px] text-amber-500/80 block mt-1">Pendientes de renovación</span>
+        <div className="card-ghost p-4">
+          <span className="text-xs text-amp-slate font-normal block">Membresías Vencidas</span>
+          <span className="text-2xl sm:text-3xl font-light text-amp-ink tracking-tight mt-1 block">
+            {stats.vencidos}
+          </span>
+          <span className="text-[11px] text-amp-slate block mt-1">Pendiente renovación</span>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900/80 border border-cyan-900/30 shadow-lg">
-          <span className="text-xs text-cyan-400 block mb-1">Total Registros en Vista</span>
-          <span className="text-3xl font-black text-cyan-300">{stats.totalContratos}</span>
-          <span className="text-[11px] text-cyan-500/80 block mt-1">Consolidados por sede</span>
+        <div className="card-ghost p-4">
+          <span className="text-xs text-amp-slate font-normal block">Total Registros en Vista</span>
+          <span className="text-2xl sm:text-3xl font-light text-amp-ink tracking-tight mt-1 block">
+            {stats.totalContratos}
+          </span>
+          <span className="text-[11px] text-amp-slate block mt-1">Consolidado por sede</span>
         </div>
       </div>
 
       {/* ===== SECTION 1: Catálogo de Sedes ===== */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <span>📍</span>
-            <span>Catálogo de Sedes Disponibles (GET /socios/sedes/catalogo)</span>
-          </h2>
-          <span className="text-xs text-slate-400">Total: {sedes.length} sedes</span>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between pb-2 border-b border-amp-hairline">
+          <div>
+            <span className="text-xs text-amp-orange font-medium uppercase tracking-wider">Red de Gimnasios</span>
+            <h2 className="text-base font-medium text-amp-ink mt-0.5">
+              Catálogo de Sedes Disponibles (GET /socios/sedes/catalogo)
+            </h2>
+          </div>
+          <span className="text-xs text-amp-slate font-normal">Total: {sedes.length} sedes</span>
         </div>
 
         {loading ? (
-          <div className="p-12 text-center text-slate-400">
-            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-            <p className="text-xs">Cargando catálogo de sedes...</p>
+          <div className="p-12 text-center text-amp-slate">
+            <div className="w-6 h-6 border-2 border-amp-orange border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+            <p className="text-xs font-normal">Cargando catálogo de sedes...</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {sedes.map((sede) => (
               <div
                 key={sede.id_sede}
-                className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-blue-500/50 transition-all shadow-md group"
+                className="card-ghost p-5 hover:border-amp-orange transition-all flex flex-col justify-between"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20">
-                      ID #{sede.id_sede}
-                    </span>
-                    <h3 className="text-base font-bold text-white group-hover:text-blue-300 transition-colors mt-2">
-                      {sede.nombre_sede}
-                    </h3>
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="badge-step text-[10px] py-0.5 px-2">
+                        ID #{sede.id_sede}
+                      </span>
+                      <h3 className="text-base font-medium text-amp-ink mt-2">
+                        {sede.nombre_sede}
+                      </h3>
+                    </div>
+                    <span className="text-xl opacity-75">🏢</span>
                   </div>
-                  <span className="text-2xl">🏢</span>
+
+                  <div className="mt-4 space-y-2 text-xs text-amp-carbon font-normal">
+                    <div className="flex items-center gap-2">
+                      <span className="text-amp-slate">Ciudad:</span>
+                      <strong className="text-amp-ink font-medium">{sede.nombre_ciudad}</strong>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-amp-slate">Calle:</span>
+                      <span>{sede.direccion_calle_sede}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-amp-slate">Teléfono:</span>
+                      <span className="font-mono text-amp-slate">{sede.telefono_sede}</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-4 space-y-2 text-xs text-slate-300">
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-500">🏙️ Ciudad:</span>
-                    <strong className="text-cyan-300 font-medium">{sede.nombre_ciudad}</strong>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-slate-500">📍 Calle:</span>
-                    <span className="text-slate-300">{sede.direccion_calle_sede}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-500">📞 Teléfono:</span>
-                    <span className="text-slate-400 font-mono">{sede.telefono_sede}</span>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px]">
-                  <span className="text-emerald-400 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <div className="mt-5 pt-3 border-t border-amp-hairline flex items-center justify-between text-xs">
+                  <span className="inline-flex items-center gap-1.5 text-amp-slate text-[11px]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amp-orange"></span>
                     <span>Operativa</span>
                   </span>
                   <Link
                     href={`/socios?sede=${sede.id_sede}`}
-                    className="text-blue-400 hover:text-blue-300 font-semibold"
+                    className="text-amp-orange hover:underline font-medium text-xs flex items-center gap-1"
                   >
-                    Ver socios de esta sede →
+                    <span>Ver socios</span>
+                    <span>→</span>
                   </Link>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       {/* ===== SECTION 2: Reporte Analítico vw_Reporte_Socios_Por_Sede ===== */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <span>📊</span>
-              <span>Reporte Analítico: Socios por Sede & Estado de Contrato</span>
-            </h2>
-            <p className="text-xs text-slate-400">
-              Datos provistos por la vista SQL Server <code className="text-cyan-300">vw_Reporte_Socios_Por_Sede</code>
-            </p>
-          </div>
+      <section className="space-y-4">
+        <div className="pb-2 border-b border-amp-hairline">
+          <span className="text-xs text-amp-orange font-medium uppercase tracking-wider">Analítica de Datos</span>
+          <h2 className="text-base font-medium text-amp-ink mt-0.5">
+            Reporte Analítico: Socios por Sede & Estado de Contrato
+          </h2>
+          <p className="text-xs text-amp-slate font-normal mt-0.5">
+            Distribución provista por la vista SQL Server <code className="text-amp-carbon font-mono">vw_Reporte_Socios_Por_Sede</code>
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Detailed Table */}
-          <div className="lg:col-span-7 rounded-2xl border border-slate-800 bg-slate-950/70 overflow-hidden shadow-xl">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Detailed Table (amp: 5px radius, 1px border #e5e5e5) */}
+          <div className="lg:col-span-7 card-ghost overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
-                <thead className="bg-slate-900 text-slate-400 uppercase text-[11px] border-b border-slate-800 font-semibold tracking-wider">
+                <thead className="bg-amp-linen text-amp-slate uppercase text-[11px] border-b border-amp-hairline font-medium tracking-wider">
                   <tr>
                     <th className="px-4 py-3">Nombre de la Sede</th>
                     <th className="px-4 py-3">Estado de Contrato</th>
                     <th className="px-4 py-3 text-right">Cantidad de Socios</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-amp-hairline">
                   {reporte.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="px-4 py-8 text-center text-slate-500">
+                      <td colSpan={3} className="px-4 py-8 text-center text-amp-slate text-xs font-normal">
                         {loading ? "Consultando vista SQL Server..." : "No hay registros disponibles."}
                       </td>
                     </tr>
                   ) : (
                     reporte.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-900/40">
-                        <td className="px-4 py-3 font-medium text-white flex items-center gap-2">
+                      <tr key={idx} className="hover:bg-amp-linen/50 transition-colors">
+                        <td className="px-4 py-3 font-medium text-amp-ink flex items-center gap-2">
                           <span>🏢</span>
                           <span>{item.nombre_sede}</span>
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            className={`px-2.5 py-0.5 rounded-[8px] text-xs font-normal border ${
                               item.estado_contrato === "Vigente"
-                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                ? "bg-amp-peach text-amp-ink border-amp-orange"
                                 : item.estado_contrato === "Vencido"
-                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                                : "bg-slate-700/50 text-slate-300 border border-slate-600"
+                                ? "bg-amp-linen text-amp-carbon border-amp-hairline"
+                                : "bg-amp-bone text-amp-slate border-amp-hairline"
                             }`}
                           >
                             {item.estado_contrato}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-white text-sm">
+                        <td className="px-4 py-3 text-right font-mono font-medium text-amp-ink text-sm">
                           {item.cantidad_socios}
                         </td>
                       </tr>
@@ -287,8 +311,8 @@ export default function SedesReportesPage() {
 
           {/* Visual Summary Cards by Sede */}
           <div className="lg:col-span-5 space-y-4">
-            <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-4 shadow-xl">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <div className="card-ghost p-5 space-y-4">
+              <h3 className="text-sm font-medium text-amp-ink flex items-center gap-2">
                 <span>📈</span>
                 <span>Distribución Visual por Sucursal</span>
               </h3>
@@ -302,34 +326,34 @@ export default function SedesReportesPage() {
                   return (
                     <div
                       key={sedeName}
-                      className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80 space-y-2"
+                      className="p-3.5 rounded-[5px] bg-amp-linen border border-amp-hairline space-y-2"
                     >
                       <div className="flex items-center justify-between text-xs">
-                        <strong className="text-white font-semibold">{sedeName}</strong>
-                        <span className="text-slate-400 font-mono">
+                        <strong className="text-amp-ink font-medium">{sedeName}</strong>
+                        <span className="text-amp-slate font-mono text-[11px]">
                           {totalEnSede} socios ({pctVigentes}% vigentes)
                         </span>
                       </div>
 
                       {/* Progress bar */}
-                      <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden flex">
+                      <div className="w-full h-2 bg-amp-bone rounded-full overflow-hidden flex">
                         <div
                           style={{ width: `${pctVigentes}%` }}
-                          className="bg-emerald-500 h-full transition-all duration-500"
+                          className="bg-amp-orange h-full transition-all duration-500"
                           title={`Vigentes: ${vigentesEnSede}`}
                         ></div>
                         <div
                           style={{ width: `${100 - pctVigentes}%` }}
-                          className="bg-amber-500 h-full transition-all duration-500"
+                          className="bg-amp-slate h-full transition-all duration-500 opacity-40"
                           title="Vencidos / Otros"
                         ></div>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                        <span className="text-emerald-400">
+                      <div className="flex items-center justify-between text-[11px] text-amp-slate pt-1">
+                        <span className="text-amp-carbon font-normal">
                           ● {vigentesEnSede} Vigentes
                         </span>
-                        <span className="text-amber-400">
+                        <span className="text-amp-slate font-normal">
                           ● {totalEnSede - vigentesEnSede} Vencidos/Otros
                         </span>
                       </div>
@@ -340,7 +364,7 @@ export default function SedesReportesPage() {
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

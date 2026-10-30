@@ -196,3 +196,54 @@ body {
 .card-premium-lift:hover {
   transform: translateY(-6px);
 }
+
+/* ===== amp System Helpers ===== */
+.input-pill {
+  border-radius: 50px;
+  border: 1px solid #e5e5e5;
+  background-color: #ffffff;
+  color: #0a0a0a;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-pill:focus {
+  outline: none;
+  border-color: #ff6105;
+  box-shadow: 0 0 0 3px rgba(255, 97, 5, 0.18);
+}
+
+.card-ghost {
+  background-color: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 5px;
+}
+
+.card-peach {
+  background-color: #ffdfcd;
+  border-radius: 5px;
+}
+
+.badge-step {
+  border-radius: 8px;
+  background-color: #ff6105;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge-neutral {
+  border-radius: 8px;
+  background-color: #f3f4f3;
+  color: #292b2a;
+  border: 1px solid #e5e5e5;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
