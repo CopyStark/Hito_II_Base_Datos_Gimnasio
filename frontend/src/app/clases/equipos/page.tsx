@@ -11,6 +11,7 @@ import {
   MapPin,
   Calendar,
   Trash2,
+  Pencil,
   CheckCircle2,
   AlertTriangle,
   X,
@@ -53,6 +54,33 @@ export default function EquiposPage() {
   );
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [errorModalRegistro, setErrorModalRegistro] = useState<string | null>(null);
+
+  // Form para editar equipo existente
+  const [equipoAEditar, setEquipoAEditar] = useState<EquipamientoItemResponse | null>(null);
+  const [editNombre, setEditNombre] = useState("");
+  const [editFecha, setEditFecha] = useState("");
+  const [guardandoEdit, setGuardandoEdit] = useState(false);
+  const [errorModalEdit, setErrorModalEdit] = useState<string | null>(null);
+
+  // Helper para normalizar errores de API / SQL Server
+  const extraerMensajeError = (err: any, fallback: string): string => {
+    const raw =
+      err?.response?.data?.detail ||
+      err?.data?.detail ||
+      err?.message ||
+      fallback;
+    if (typeof raw === "string") return raw;
+    if (Array.isArray(raw)) {
+      return raw
+        .map((d: any) => (typeof d === "string" ? d : d.msg || JSON.stringify(d)))
+        .join(" | ");
+    }
+    if (typeof raw === "object") {
+      return raw.msg || raw.message || JSON.stringify(raw);
+    }
+    return String(raw);
+  };
 
   // Cargar lista de sedes
   const cargarSedes = useCallback(async () => {
@@ -110,14 +138,34 @@ export default function EquiposPage() {
   // Abrir modal de nuevo equipo precargando la sede del empleado
   const handleAbrirModalRegistro = () => {
     setNuevaSede(empleadoSeleccionado.id_sede_personal);
+    setNuevoNombre("");
+    setNuevaFecha("");
+    setErrorModalRegistro(null);
     setShowAddModal(true);
   };
 
   const handleCrearEquipo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nuevoNombre.trim() || !nuevaFecha || !nuevaSede) return;
+    setErrorModalRegistro(null);
+
+    if (!nuevoNombre.trim()) {
+      setErrorModalRegistro("Por favor, ingrese el nombre descriptivo del equipamiento.");
+      return;
+    }
+    if (!nuevaFecha) {
+      setErrorModalRegistro("Por favor, seleccione una fecha de adquisición válida.");
+      return;
+    }
+
+    const fechaDate = new Date(nuevaFecha + "T00:00:00");
+    const hoy = new Date();
+    hoy.setHours(23, 59, 59, 999);
+    if (fechaDate > hoy) {
+      setErrorModalRegistro("La fecha de adquisición del equipamiento no puede ser futura.");
+      return;
+    }
+
     setGuardando(true);
-    setFeedback(null);
     try {
       const res = await clasesApi.registrarEquipo({
         id_sede_equipamiento: Number(nuevaSede),
@@ -133,13 +181,63 @@ export default function EquiposPage() {
       setShowAddModal(false);
       cargarEquipos(filtroSede);
     } catch (err: any) {
-      const msg =
-        err.data?.detail ||
-        err.message ||
-        "Error al registrar el equipamiento.";
-      setFeedback({ type: "error", message: String(msg) });
+      const msg = extraerMensajeError(err, "Error al registrar el equipamiento.");
+      setErrorModalRegistro(msg);
     } finally {
       setGuardando(false);
+    }
+  };
+
+  // Abrir modal de edición pre-cargado
+  const handleAbrirModalEdicion = (eq: EquipamientoItemResponse) => {
+    setEquipoAEditar(eq);
+    setEditNombre(eq.nombre_descriptivo_equipamiento);
+    const fStr = String(eq.fecha_adquisicion_equipamiento).slice(0, 10);
+    setEditFecha(fStr);
+    setErrorModalEdit(null);
+  };
+
+  // Guardar cambios de edición mediante PUT /clases/equipos/{id}
+  const handleGuardarEdicion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!equipoAEditar) return;
+    setErrorModalEdit(null);
+
+    if (!editNombre.trim()) {
+      setErrorModalEdit("El nombre descriptivo del equipamiento no puede estar vacío.");
+      return;
+    }
+    if (!editFecha) {
+      setErrorModalEdit("Debe seleccionar una fecha de adquisición válida.");
+      return;
+    }
+
+    const fechaDate = new Date(editFecha + "T00:00:00");
+    const hoy = new Date();
+    hoy.setHours(23, 59, 59, 999);
+    if (fechaDate > hoy) {
+      setErrorModalEdit("La fecha de adquisición del equipamiento no puede ser futura.");
+      return;
+    }
+
+    setGuardandoEdit(true);
+    try {
+      await clasesApi.actualizarEquipo(equipoAEditar.id_equipamiento, {
+        nombre_descriptivo_equipamiento: editNombre.trim(),
+        fecha_adquisicion_equipamiento: editFecha,
+      });
+
+      setFeedback({
+        type: "success",
+        message: `Equipamiento #${equipoAEditar.id_equipamiento} actualizado exitosamente.`,
+      });
+      setEquipoAEditar(null);
+      cargarEquipos(filtroSede);
+    } catch (err: any) {
+      const msg = extraerMensajeError(err, "Error al actualizar el equipamiento.");
+      setErrorModalEdit(msg);
+    } finally {
+      setGuardandoEdit(false);
     }
   };
 
@@ -252,23 +350,44 @@ export default function EquiposPage() {
         <div
           role="status"
           aria-live="polite"
-          className={`p-4 rounded-[5px] border flex items-center justify-between text-xs sm:text-sm animate-fade-in-scale ${
+          className={`p-4 rounded-[5px] border flex items-center justify-between text-xs sm:text-sm animate-fade-in-scale shadow-lg ${
             feedback.type === "success"
-              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : "bg-rose-50 border-rose-200 text-rose-800"
+              ? "bg-[#ffdfcd] border-[#ffa069]/60 text-[#0a0a0a]"
+              : "bg-[#202120] border-[#ef4444] text-[#ffffff] ring-1 ring-[#ef4444]/40 shadow-red-950/30"
           }`}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {feedback.type === "success" ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-[#ff6105] shrink-0" />
             ) : (
-              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              <AlertTriangle className="w-4 h-4 text-[#ef4444] shrink-0" />
             )}
-            <span>{feedback.message}</span>
+            <div>
+              <strong
+                className={`block font-semibold ${
+                  feedback.type === "error" ? "text-[#fca5a5]" : "text-[#0a0a0a]"
+                }`}
+              >
+                {feedback.type === "success"
+                  ? "Operación Exitosa"
+                  : "Aviso del Sistema"}
+              </strong>
+              <span
+                className={
+                  feedback.type === "error" ? "text-zinc-200" : "text-[#292b2a]"
+                }
+              >
+                {feedback.message}
+              </span>
+            </div>
           </div>
           <button
             onClick={() => setFeedback(null)}
-            className="text-[#7a7b7b] hover:text-[#0a0a0a] p-1 rounded-full hover:bg-black/5"
+            className={`p-1 rounded-full ${
+              feedback.type === "error"
+                ? "text-zinc-400 hover:text-white"
+                : "text-[#7a7b7b] hover:text-[#0a0a0a]"
+            }`}
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -378,10 +497,22 @@ export default function EquiposPage() {
                 </div>
               </div>
 
-              <div className="pt-2.5 border-t border-[#e5e5e5] flex justify-end">
+              <div className="pt-2.5 border-t border-[#e5e5e5] flex items-center justify-end gap-2">
                 <button
+                  type="button"
+                  onClick={() => handleAbrirModalEdicion(eq)}
+                  className="text-xs text-[#292b2a] hover:text-[#0a0a0a] hover:bg-[#f3f4f3] px-3 py-1 rounded-full transition-colors border border-[#e5e5e5] hover:border-[#a2a3a2] flex items-center gap-1 font-medium"
+                  title="Editar equipamiento"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-[#ff6105]" />
+                  <span>Editar</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleEliminar(eq.id_equipamiento)}
                   className="text-xs text-[#7a7b7b] hover:text-rose-600 hover:bg-rose-50 px-3 py-1 rounded-full transition-colors border border-transparent hover:border-rose-200 flex items-center gap-1"
+                  title="Eliminar equipamiento"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Eliminar</span>
@@ -421,6 +552,29 @@ export default function EquiposPage() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Error específico dentro del formulario de registro */}
+            {errorModalRegistro && (
+              <div className="p-3.5 rounded-[5px] bg-[#202120] border border-[#ef4444] text-[#ffffff] ring-1 ring-[#ef4444]/30 text-xs flex items-start gap-2.5 animate-fade-in-scale">
+                <AlertTriangle className="w-4 h-4 text-[#ef4444] shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <strong className="block font-semibold text-[#fca5a5]">
+                    Error de Validación
+                  </strong>
+                  <span className="text-zinc-200 leading-relaxed">
+                    {errorModalRegistro}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrorModalRegistro(null)}
+                  className="text-zinc-400 hover:text-white p-0.5"
+                  title="Cerrar aviso"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleCrearEquipo} className="space-y-4 text-xs">
               <div>
@@ -494,6 +648,116 @@ export default function EquiposPage() {
                     </>
                   ) : (
                     <span>Registrar</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal / Formulario Editar Equipamiento (PUT /clases/equipos/{id}) */}
+      {equipoAEditar && (
+        <div
+          onClick={() => setEquipoAEditar(null)}
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in-scale"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white border border-[#e5e5e5] rounded-[8px] p-6 sm:p-8 max-w-md w-full space-y-5 shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-[#e5e5e5] pb-3.5">
+              <div>
+                <h3 className="text-lg font-medium text-[#0a0a0a]">
+                  Editar Equipamiento #{equipoAEditar.id_equipamiento}
+                </h3>
+                <p className="text-xs text-[#7a7b7b] mt-0.5">
+                  Sede:{" "}
+                  <span className="text-[#0a0a0a] font-medium">
+                    {equipoAEditar.nombre_sede}
+                  </span>
+                </p>
+              </div>
+              <button
+                onClick={() => setEquipoAEditar(null)}
+                className="text-[#7a7b7b] hover:text-[#0a0a0a] p-1.5 rounded-full hover:bg-[#f3f4f3] transition-colors"
+                title="Cerrar modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Error específico dentro del formulario de edición */}
+            {errorModalEdit && (
+              <div className="p-3.5 rounded-[5px] bg-[#202120] border border-[#ef4444] text-[#ffffff] ring-1 ring-[#ef4444]/30 text-xs flex items-start gap-2.5 animate-fade-in-scale">
+                <AlertTriangle className="w-4 h-4 text-[#ef4444] shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <strong className="block font-semibold text-[#fca5a5]">
+                    Error de Validación
+                  </strong>
+                  <span className="text-zinc-200 leading-relaxed">
+                    {errorModalEdit}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrorModalEdit(null)}
+                  className="text-zinc-400 hover:text-white p-0.5"
+                  title="Cerrar aviso"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            <form onSubmit={handleGuardarEdicion} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-[11px] font-medium text-[#7a7b7b] uppercase tracking-wider mb-1.5">
+                  Nombre descriptivo
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Máquina Prensa de Piernas 45°"
+                  value={editNombre}
+                  onChange={(e) => setEditNombre(e.target.value)}
+                  required
+                  className="w-full bg-white border border-[#e5e5e5] rounded-full px-4 py-2.5 text-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] text-sm transition-colors font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-[#7a7b7b] uppercase tracking-wider mb-1.5">
+                  Fecha de Adquisición (No futura)
+                </label>
+                <input
+                  type="date"
+                  value={editFecha}
+                  onChange={(e) => setEditFecha(e.target.value)}
+                  required
+                  className="w-full bg-white border border-[#e5e5e5] rounded-full px-4 py-2.5 text-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] text-sm transition-colors font-medium"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEquipoAEditar(null)}
+                  className="px-4 py-2.5 rounded-[24px] text-[#292b2a] bg-[#f3f4f3] hover:bg-[#e5e7eb] border border-[#e5e5e5] font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardandoEdit}
+                  className="px-6 py-2.5 rounded-full font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {guardandoEdit ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Guardando cambios...</span>
+                    </>
+                  ) : (
+                    <span>Guardar Cambios</span>
                   )}
                 </button>
               </div>

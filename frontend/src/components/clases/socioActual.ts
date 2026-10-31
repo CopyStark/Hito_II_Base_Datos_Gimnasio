@@ -11,6 +11,7 @@ export interface SocioActual {
   rut_socio: string;
   id_sede_registro_socio?: number;
   nombre_sede_registro?: string;
+  nota_prueba?: string;
 }
 
 export const SOCIOS_PRUEBA: SocioActual[] = [
@@ -21,6 +22,7 @@ export const SOCIOS_PRUEBA: SocioActual[] = [
     rut_socio: "18.765.432-K",
     id_sede_registro_socio: 1,
     nombre_sede_registro: "Sede Antofagasta Sur",
+    nota_prueba: "Activo, Contrato Vigente (Caso normal)",
   },
   {
     id_socio: 2,
@@ -29,6 +31,7 @@ export const SOCIOS_PRUEBA: SocioActual[] = [
     rut_socio: "19.123.456-7",
     id_sede_registro_socio: 2,
     nombre_sede_registro: "Sede La Serena Centro",
+    nota_prueba: "Activo, Contrato Vigente (Caso alternativo)",
   },
   {
     id_socio: 3,
@@ -37,22 +40,34 @@ export const SOCIOS_PRUEBA: SocioActual[] = [
     rut_socio: "19.987.654-3",
     id_sede_registro_socio: 1,
     nombre_sede_registro: "Sede Antofagasta Sur",
+    nota_prueba: "Activo, Contrato Vigente",
   },
   {
-    id_socio: 4,
-    nombre_completo_socio: "Mateo Sepúlveda Figueroa",
-    correo_socio: "socio41@alumnos.cl",
-    rut_socio: "12.450.949-1",
-    id_sede_registro_socio: 6,
-    nombre_sede_registro: "Sede Providencia Norte",
+    id_socio: 10,
+    nombre_completo_socio: "Vicente Rodríguez",
+    correo_socio: "socio47@alumnos.cl",
+    rut_socio: "12.809.624-7",
+    id_sede_registro_socio: 1,
+    nombre_sede_registro: "Sede Antofagasta Sur",
+    nota_prueba: "Contrato Vencido (Prueba error 50030)",
   },
   {
-    id_socio: 5,
-    nombre_completo_socio: "Camila Araya Miranda",
-    correo_socio: "socio42@alumnos.cl",
-    rut_socio: "12.510.728-2",
-    id_sede_registro_socio: 7,
-    nombre_sede_registro: "Sede Las Condes Apoquindo",
+    id_socio: 13,
+    nombre_completo_socio: "Catalina López",
+    correo_socio: "socio50@alumnos.cl",
+    rut_socio: "12.988.962-0",
+    id_sede_registro_socio: 2,
+    nombre_sede_registro: "Sede La Serena Centro",
+    nota_prueba: "Inactivo (activo_socio = 0)",
+  },
+  {
+    id_socio: 15,
+    nombre_completo_socio: "Antonia Contreras",
+    correo_socio: "socio52@alumnos.cl",
+    rut_socio: "13.108.521-2",
+    id_sede_registro_socio: 4,
+    nombre_sede_registro: "Sede Santiago Centro",
+    nota_prueba: "Contrato Cancelado",
   },
 ];
 
@@ -74,7 +89,9 @@ export function getOpcionesSociosSelector(
   const existe = SOCIOS_PRUEBA.some((s) => s.id_socio === actual.id_socio);
   if (existe) {
     return SOCIOS_PRUEBA.map((s) =>
-      s.id_socio === actual.id_socio ? { ...s, ...actual } : s
+      s.id_socio === actual.id_socio
+        ? { ...s, ...actual, nota_prueba: s.nota_prueba ?? actual.nota_prueba }
+        : s
     );
   }
   return [actual, ...SOCIOS_PRUEBA];
@@ -101,6 +118,7 @@ export function getStoredSocioActual(): SocioActual {
               parsed.id_sede_registro_socio ?? base?.id_sede_registro_socio,
             nombre_sede_registro:
               parsed.nombre_sede_registro || base?.nombre_sede_registro,
+            nota_prueba: parsed.nota_prueba || base?.nota_prueba,
           };
         }
       }
@@ -186,12 +204,14 @@ export async function sincronizarSocioDesdeId(
       nombre_completo_socio:
         ficha.nombre_completo_socio ??
         ficha.nombre_completo ??
+        enPrueba?.nombre_completo_socio ??
         `Socio #${idSocio}`,
-      correo_socio: ficha.correo_socio ?? ficha.correo ?? "—",
-      rut_socio: ficha.rut_socio ?? ficha.rut ?? "—",
-      id_sede_registro_socio: idSede,
+      correo_socio: ficha.correo_socio ?? ficha.correo ?? enPrueba?.correo_socio ?? "—",
+      rut_socio: ficha.rut_socio ?? ficha.rut ?? enPrueba?.rut_socio ?? "—",
+      id_sede_registro_socio: idSede ?? enPrueba?.id_sede_registro_socio,
       nombre_sede_registro:
-        sedeMatch?.nombre_sede || (idSede ? `Sede #${idSede}` : undefined),
+        sedeMatch?.nombre_sede || enPrueba?.nombre_sede_registro || (idSede ? `Sede #${idSede}` : undefined),
+      nota_prueba: enPrueba?.nota_prueba,
     };
 
     setStoredSocioActual(socioVivo);

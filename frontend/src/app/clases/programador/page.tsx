@@ -76,12 +76,17 @@ export default function ProgramadorPage() {
         type: "success",
         message: `Sesión #${res.id_sesion} programada exitosamente en el calendario.`,
       });
+      setFechaSesion("");
+      setIdInstructor("");
     } catch (err: any) {
       const errorMsg =
-        err.data?.detail || err.message || "Error al programar la sesión.";
+        err?.response?.data?.detail ||
+        err?.data?.detail ||
+        err?.message ||
+        "Error al programar la sesión.";
       setFeedback({
         type: "error",
-        message: String(errorMsg),
+        message: typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg),
       });
     } finally {
       setLoadingForm(false);
@@ -114,23 +119,45 @@ export default function ProgramadorPage() {
         <div
           role="status"
           aria-live="polite"
-          className={`p-4 rounded-[5px] border flex items-center justify-between text-xs sm:text-sm animate-fade-in-scale ${
+          className={`p-4 rounded-[5px] border flex items-center justify-between text-xs sm:text-sm animate-fade-in-scale shadow-lg ${
             feedback.type === "success"
-              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : "bg-rose-50 border-rose-200 text-rose-800"
+              ? "bg-[#ffdfcd] border-[#ffa069]/60 text-[#0a0a0a]"
+              : "bg-[#202120] border-[#ef4444] text-[#ffffff] ring-1 ring-[#ef4444]/40 shadow-red-950/30"
           }`}
         >
           <div className="flex items-center gap-2.5">
             {feedback.type === "success" ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-[#ff6105] shrink-0" />
             ) : (
-              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              <AlertTriangle className="w-4 h-4 text-[#ef4444] shrink-0" />
             )}
-            <span>{feedback.message}</span>
+            <div>
+              <strong
+                className={`block font-semibold ${
+                  feedback.type === "error" ? "text-[#fca5a5]" : "text-[#0a0a0a]"
+                }`}
+              >
+                {feedback.type === "success"
+                  ? "Sesión Programada"
+                  : "Error al Programar"}
+              </strong>
+              <span
+                className={
+                  feedback.type === "error" ? "text-zinc-200" : "text-[#292b2a]"
+                }
+              >
+                {feedback.message}
+              </span>
+            </div>
           </div>
           <button
+            type="button"
             onClick={() => setFeedback(null)}
-            className="text-[#7a7b7b] hover:text-[#0a0a0a] p-1 rounded-full hover:bg-black/5"
+            className={`p-1 rounded-full ${
+              feedback.type === "error"
+                ? "text-zinc-400 hover:text-white"
+                : "text-[#7a7b7b] hover:text-[#0a0a0a]"
+            }`}
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -196,10 +223,11 @@ export default function ProgramadorPage() {
                 onChange={(e) => setIdInstructor(e.target.value)}
                 className="w-full appearance-none bg-white border border-[#e5e5e5] rounded-full pl-4 pr-10 py-2.5 text-sm font-medium text-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors cursor-pointer"
               >
-                <option value="">Sin instructor asignado</option>
+                <option value="">Sin instructor asignado (opcional)</option>
                 {instructores.map((i) => (
                   <option key={i.id_instructor} value={i.id_instructor}>
                     {i.nombre_completo_instructor}
+                    {i.nombre_sede ? ` — (${i.nombre_sede})` : ""}
                   </option>
                 ))}
               </select>

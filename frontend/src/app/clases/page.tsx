@@ -131,6 +131,12 @@ export default function ClasesPage() {
   // --- Feedback / Notificaciones Flotantes (Toasts) ---
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
 
+  // Error específico por sesión para mostrar inmediatamente bajo el botón
+  const [errorSesionId, setErrorSesionId] = useState<{
+    id_sesion: number;
+    message: string;
+  } | null>(null);
+
   // Mantener ref de sedes sincronizada para resolución inmediata al cambiar de socio
   useEffect(() => {
     sedesRef.current = sedes;
@@ -337,6 +343,7 @@ export default function ClasesPage() {
 
   // Cambiar socio desde el selector de perfil y sincronizar filtro de sede de inmediato
   const handleCambiarSocio = (nuevoId: number) => {
+    setErrorSesionId(null);
     const encontrado = opcionesSocios.find((s) => s.id_socio === nuevoId);
     if (encontrado) {
       setSocioActual(encontrado);
@@ -386,6 +393,7 @@ export default function ClasesPage() {
   // Acción: Inscribirme en una sesión
   const handleInscribir = async (id_sesion: number) => {
     setActionLoadingId(id_sesion);
+    setErrorSesionId(null);
     setFeedback(null);
     try {
       await clasesApi.inscribirSocio({
@@ -409,6 +417,7 @@ export default function ClasesPage() {
         err,
         "No fue posible completar la inscripción. Verifique las reglas de negocio."
       );
+      setErrorSesionId({ id_sesion, message: errorMsg });
       setFeedback({
         type: "error",
         message: errorMsg,
@@ -590,7 +599,7 @@ export default function ClasesPage() {
                       : "Sin sede");
                   return (
                     <option key={s.id_socio} value={s.id_socio}>
-                      {s.nombre_completo_socio} — {sedeOpt}
+                      {s.nombre_completo_socio} {s.nota_prueba ? `[${s.nota_prueba}]` : ""} — {sedeOpt}
                     </option>
                   );
                 })}
@@ -599,8 +608,22 @@ export default function ClasesPage() {
             </div>
           </div>
 
-          {/* Derecha: Badges limpios de RUT, Correo y Sede */}
+          {/* Derecha: Badges limpios de RUT, Correo, Sede y Perfil de Prueba */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
+            {socioActual.nota_prueba && (
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium ${
+                  socioActual.nota_prueba.includes("Vencido") ||
+                  socioActual.nota_prueba.includes("Inactivo") ||
+                  socioActual.nota_prueba.includes("Cancelado")
+                    ? "bg-rose-50 text-rose-700 border-rose-200"
+                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                }`}
+              >
+                <span>{socioActual.nota_prueba}</span>
+              </span>
+            )}
+
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5]/80">
               <span className="text-[#7a7b7b]">RUT</span>
               <strong className="font-medium text-[#0a0a0a]">
@@ -1153,6 +1176,29 @@ export default function ClasesPage() {
                           </>
                         )}
                       </button>
+                    )}
+
+                    {/* Mensaje de error inmediato bajo el botón de reserva */}
+                    {errorSesionId?.id_sesion === sesion.id_sesion && (
+                      <div className="mt-2.5 p-3 rounded-[5px] bg-[#202120] border border-[#ef4444] text-[#ffffff] ring-1 ring-[#ef4444]/30 text-xs flex items-start gap-2 animate-fade-in-scale">
+                        <AlertTriangle className="w-4 h-4 text-[#ef4444] shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <span className="font-semibold text-[#fca5a5] block">
+                            No se pudo completar la reserva:
+                          </span>
+                          <span className="text-zinc-200 leading-snug">
+                            {errorSesionId.message}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setErrorSesionId(null)}
+                          className="text-zinc-400 hover:text-white p-0.5"
+                          title="Cerrar aviso"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

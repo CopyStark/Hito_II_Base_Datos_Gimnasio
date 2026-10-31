@@ -176,7 +176,7 @@ export default function ClasesLayout({
                       value={s.id_socio}
                       className="bg-white text-[#0a0a0a]"
                     >
-                      {s.nombre_completo_socio}
+                      {s.nombre_completo_socio} {s.nota_prueba ? `(${s.nota_prueba})` : ""}
                     </option>
                   ))}
                 </select>
