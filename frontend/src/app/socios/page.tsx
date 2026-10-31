@@ -1,7 +1,15 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  Suspense,
+} from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import apiClient, { Socio } from "@/services/apiClient";
 import {
   Users,
@@ -33,7 +41,11 @@ interface SedeCatalogoItem {
   nombre_region?: string;
 }
 
-export default function SociosGestionPage() {
+function SociosGestionContent() {
+  const searchParams = useSearchParams();
+  const initialSede = searchParams.get("id_sede") || "";
+
+  const [mounted, setMounted] = useState(false);
   const [socios, setSocios] = useState<Socio[]>([]);
   const [sedes, setSedes] = useState<SedeCatalogoItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -41,7 +53,7 @@ export default function SociosGestionPage() {
 
   // Filtros
   const [buscar, setBuscar] = useState<string>("");
-  const [filtroSede, setFiltroSede] = useState<string>("");
+  const [filtroSede, setFiltroSede] = useState<string>(initialSede);
   const [filtroEstado, setFiltroEstado] = useState<"todos" | "activos" | "inactivos">("todos");
 
   // Modal Crear / Editar Socio
@@ -49,6 +61,7 @@ export default function SociosGestionPage() {
   const [editMode, setEditMode] = useState<boolean>(false);
   const [selectedSocioId, setSelectedSocioId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "ok" | "error"; text: string } | null>(null);
 
   const [formData, setFormData] = useState({
@@ -68,6 +81,39 @@ export default function SociosGestionPage() {
   const [credUsername, setCredUsername] = useState<string>("");
   const [credPassword, setCredPassword] = useState<string>("");
   const [credSubmitting, setCredSubmitting] = useState<boolean>(false);
+  const [credError, setCredError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (initialSede) {
+      setFiltroSede(initialSede);
+    }
+  }, [initialSede]);
+
+  // Bloquear scroll del body y permitir cerrar con Escape cuando hay modal abierto
+  useEffect(() => {
+    const anyModalOpen = modalOpen || credModalOpen;
+    if (!anyModalOpen) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setModalOpen(false);
+        setCredModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [modalOpen, credModalOpen]);
 
   const cargarDatos = useCallback(async () => {
     setLoading(true);
@@ -123,13 +169,14 @@ export default function SociosGestionPage() {
   const handleOpenCrear = () => {
     setEditMode(false);
     setSelectedSocioId(null);
+    setModalError(null);
     setFormData({
       rut_socio: "",
       nombre_completo_socio: "",
       correo_socio: "",
-      telefono_socio: "+569",
+      telefono_socio: "+56 9 ",
       fecha_nacimiento_socio: "1998-05-15",
-      id_sede_registro_socio: sedes[0]?.id_sede || 1,
+      id_sede_registro_socio: filtroSede ? Number(filtroSede) : sedes[0]?.id_sede || 1,
       acepta_promociones_socio: true,
       activo_socio: true,
     });
@@ -140,6 +187,7 @@ export default function SociosGestionPage() {
   const handleOpenEditar = (socio: Socio) => {
     setEditMode(true);
     setSelectedSocioId(socio.id_socio);
+    setModalError(null);
     setFormData({
       rut_socio: socio.rut_socio ?? socio.rut ?? "",
       nombre_completo_socio: socio.nombre_completo_socio ?? socio.nombre_completo ?? "",
@@ -161,6 +209,7 @@ export default function SociosGestionPage() {
   const handleSubmitSocio = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setModalError(null);
     setFeedback(null);
     try {
       if (editMode && selectedSocioId) {
@@ -170,8 +219,13 @@ export default function SociosGestionPage() {
           telefono_socio: formData.telefono_socio.trim(),
           id_sede_registro_socio: Number(formData.id_sede_registro_socio),
           acepta_promociones_socio: formData.acepta_promociones_socio,
-          activo_socio: formData.activo_socio,
         });
+        // Si además cambió el estado activo/inactivo en el modal, sincronizarlo
+        const socioOriginal = socios.find((s) => s.id_socio === selectedSocioId);
+        const activoOriginal = (socioOriginal?.activo_socio ?? socioOriginal?.activo) !== false;
+        if (socioOriginal && activoOriginal !== formData.activo_socio) {
+          await apiClient.socios.cambiarEstado(selectedSocioId, formData.activo_socio);
+        }
         setFeedback({
           type: "ok",
           text: `Socio #${res.id_socio || selectedSocioId} actualizado correctamente.`,
@@ -195,10 +249,7 @@ export default function SociosGestionPage() {
       setModalOpen(false);
       await cargarDatos();
     } catch (err: any) {
-      setFeedback({
-        type: "error",
-        text: err.message || "Error al guardar los datos del socio.",
-      });
+      setModalError(err.message || "Error al guardar los datos del socio.");
     } finally {
       setSubmitting(false);
     }
@@ -229,6 +280,7 @@ export default function SociosGestionPage() {
     setCredSocio(socio);
     setCredUsername(`socio${socio.id_socio}`);
     setCredPassword("");
+    setCredError(null);
     setCredModalOpen(true);
   };
 
@@ -236,6 +288,7 @@ export default function SociosGestionPage() {
     e.preventDefault();
     if (!credSocio?.id_socio) return;
     setCredSubmitting(true);
+    setCredError(null);
     setFeedback(null);
     try {
       const res = await apiClient.socios.asignarCredenciales(credSocio.id_socio, {
@@ -250,10 +303,7 @@ export default function SociosGestionPage() {
       });
       setCredModalOpen(false);
     } catch (err: any) {
-      setFeedback({
-        type: "error",
-        text: err.message || "Error al asignar credenciales al socio.",
-      });
+      setCredError(err.message || "Error al asignar credenciales al socio.");
     } finally {
       setCredSubmitting(false);
     }
@@ -387,7 +437,7 @@ export default function SociosGestionPage() {
                 type="text"
                 value={buscar}
                 onChange={(e) => setBuscar(e.target.value)}
-                placeholder="Ej: 18.900.013-K, Fernanda o correo..."
+                placeholder="Ej: 18.765.432-K, Daniel Matus o correo..."
                 className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-full pl-10 pr-4 py-2 text-sm text-[#0a0a0a] placeholder-[#7a7b7b] focus:outline-none focus:border-[#ff6105] focus:bg-white transition-colors"
               />
             </div>
@@ -468,12 +518,14 @@ export default function SociosGestionPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#f8f9f8] border-b border-[#e5e5e5] text-[11px] uppercase tracking-wider text-[#7a7b7b]">
-                  <th className="py-3.5 px-5 font-medium">Socio</th>
-                  <th className="py-3.5 px-4 font-medium">RUT</th>
-                  <th className="py-3.5 px-4 font-medium">Contacto</th>
-                  <th className="py-3.5 px-4 font-medium">Sede</th>
-                  <th className="py-3.5 px-4 font-medium">Estado</th>
-                  <th className="py-3.5 px-5 font-medium text-right">Acciones</th>
+                  <th className="py-3.5 px-5 font-medium whitespace-nowrap">Socio</th>
+                  <th className="py-3.5 px-4 font-medium whitespace-nowrap">RUT</th>
+                  <th className="py-3.5 px-4 font-medium whitespace-nowrap">Contacto</th>
+                  <th className="py-3.5 px-4 font-medium whitespace-nowrap">Sede</th>
+                  <th className="py-3.5 px-4 font-medium whitespace-nowrap">Estado</th>
+                  <th className="py-3.5 px-5 font-medium text-right whitespace-nowrap">
+                    Acciones
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e5e5] text-sm">
@@ -493,7 +545,7 @@ export default function SociosGestionPage() {
                       key={id}
                       className="hover:bg-[#f8f9f8]/80 transition-colors"
                     >
-                      <td className="py-3.5 px-5">
+                      <td className="py-3.5 px-5 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-[#ffdfcd] text-[#ff6105] flex items-center justify-center text-xs font-semibold shrink-0">
                             {nombreCompleto.charAt(0).toUpperCase()}
@@ -507,16 +559,16 @@ export default function SociosGestionPage() {
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4">
-                        <span className="font-mono text-xs px-2.5 py-1 rounded-full bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5]">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className="inline-block whitespace-nowrap font-mono text-xs px-2.5 py-1 rounded-full bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5]">
                           {rut}
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 text-xs text-[#292b2a] space-y-1">
+                      <td className="py-3.5 px-4 text-xs text-[#292b2a] space-y-1 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Mail className="w-3.5 h-3.5 text-[#7a7b7b] shrink-0" />
-                          <span className="truncate max-w-[200px]">{correo}</span>
+                          <span className="truncate max-w-[210px]">{correo}</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-[#7a7b7b]">
                           <Phone className="w-3.5 h-3.5 shrink-0" />
@@ -524,19 +576,19 @@ export default function SociosGestionPage() {
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-[#f8f9f8] text-[#292b2a] border border-[#e5e5e5]">
-                          <MapPin className="w-3 h-3 text-[#ff6105]" />
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs px-2.5 py-1 rounded-full bg-[#f8f9f8] text-[#292b2a] border border-[#e5e5e5]">
+                          <MapPin className="w-3 h-3 text-[#ff6105] shrink-0" />
                           <span>{nombreSede}</span>
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => handleToggleEstado(s)}
                           title="Clic para cambiar estado"
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer ${
+                          className={`inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer ${
                             activo
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
                               : "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
@@ -551,7 +603,7 @@ export default function SociosGestionPage() {
                         </button>
                       </td>
 
-                      <td className="py-3.5 px-5 text-right">
+                      <td className="py-3.5 px-5 text-right whitespace-nowrap">
                         <div className="inline-flex items-center justify-end gap-1.5">
                           <button
                             type="button"
@@ -592,266 +644,313 @@ export default function SociosGestionPage() {
         )}
       </div>
 
-      {/* Modal Crear / Editar Socio */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-[#e5e5e5] rounded-[5px] max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-xl animate-fade-in-scale">
-            <div className="flex items-start justify-between gap-4 border-b border-[#e5e5e5] pb-4">
-              <div>
-                <p className="text-[11px] uppercase tracking-wider text-[#ff6105] font-medium">
-                  {editMode ? "Actualización de Ficha" : "Inscripción de Socio"}
-                </p>
-                <h3 className="text-xl font-medium text-[#0a0a0a] mt-0.5">
-                  {editMode ? `Editar Socio #${selectedSocioId}` : "Registrar Nuevo Socio"}
-                </h3>
+      {/* Modal Crear / Editar Socio (Montado en document.body vía Portal) */}
+      {mounted &&
+        modalOpen &&
+        createPortal(
+          <div
+            onClick={() => setModalOpen(false)}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white border border-[#e5e5e5] rounded-[5px] max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-xl my-auto"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-[#e5e5e5] pb-4">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-[#ff6105] font-medium">
+                    {editMode ? "Actualización de Ficha" : "Inscripción de Socio"}
+                  </p>
+                  <h3 className="text-xl font-medium text-[#0a0a0a] mt-0.5">
+                    {editMode ? `Editar Socio #${selectedSocioId}` : "Registrar Nuevo Socio"}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-[#f3f4f3] hover:bg-[#e5e7eb] flex items-center justify-center text-[#292b2a] cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-[#f3f4f3] hover:bg-[#e5e7eb] flex items-center justify-center text-[#292b2a] cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <form onSubmit={handleSubmitSocio} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-[#292b2a] mb-1">
-                    RUT del Socio *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    disabled={editMode}
-                    value={formData.rut_socio}
-                    onChange={(e) =>
-                      setFormData({ ...formData, rut_socio: e.target.value })
-                    }
-                    placeholder="Ej: 19.456.789-0"
-                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] disabled:opacity-60 focus:outline-none focus:border-[#ff6105] focus:bg-white"
-                  />
+              {modalError && (
+                <div className="p-3 rounded-[5px] bg-[#fef2f2] border border-[#fecaca] text-[#dc2626] text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{modalError}</span>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-xs font-medium text-[#292b2a] mb-1">
-                    Sede Asignada *
-                  </label>
-                  <select
-                    required
-                    value={formData.id_sede_registro_socio}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        id_sede_registro_socio: Number(e.target.value),
-                      })
-                    }
-                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
-                  >
-                    {sedes.map((s) => (
-                      <option key={s.id_sede} value={s.id_sede}>
-                        {s.nombre_sede} {s.nombre_ciudad ? `(${s.nombre_ciudad})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-[#292b2a] mb-1">
-                    Nombre Completo *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.nombre_completo_socio}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        nombre_completo_socio: e.target.value,
-                      })
-                    }
-                    placeholder="Ej: Valentina Soto Muñoz"
-                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-[#292b2a] mb-1">
-                    Correo Electrónico *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.correo_socio}
-                    onChange={(e) =>
-                      setFormData({ ...formData, correo_socio: e.target.value })
-                    }
-                    placeholder="socio@gimnasiodb.cl"
-                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-[#292b2a] mb-1">
-                    Teléfono *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.telefono_socio}
-                    onChange={(e) =>
-                      setFormData({ ...formData, telefono_socio: e.target.value })
-                    }
-                    placeholder="+56987654321"
-                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
-                  />
-                </div>
-
-                {!editMode ? (
+              <form onSubmit={handleSubmitSocio} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-[#292b2a] mb-1">
-                      Fecha de Nacimiento *
+                      RUT del Socio *
                     </label>
                     <input
-                      type="date"
+                      type="text"
                       required
-                      value={formData.fecha_nacimiento_socio}
+                      disabled={editMode}
+                      value={formData.rut_socio}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          fecha_nacimiento_socio: e.target.value,
-                        })
+                        setFormData({ ...formData, rut_socio: e.target.value })
                       }
-                      className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
+                      placeholder="Ej: 19.456.789-0"
+                      className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] disabled:opacity-60 focus:outline-none focus:border-[#ff6105] focus:bg-white"
                     />
                   </div>
-                ) : (
+
                   <div>
                     <label className="block text-xs font-medium text-[#292b2a] mb-1">
-                      Estado del Socio
+                      Sede Asignada *
                     </label>
                     <select
-                      value={formData.activo_socio ? "true" : "false"}
+                      required
+                      value={formData.id_sede_registro_socio}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          activo_socio: e.target.value === "true",
+                          id_sede_registro_socio: Number(e.target.value),
                         })
                       }
                       className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
                     >
-                      <option value="true">Activo</option>
-                      <option value="false">Inactivo</option>
+                      {sedes.map((s) => (
+                        <option key={s.id_sede} value={s.id_sede}>
+                          {s.nombre_sede} {s.nombre_ciudad ? `(${s.nombre_ciudad})` : ""}
+                        </option>
+                      ))}
                     </select>
                   </div>
-                )}
-              </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#e5e5e5]">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-full text-xs font-medium bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2 rounded-full text-xs font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {submitting
-                    ? "Guardando..."
-                    : editMode
-                    ? "Guardar Cambios"
-                    : "Registrar Socio"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                      Nombre Completo *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.nombre_completo_socio}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          nombre_completo_socio: e.target.value,
+                        })
+                      }
+                      placeholder="Ej: Valentina Soto Muñoz"
+                      className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
+                    />
+                  </div>
 
-      {/* Modal Asignar Credenciales */}
-      {credModalOpen && credSocio && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-[#e5e5e5] rounded-[5px] max-w-md w-full p-6 sm:p-8 space-y-5 shadow-xl animate-fade-in-scale">
-            <div className="flex items-start justify-between gap-4 border-b border-[#e5e5e5] pb-4">
-              <div>
-                <p className="text-[11px] uppercase tracking-wider text-[#ff6105] font-medium">
-                  Credenciales de Acceso
-                </p>
-                <h3 className="text-xl font-medium text-[#0a0a0a] mt-0.5">
-                  Configurar Cuenta de Socio
-                </h3>
-                <p className="text-xs text-[#7a7b7b] mt-0.5">
-                  {credSocio.nombre_completo_socio ?? credSocio.nombre_completo} (
-                  {credSocio.rut_socio ?? credSocio.rut})
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCredModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-[#f3f4f3] hover:bg-[#e5e7eb] flex items-center justify-center text-[#292b2a] cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                      Correo Electrónico *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.correo_socio}
+                      onChange={(e) =>
+                        setFormData({ ...formData, correo_socio: e.target.value })
+                      }
+                      placeholder="socio@gimnasiodb.cl"
+                      className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                      Teléfono *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.telefono_socio}
+                      onChange={(e) =>
+                        setFormData({ ...formData, telefono_socio: e.target.value })
+                      }
+                      placeholder="+56 9 8765 4321"
+                      className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
+                    />
+                  </div>
+
+                  {!editMode ? (
+                    <div>
+                      <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                        Fecha de Nacimiento *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={formData.fecha_nacimiento_socio}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            fecha_nacimiento_socio: e.target.value,
+                          })
+                        }
+                        className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                        Estado del Socio
+                      </label>
+                      <select
+                        value={formData.activo_socio ? "true" : "false"}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            activo_socio: e.target.value === "true",
+                          })
+                        }
+                        className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
+                      >
+                        <option value="true">Activo</option>
+                        <option value="false">Inactivo</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#e5e5e5]">
+                  <button
+                    type="button"
+                    onClick={() => setModalOpen(false)}
+                    className="px-4 py-2 rounded-full text-xs font-medium bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-5 py-2 rounded-full text-xs font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {submitting
+                      ? "Guardando..."
+                      : editMode
+                      ? "Guardar Cambios"
+                      : "Registrar Socio"}
+                  </button>
+                </div>
+              </form>
             </div>
+          </div>,
+          document.body
+        )}
 
-            <form onSubmit={handleSubmitCredenciales} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-[#292b2a] mb-1">
-                  Nombre de Usuario (Login) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  minLength={3}
-                  value={credUsername}
-                  onChange={(e) => setCredUsername(e.target.value)}
-                  placeholder="Ej: socio1"
-                  className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-[#292b2a] mb-1">
-                  Contraseña *
-                </label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={credPassword}
-                  onChange={(e) => setCredPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
-                />
-                <p className="text-[11px] text-[#7a7b7b] mt-1.5">
-                  La contraseña se almacena cifrada de forma segura en la base de datos.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#e5e5e5]">
+      {/* Modal Asignar Credenciales (Montado en document.body vía Portal) */}
+      {mounted &&
+        credModalOpen &&
+        credSocio &&
+        createPortal(
+          <div
+            onClick={() => setCredModalOpen(false)}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white border border-[#e5e5e5] rounded-[5px] max-w-md w-full p-6 sm:p-8 space-y-5 shadow-xl my-auto"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-[#e5e5e5] pb-4">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-[#ff6105] font-medium">
+                    Credenciales de Acceso
+                  </p>
+                  <h3 className="text-xl font-medium text-[#0a0a0a] mt-0.5">
+                    Configurar Cuenta de Socio
+                  </h3>
+                  <p className="text-xs text-[#7a7b7b] mt-0.5">
+                    {credSocio.nombre_completo_socio ?? credSocio.nombre_completo} (
+                    {credSocio.rut_socio ?? credSocio.rut})
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setCredModalOpen(false)}
-                  className="px-4 py-2 rounded-full text-xs font-medium bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-[#f3f4f3] hover:bg-[#e5e7eb] flex items-center justify-center text-[#292b2a] cursor-pointer"
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={credSubmitting}
-                  className="px-5 py-2 rounded-full text-xs font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {credSubmitting ? "Guardando..." : "Guardar Credenciales"}
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+
+              {credError && (
+                <div className="p-3 rounded-[5px] bg-[#fef2f2] border border-[#fecaca] text-[#dc2626] text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{credError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmitCredenciales} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                    Nombre de Usuario (Login) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    minLength={3}
+                    value={credUsername}
+                    onChange={(e) => setCredUsername(e.target.value)}
+                    placeholder="Ej: socio1"
+                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                    Contraseña *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={credPassword}
+                    onChange={(e) => setCredPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
+                  />
+                  <p className="text-[11px] text-[#7a7b7b] mt-1.5">
+                    La contraseña se almacena cifrada de forma segura en la base de datos.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#e5e5e5]">
+                  <button
+                    type="button"
+                    onClick={() => setCredModalOpen(false)}
+                    className="px-4 py-2 rounded-full text-xs font-medium bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={credSubmitting}
+                    className="px-5 py-2 rounded-full text-xs font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {credSubmitting ? "Guardando..." : "Guardar Credenciales"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
+  );
+}
+
+export default function SociosGestionPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-12 text-center text-sm text-[#7a7b7b]">
+          Cargando directorio de socios...
+        </div>
+      }
+    >
+      <SociosGestionContent />
+    </Suspense>
   );
 }

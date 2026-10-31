@@ -22,7 +22,6 @@ interface SedeCatalogoItem {
   direccion_calle_sede?: string;
   telefono_sede?: string;
   nombre_ciudad?: string;
-  nombre_region?: string;
 }
 
 export default function SedesReportesPage() {
@@ -60,7 +59,7 @@ export default function SedesReportesPage() {
         nombre_sede: string;
         vigentes: number;
         vencidos: number;
-        sinContrato: number;
+        cancelados: number;
         total: number;
       }
     > = {};
@@ -70,7 +69,7 @@ export default function SedesReportesPage() {
         nombre_sede: c.nombre_sede,
         vigentes: 0,
         vencidos: 0,
-        sinContrato: 0,
+        cancelados: 0,
         total: 0,
       };
     });
@@ -82,7 +81,7 @@ export default function SedesReportesPage() {
           nombre_sede: nombre,
           vigentes: 0,
           vencidos: 0,
-          sinContrato: 0,
+          cancelados: 0,
           total: 0,
         };
       }
@@ -90,10 +89,10 @@ export default function SedesReportesPage() {
       const est = (item.estado_contrato || "").toLowerCase();
       if (est.includes("vigente")) {
         mapa[nombre].vigentes += cant;
-      } else if (est.includes("vencido") || est.includes("cancelado")) {
-        mapa[nombre].vencidos += cant;
+      } else if (est.includes("cancelado")) {
+        mapa[nombre].cancelados += cant;
       } else {
-        mapa[nombre].sinContrato += cant;
+        mapa[nombre].vencidos += cant;
       }
       mapa[nombre].total += cant;
     });
@@ -102,10 +101,10 @@ export default function SedesReportesPage() {
   }, [catalogo, reporte]);
 
   const totales = useMemo(() => {
-    const totalSocios = resumenPorSede.reduce((acc, r) => acc + r.total, 0);
+    const totalContratos = resumenPorSede.reduce((acc, r) => acc + r.total, 0);
     const totalVigentes = resumenPorSede.reduce((acc, r) => acc + r.vigentes, 0);
-    const totalOtros = totalSocios - totalVigentes;
-    return { totalSocios, totalVigentes, totalOtros };
+    const totalNoVigentes = totalContratos - totalVigentes;
+    return { totalContratos, totalVigentes, totalNoVigentes };
   }, [resumenPorSede]);
 
   return (
@@ -154,11 +153,13 @@ export default function SedesReportesPage() {
         <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 transition-all hover:border-[#ff6105]/30">
           <div className="flex items-center justify-between">
             <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
-              Registros Evaluados
+              Contratos Evaluados
             </p>
             <Users className="w-4 h-4 text-[#ff6105]" />
           </div>
-          <p className="text-3xl font-light text-[#0a0a0a] mt-2">{totales.totalSocios}</p>
+          <p className="text-3xl font-light text-[#0a0a0a] mt-2">
+            {totales.totalContratos}
+          </p>
           <p className="text-xs text-[#7a7b7b] mt-1">Total consolidado por sede</p>
         </div>
 
@@ -178,12 +179,12 @@ export default function SedesReportesPage() {
         <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 transition-all hover:border-rose-500/30">
           <div className="flex items-center justify-between">
             <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
-              Vencidos o Sin Plan
+              Vencidos o Cancelados
             </p>
             <UserX className="w-4 h-4 text-rose-600" />
           </div>
           <p className="text-3xl font-light text-rose-600 mt-2">
-            {totales.totalOtros}
+            {totales.totalNoVigentes}
           </p>
           <p className="text-xs text-[#7a7b7b] mt-1">Pendientes de renovación</p>
         </div>
@@ -219,7 +220,7 @@ export default function SedesReportesPage() {
                     Directorio de Sucursales
                   </h2>
                   <p className="text-xs text-[#7a7b7b]">
-                    Información de ubicación, ciudad, región y teléfono de contacto por sede
+                    Información de ubicación, ciudad y teléfono de contacto por sede
                   </p>
                 </div>
               </div>
@@ -236,27 +237,26 @@ export default function SedesReportesPage() {
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#ffdfcd] text-[#0a0a0a] border border-[#ff6105]/20">
+                      <span className="whitespace-nowrap text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#ffdfcd] text-[#0a0a0a] border border-[#ff6105]/20">
                         Sede #{sede.id_sede}
                       </span>
-                      <span className="text-[11px] text-[#7a7b7b]">
-                        {sede.nombre_region}
-                      </span>
+                      {sede.nombre_ciudad && (
+                        <span className="whitespace-nowrap text-[11px] px-2.5 py-0.5 rounded-full bg-white text-[#7a7b7b] border border-[#e5e5e5]">
+                          {sede.nombre_ciudad}
+                        </span>
+                      )}
                     </div>
 
                     <div>
                       <h3 className="text-base font-medium text-[#0a0a0a]">
                         {sede.nombre_sede}
                       </h3>
-                      <p className="text-xs text-[#7a7b7b] mt-0.5">
-                        {sede.nombre_ciudad}
-                      </p>
                     </div>
 
                     <div className="space-y-1.5 pt-2 border-t border-[#e5e5e5] text-xs text-[#292b2a]">
                       <div className="flex items-center gap-2">
                         <MapPin className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
-                        <span className="truncate">{sede.direccion_calle_sede}</span>
+                        <span>{sede.direccion_calle_sede || "Dirección no registrada"}</span>
                       </div>
                       <div className="flex items-center gap-2 text-[#7a7b7b]">
                         <Phone className="w-3.5 h-3.5 shrink-0" />
@@ -266,10 +266,10 @@ export default function SedesReportesPage() {
                   </div>
 
                   <Link
-                    href="/socios"
+                    href={`/socios?id_sede=${sede.id_sede}`}
                     className="inline-flex items-center justify-between text-xs font-medium text-[#292b2a] hover:text-[#ff6105] pt-2 border-t border-[#e5e5e5] transition-colors"
                   >
-                    <span>Ver socios de la sede</span>
+                    <span>Ver socios de esta sede</span>
                     <ArrowUpRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
@@ -286,10 +286,10 @@ export default function SedesReportesPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-medium text-[#0a0a0a]">
-                    Distribución de Socios y Estado de Membresía por Sede
+                    Distribución de Membresías por Sede
                   </h2>
                   <p className="text-xs text-[#7a7b7b]">
-                    Comparativa consolidada de contratos vigentes, vencidos y sin contrato
+                    Comparativa consolidada de contratos vigentes, vencidos y cancelados
                   </p>
                 </div>
               </div>
@@ -302,12 +302,22 @@ export default function SedesReportesPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-[#f8f9f8] border-b border-[#e5e5e5] text-[11px] uppercase tracking-wider text-[#7a7b7b]">
-                    <th className="py-3.5 px-5 font-medium">Sucursal</th>
-                    <th className="py-3.5 px-4 font-medium text-center">Total Registros</th>
-                    <th className="py-3.5 px-4 font-medium text-center">Vigentes</th>
-                    <th className="py-3.5 px-4 font-medium text-center">Vencidos</th>
-                    <th className="py-3.5 px-4 font-medium text-center">Sin Contrato</th>
-                    <th className="py-3.5 px-5 font-medium">Cobertura Vigente</th>
+                    <th className="py-3.5 px-5 font-medium whitespace-nowrap">Sucursal</th>
+                    <th className="py-3.5 px-4 font-medium text-center whitespace-nowrap">
+                      Total Contratos
+                    </th>
+                    <th className="py-3.5 px-4 font-medium text-center whitespace-nowrap">
+                      Vigentes
+                    </th>
+                    <th className="py-3.5 px-4 font-medium text-center whitespace-nowrap">
+                      Vencidos
+                    </th>
+                    <th className="py-3.5 px-4 font-medium text-center whitespace-nowrap">
+                      Cancelados
+                    </th>
+                    <th className="py-3.5 px-5 font-medium whitespace-nowrap">
+                      Cobertura Vigente
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e5e5e5] text-sm">
@@ -320,7 +330,7 @@ export default function SedesReportesPage() {
                         key={r.nombre_sede}
                         className="hover:bg-[#f8f9f8]/80 transition-colors"
                       >
-                        <td className="py-3.5 px-5 font-medium text-[#0a0a0a]">
+                        <td className="py-3.5 px-5 font-medium text-[#0a0a0a] whitespace-nowrap">
                           {r.nombre_sede}
                         </td>
 
@@ -342,7 +352,7 @@ export default function SedesReportesPage() {
 
                         <td className="py-3.5 px-4 text-center">
                           <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5]">
-                            {r.sinContrato}
+                            {r.cancelados}
                           </span>
                         </td>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import apiClient, { LoginResult, Socio } from "@/services/apiClient";
 import {
@@ -20,24 +20,39 @@ import {
 
 const STORAGE_KEY = "gimnasio_sesion_usuario";
 
-const CUENTAS_PRUEBA = [
+interface CuentaDemo {
+  idSocio: number;
+  user: string;
+  pass: string;
+  rol: string;
+  nombre: string;
+  sede: string;
+}
+
+const INITIAL_CUENTAS_PRUEBA: CuentaDemo[] = [
   {
+    idSocio: 1,
     user: "socio1",
     pass: "Clave#socio1",
     rol: "Socio",
-    detalle: "Fernanda Díaz Morales · Sede Santiago Centro",
+    nombre: "Daniel Matus",
+    sede: "Sede Antofagasta Sur",
   },
   {
+    idSocio: 2,
     user: "socio2",
     pass: "Clave#socio2",
     rol: "Socio",
-    detalle: "Yulissa Ulloa · Sede Providencia",
+    nombre: "Emilia Osorio",
+    sede: "Sede La Serena Centro",
   },
   {
-    user: "socio13",
-    pass: "Clave#socio13",
+    idSocio: 3,
+    user: "socio3",
+    pass: "Clave#socio3",
     rol: "Socio",
-    detalle: "Valentina Rojas · Contrato Vigente",
+    nombre: "Yulissa Ulloa",
+    sede: "Sede Antofagasta Sur",
   },
 ];
 
@@ -51,20 +66,16 @@ export default function LoginPerfilPage() {
   const [fichaSocio, setFichaSocio] = useState<Socio | null>(null);
   const [loadingFicha, setLoadingFicha] = useState<boolean>(false);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as LoginResult;
-        setSesion(parsed);
-        if (parsed.id_socio) {
-          cargarFichaSocio(parsed.id_socio);
-        }
-      }
-    } catch {
-      // Ignorar errores de lectura de localStorage
-    }
-  }, []);
+  const [sedes, setSedes] = useState<Array<{ id_sede: number; nombre_sede: string }>>([]);
+  const [cuentasDemo, setCuentasDemo] = useState<CuentaDemo[]>(INITIAL_CUENTAS_PRUEBA);
+
+  const sedesMap = useMemo(() => {
+    const m: Record<number, string> = {};
+    sedes.forEach((s) => {
+      m[s.id_sede] = s.nombre_sede;
+    });
+    return m;
+  }, [sedes]);
 
   const cargarFichaSocio = async (idSocio: number) => {
     setLoadingFicha(true);
@@ -77,6 +88,65 @@ export default function LoginPerfilPage() {
       setLoadingFicha(false);
     }
   };
+
+  // Cargar catálogo de sedes y sincronizar nombres reales de cuentas rápidas
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      try {
+        const [sedesRes, ...sociosDemoRes] = await Promise.allSettled([
+          apiClient.socios.getSedesCatalogo(),
+          ...INITIAL_CUENTAS_PRUEBA.map((c) => apiClient.socios.getById(c.idSocio)),
+        ]);
+
+        if (cancelado) return;
+
+        const mapaLocal: Record<number, string> = {};
+        if (sedesRes.status === "fulfilled" && Array.isArray(sedesRes.value)) {
+          setSedes(sedesRes.value);
+          sedesRes.value.forEach((s: any) => {
+            mapaLocal[s.id_sede] = s.nombre_sede;
+          });
+        }
+
+        setCuentasDemo((prev) =>
+          prev.map((c, idx) => {
+            const r = sociosDemoRes[idx];
+            if (r && r.status === "fulfilled" && r.value) {
+              const s = r.value as Socio;
+              const idSede = s.id_sede_registro_socio ?? s.id_sede_registro ?? 1;
+              return {
+                ...c,
+                nombre:
+                  s.nombre_completo_socio ?? s.nombre_completo ?? c.nombre,
+                sede: mapaLocal[idSede] || c.sede,
+              };
+            }
+            return c;
+          })
+        );
+      } catch {
+        // Conservar valores por defecto verificados
+      }
+    })();
+
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as LoginResult;
+        setSesion(parsed);
+        if (parsed.id_socio) {
+          cargarFichaSocio(parsed.id_socio);
+        }
+      }
+    } catch {
+      // Ignorar errores de lectura de localStorage
+    }
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   const ejecutarLogin = async (u: string, p: string) => {
     setLoading(true);
@@ -121,6 +191,10 @@ export default function LoginPerfilPage() {
     sesion?.nombre_completo_socio ??
     sesion?.username_usuario ??
     "Socio";
+
+  const idSedeSocio =
+    fichaSocio?.id_sede_registro_socio ?? fichaSocio?.id_sede_registro ?? 1;
+  const nombreSedeSocio = sedesMap[idSedeSocio] || `Sede #${idSedeSocio}`;
 
   return (
     <div className="space-y-8">
@@ -185,7 +259,7 @@ export default function LoginPerfilPage() {
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Ej: socio1 o correo@gimnasiodb.cl"
+                    placeholder="Ej: socio1 o daniel.matus@alumnos.cl"
                     className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-full pl-10 pr-4 py-2.5 text-sm text-[#0a0a0a] placeholder-[#7a7b7b] focus:outline-none focus:border-[#ff6105] focus:bg-white transition-colors"
                   />
                 </div>
@@ -228,7 +302,7 @@ export default function LoginPerfilPage() {
             </form>
           </div>
 
-          {/* Cuentas de Prueba Rápida */}
+          {/* Cuentas de Prueba Rápida sincronizadas con la BD */}
           <div className="lg:col-span-6 bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 space-y-5">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-full bg-[#ffdfcd] text-[#ff6105] flex items-center justify-center shrink-0">
@@ -239,24 +313,25 @@ export default function LoginPerfilPage() {
                   Cuentas de Acceso Rápido
                 </h3>
                 <p className="text-xs text-[#7a7b7b]">
-                  Selecciona una cuenta de demostración para iniciar sesión con un clic
+                  Selecciona una cuenta activa de demostración para ingresar con un clic
                 </p>
               </div>
             </div>
 
             <div className="space-y-2.5">
-              {CUENTAS_PRUEBA.map((cta) => (
+              {cuentasDemo.map((cta) => (
                 <button
                   key={cta.user}
                   type="button"
+                  disabled={loading}
                   onClick={() => {
                     setUsername(cta.user);
                     setPassword(cta.pass);
                     ejecutarLogin(cta.user, cta.pass);
                   }}
-                  className="w-full flex items-center justify-between p-4 rounded-[5px] bg-[#f8f9f8] hover:bg-[#f3f4f3] border border-[#e5e5e5] hover:border-[#ff6105]/40 transition-all text-left cursor-pointer group"
+                  className="w-full flex items-center justify-between gap-3 p-4 rounded-[5px] bg-[#f8f9f8] hover:bg-[#f3f4f3] border border-[#e5e5e5] hover:border-[#ff6105]/40 transition-all text-left cursor-pointer group disabled:opacity-60"
                 >
-                  <div className="space-y-0.5">
+                  <div className="space-y-0.5 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs font-semibold text-[#0a0a0a]">
                         @{cta.user}
@@ -265,9 +340,11 @@ export default function LoginPerfilPage() {
                         {cta.rol}
                       </span>
                     </div>
-                    <p className="text-xs text-[#7a7b7b]">{cta.detalle}</p>
+                    <p className="text-xs text-[#7a7b7b] truncate">
+                      {cta.nombre} · {cta.sede}
+                    </p>
                   </div>
-                  <span className="text-xs font-medium text-[#ff6105] inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                  <span className="text-xs font-medium text-[#ff6105] inline-flex items-center gap-1 shrink-0 group-hover:translate-x-0.5 transition-transform">
                     <span>Entrar</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </span>
@@ -312,7 +389,7 @@ export default function LoginPerfilPage() {
             </div>
 
             {fichaSocio?.rut_socio && (
-              <span className="font-mono text-xs px-3.5 py-1.5 rounded-full bg-[#f8f9f8] border border-[#e5e5e5] text-[#292b2a] self-start sm:self-auto">
+              <span className="whitespace-nowrap font-mono text-xs px-3.5 py-1.5 rounded-full bg-[#f8f9f8] border border-[#e5e5e5] text-[#292b2a] self-start sm:self-auto">
                 RUT {fichaSocio.rut_socio}
               </span>
             )}
@@ -330,9 +407,9 @@ export default function LoginPerfilPage() {
                   <span className="text-[10px] uppercase tracking-wider font-medium">
                     Correo Electrónico
                   </span>
-                  <Mail className="w-3.5 h-3.5 text-[#ff6105]" />
+                  <Mail className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                 </div>
-                <p className="text-xs font-medium text-[#0a0a0a] truncate">
+                <p className="text-xs font-medium text-[#0a0a0a] break-all">
                   {fichaSocio.correo_socio ?? fichaSocio.correo ?? "—"}
                 </p>
               </div>
@@ -342,7 +419,7 @@ export default function LoginPerfilPage() {
                   <span className="text-[10px] uppercase tracking-wider font-medium">
                     Teléfono
                   </span>
-                  <Phone className="w-3.5 h-3.5 text-[#ff6105]" />
+                  <Phone className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                 </div>
                 <p className="text-xs font-medium text-[#0a0a0a]">
                   {fichaSocio.telefono_socio ?? fichaSocio.telefono ?? "No registrado"}
@@ -354,7 +431,7 @@ export default function LoginPerfilPage() {
                   <span className="text-[10px] uppercase tracking-wider font-medium">
                     Fecha de Nacimiento
                   </span>
-                  <Calendar className="w-3.5 h-3.5 text-[#ff6105]" />
+                  <Calendar className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                 </div>
                 <p className="text-xs font-medium text-[#0a0a0a]">
                   {fichaSocio.fecha_nacimiento_socio
@@ -368,10 +445,10 @@ export default function LoginPerfilPage() {
                   <span className="text-[10px] uppercase tracking-wider font-medium">
                     Sede Asignada
                   </span>
-                  <MapPin className="w-3.5 h-3.5 text-[#ff6105]" />
+                  <MapPin className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                 </div>
-                <p className="text-xs font-medium text-[#0a0a0a] truncate">
-                  Sede #{fichaSocio.id_sede_registro_socio ?? fichaSocio.id_sede_registro ?? 1}
+                <p className="text-xs font-medium text-[#0a0a0a] leading-snug">
+                  {nombreSedeSocio}
                 </p>
               </div>
             </div>

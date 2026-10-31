@@ -24,13 +24,69 @@ interface HistorialIngreso extends ControlAccesoResult {
   identificador_consultado: string;
 }
 
-const PRESETS = [
-  { label: "Socio #13 (Vigente)", val: "13", badge: "Autorizado" },
-  { label: "RUT 18.900.013-K", val: "18.900.013-K", badge: "Autorizado" },
-  { label: "Socio #1 (Vencido)", val: "1", badge: "Denegado" },
-  { label: "Socio #2 (Sin contrato)", val: "2", badge: "Denegado" },
-  { label: "Socio #5 (Inactivo)", val: "5", badge: "Denegado" },
+interface PresetAcceso {
+  val: string;
+  titulo: string;
+  subtitulo: string;
+  autorizado: boolean | null; // null mientras sincroniza en vivo
+}
+
+const INITIAL_PRESETS: PresetAcceso[] = [
+  {
+    val: "1",
+    titulo: "Daniel Matus",
+    subtitulo: "RUT 18.765.432-K · Membresía vigente",
+    autorizado: true,
+  },
+  {
+    val: "2",
+    titulo: "Emilia Osorio",
+    subtitulo: "RUT 19.123.456-7 · Membresía vigente",
+    autorizado: true,
+  },
+  {
+    val: "15",
+    titulo: "Antonia Contreras Herrera",
+    subtitulo: "RUT 13.108.521-2 · Sin contrato vigente",
+    autorizado: false,
+  },
+  {
+    val: "13",
+    titulo: "Catalina López Reyes",
+    subtitulo: "RUT 12.988.962-0 · Cuenta inactiva",
+    autorizado: false,
+  },
+  {
+    val: "99.999.999-9",
+    titulo: "RUT 99.999.999-9",
+    subtitulo: "Identificador no registrado en padrón",
+    autorizado: false,
+  },
 ];
+
+function resumenCortoDesdeResultado(res: ControlAccesoResult, val: string): PresetAcceso {
+  if (!res.id_socio) {
+    return {
+      val,
+      titulo: `RUT ${val}`,
+      subtitulo: "Identificador no registrado en padrón",
+      autorizado: false,
+    };
+  }
+  const rutTxt = res.rut_socio ? `RUT ${res.rut_socio}` : `Socio #${res.id_socio}`;
+  let estadoTxt = "Membresía vigente";
+  if (!res.acceso_permitido) {
+    estadoTxt = res.activo_socio === false ? "Cuenta inactiva" : "Sin contrato vigente";
+  } else if (res.nombre_plan) {
+    estadoTxt = res.nombre_plan;
+  }
+  return {
+    val,
+    titulo: res.nombre_completo_socio || `Socio #${res.id_socio}`,
+    subtitulo: `${rutTxt} · ${estadoTxt}`,
+    autorizado: res.acceso_permitido,
+  };
+}
 
 function TorniqueteContent() {
   const searchParams = useSearchParams();
@@ -41,6 +97,30 @@ function TorniqueteContent() {
   const [resultado, setResultado] = useState<ControlAccesoResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [historial, setHistorial] = useState<HistorialIngreso[]>([]);
+  const [presets, setPresets] = useState<PresetAcceso[]>(INITIAL_PRESETS);
+
+  // Sincronizar en vivo los perfiles de prueba con la base de datos real al montar
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      const checks = await Promise.allSettled(
+        INITIAL_PRESETS.map((p) => apiClient.socios.validarAcceso(p.val))
+      );
+      if (cancelado) return;
+      setPresets((prev) =>
+        prev.map((item, idx) => {
+          const r = checks[idx];
+          if (r.status === "fulfilled" && r.value) {
+            return resumenCortoDesdeResultado(r.value, item.val);
+          }
+          return item;
+        })
+      );
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   const validarAcceso = useCallback(async (valor: string) => {
     const clean = valor.trim();
@@ -50,6 +130,16 @@ function TorniqueteContent() {
     try {
       const data: ControlAccesoResult = await apiClient.socios.validarAcceso(clean);
       setResultado(data);
+
+      // Si el identificador corresponde a un perfil rápido, mantener su insignia sincronizada
+      setPresets((prev) =>
+        prev.map((p) =>
+          p.val === clean || (data.rut_socio && p.val === data.rut_socio)
+            ? resumenCortoDesdeResultado(data, p.val)
+            : p
+        )
+      );
+
       const nuevoRegistro: HistorialIngreso = {
         ...data,
         identificador_consultado: clean,
@@ -116,7 +206,7 @@ function TorniqueteContent() {
               Terminal de Lectura
             </h2>
             <p className="text-xs text-[#7a7b7b]">
-              Ingresa el RUT (con o sin guión) o el número de socio para validar su pase.
+              Ingresa el RUT (con guión) o el número de socio para validar su pase.
             </p>
           </div>
 
@@ -131,7 +221,7 @@ function TorniqueteContent() {
                   type="text"
                   value={identificador}
                   onChange={(e) => setIdentificador(e.target.value)}
-                  placeholder="Ej: 18.900.013-K o 13"
+                  placeholder="Ej: 18.765.432-K o 1"
                   className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-full pl-10 pr-4 py-2.5 text-sm font-mono text-[#0a0a0a] placeholder-[#7a7b7b] focus:outline-none focus:border-[#ff6105] focus:bg-white transition-colors"
                 />
               </div>
@@ -156,13 +246,16 @@ function TorniqueteContent() {
             </button>
           </form>
 
-          {/* Accesos rápidos de prueba */}
+          {/* Accesos rápidos de prueba sincronizados con SQL Server */}
           <div className="pt-5 border-t border-[#e5e5e5] space-y-3">
-            <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
-              Perfiles de Prueba Rápida
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
+                Perfiles de Prueba en Vivo
+              </p>
+              <span className="text-[10px] text-[#7a7b7b]">Clic para escanear</span>
+            </div>
             <div className="grid grid-cols-1 gap-2">
-              {PRESETS.map((p) => (
+              {presets.map((p) => (
                 <button
                   key={p.val}
                   type="button"
@@ -170,17 +263,20 @@ function TorniqueteContent() {
                     setIdentificador(p.val);
                     validarAcceso(p.val);
                   }}
-                  className="flex items-center justify-between px-3.5 py-2 rounded-[5px] bg-[#f8f9f8] hover:bg-[#f3f4f3] border border-[#e5e5e5] hover:border-[#ff6105]/40 text-xs transition-all cursor-pointer text-left"
+                  className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-[5px] bg-[#f8f9f8] hover:bg-[#f3f4f3] border border-[#e5e5e5] hover:border-[#ff6105]/40 text-xs transition-all cursor-pointer text-left"
                 >
-                  <span className="font-medium text-[#0a0a0a]">{p.label}</span>
+                  <div className="min-w-0">
+                    <p className="font-medium text-[#0a0a0a] truncate">{p.titulo}</p>
+                    <p className="text-[11px] text-[#7a7b7b] truncate">{p.subtitulo}</p>
+                  </div>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                      p.badge === "Autorizado"
+                    className={`shrink-0 whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                      p.autorizado
                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                         : "bg-rose-50 text-rose-700 border-rose-200"
                     }`}
                   >
-                    {p.badge}
+                    {p.autorizado ? "Autorizado" : "Denegado"}
                   </span>
                 </button>
               ))}
@@ -212,10 +308,10 @@ function TorniqueteContent() {
             </div>
           ) : resultado ? (
             <div
-              className={`rounded-[5px] border p-6 sm:p-8 transition-all animate-fade-in-scale ${
+              className={`bg-white border border-[#e5e5e5] border-t-2 rounded-[5px] p-6 sm:p-8 transition-all animate-fade-in-scale ${
                 resultado.acceso_permitido
-                  ? "bg-white border-emerald-300 shadow-xs"
-                  : "bg-white border-rose-300 shadow-xs"
+                  ? "border-t-emerald-500"
+                  : "border-t-rose-500"
               }`}
             >
               {/* Encabezado de Estado */}
@@ -251,7 +347,7 @@ function TorniqueteContent() {
                 </div>
 
                 {resultado.rut_socio && (
-                  <span className="font-mono text-xs px-3 py-1.5 rounded-full bg-[#f8f9f8] border border-[#e5e5e5] text-[#292b2a] self-start sm:self-auto">
+                  <span className="whitespace-nowrap font-mono text-xs px-3 py-1.5 rounded-full bg-[#f8f9f8] border border-[#e5e5e5] text-[#292b2a] self-start sm:self-auto">
                     RUT {resultado.rut_socio}
                   </span>
                 )}
@@ -273,52 +369,52 @@ function TorniqueteContent() {
                 <span>{resultado.motivo}</span>
               </div>
 
-              {/* Ficha Resumen del Socio */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
-                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-3.5">
+              {/* Ficha Resumen del Socio (Grilla 2x2 espaciosa sin truncado) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-5">
+                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-4">
                   <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
                     <span className="text-[10px] uppercase tracking-wider font-medium">
                       Sede Base
                     </span>
-                    <MapPin className="w-3.5 h-3.5 text-[#ff6105]" />
+                    <MapPin className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                   </div>
-                  <p className="text-xs font-medium text-[#0a0a0a] truncate">
-                    {resultado.sede_registro || "—"}
+                  <p className="text-sm font-medium text-[#0a0a0a] leading-snug">
+                    {resultado.sede_registro || "No asignada"}
                   </p>
                 </div>
 
-                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-3.5">
+                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-4">
                   <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
                     <span className="text-[10px] uppercase tracking-wider font-medium">
                       Plan Activo
                     </span>
-                    <CreditCard className="w-3.5 h-3.5 text-[#ff6105]" />
+                    <CreditCard className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                   </div>
-                  <p className="text-xs font-medium text-[#0a0a0a] truncate">
-                    {resultado.nombre_plan || "Sin plan"}
+                  <p className="text-sm font-medium text-[#0a0a0a] leading-snug">
+                    {resultado.nombre_plan || "Sin plan vigente"}
                   </p>
                 </div>
 
-                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-3.5">
+                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-4">
                   <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
                     <span className="text-[10px] uppercase tracking-wider font-medium">
-                      Contrato
+                      Estado de Membresía
                     </span>
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#ff6105]" />
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                   </div>
-                  <p className="text-xs font-medium text-[#0a0a0a]">
-                    {resultado.contrato_vigente ? "Vigente" : "Sin vigencia"}
+                  <p className="text-sm font-medium text-[#0a0a0a] leading-snug">
+                    {resultado.contrato_vigente ? "Contrato Vigente" : "Sin vigencia activa"}
                   </p>
                 </div>
 
-                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-3.5">
+                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-4">
                   <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
                     <span className="text-[10px] uppercase tracking-wider font-medium">
-                      Fecha Término
+                      Fecha de Término
                     </span>
-                    <Calendar className="w-3.5 h-3.5 text-[#ff6105]" />
+                    <Calendar className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                   </div>
-                  <p className="text-xs font-medium text-[#0a0a0a]">
+                  <p className="text-sm font-medium text-[#0a0a0a] leading-snug">
                     {resultado.fecha_termino_contrato || "—"}
                   </p>
                 </div>
@@ -349,22 +445,24 @@ function TorniqueteContent() {
                 {historial.map((item, idx) => (
                   <div
                     key={idx}
-                    className="px-6 py-3 flex items-center justify-between text-xs hover:bg-[#f8f9f8] transition-colors"
+                    className="px-6 py-3 flex items-center justify-between gap-4 text-xs hover:bg-[#f8f9f8] transition-colors"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <span
                         className={`w-2 h-2 rounded-full shrink-0 ${
                           item.acceso_permitido ? "bg-emerald-500" : "bg-rose-500"
                         }`}
                       />
-                      <div>
-                        <p className="font-medium text-[#0a0a0a]">
+                      <div className="min-w-0">
+                        <p className="font-medium text-[#0a0a0a] truncate">
                           {item.nombre_completo_socio || item.identificador_consultado}
                         </p>
-                        <p className="text-[11px] text-[#7a7b7b]">{item.motivo}</p>
+                        <p className="text-[11px] text-[#7a7b7b] truncate">
+                          {item.motivo}
+                        </p>
                       </div>
                     </div>
-                    <span className="font-mono text-[11px] text-[#7a7b7b]">
+                    <span className="font-mono text-[11px] text-[#7a7b7b] whitespace-nowrap shrink-0">
                       {item.hora}
                     </span>
                   </div>

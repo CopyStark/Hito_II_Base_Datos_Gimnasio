@@ -525,9 +525,9 @@ def autenticar_usuario(credentials: LoginRequest):
                     INNER JOIN Rol r ON u.id_rol_usuario = r.id_rol
                     LEFT JOIN Socio s ON u.id_socio_usuario = s.id_socio
                     WHERE (u.username_usuario = ? OR s.correo_socio = ?)
-                      AND u.password_hash_usuario = HASHBYTES('SHA2_512', ?)
+                      AND (u.password_hash_usuario = HASHBYTES('SHA2_512', ?) OR u.password_hash_usuario = HASHBYTES('SHA2_512', CAST(? AS VARCHAR(255))))
                 """
-                cursor.execute(login_query, (credentials.username_o_correo, credentials.username_o_correo, credentials.password))
+                cursor.execute(login_query, (credentials.username_o_correo, credentials.username_o_correo, credentials.password, credentials.password))
                 row = cursor.fetchone()
 
                 if not row:
