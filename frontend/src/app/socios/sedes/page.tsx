@@ -109,18 +109,18 @@ export default function SedesReportesPage() {
 
   return (
     <div className="space-y-8">
-      {/* Editorial Header */}
-      <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#7a7b7b] font-medium">
+      {/* Editorial Section Heading — DESIGN.md: Ghost Card 5px, weight 300 48px -0.030em, 2px #ff6105 rule */}
+      <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 text-[12px] text-[#7a7b7b] font-medium">
             <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
             <span>Infraestructura · Analítica por Sucursal</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-[#0a0a0a]">
-            Sedes y Distribución de Socios
+          <h1 className="text-[34px] sm:text-[48px] font-light leading-[1.15] tracking-[-0.03em] text-[#0a0a0a]">
+            Sedes y Distribución
           </h1>
-          <div className="w-20 h-[2px] bg-[#ff6105]" />
-          <p className="text-sm text-[#7a7b7b] max-w-xl pt-1">
+          <div className="w-[112px] h-[2px] bg-[#ff6105]" />
+          <p className="text-[15px] sm:text-[16px] font-normal leading-[1.56] tracking-[-0.01em] text-[#292b2a] max-w-xl pt-1">
             Consulta el directorio de sucursales operativas, ubicación geográfica y
             métricas consolidadas de afiliados según el estado de su membresía en cada sede.
           </p>
@@ -130,101 +130,95 @@ export default function SedesReportesPage() {
           type="button"
           onClick={cargarDatos}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs sm:text-sm font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-sm hover:shadow transition-all self-start sm:self-auto cursor-pointer active:scale-95 disabled:opacity-50"
+          className="btn-primary-pill inline-flex items-center gap-2 px-7 py-3.5 text-[15px] font-medium tracking-[-0.01em] self-start lg:self-auto shrink-0 cursor-pointer disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           <span>Actualizar Reportes</span>
         </button>
       </div>
 
-      {/* KPI Ghost Cards */}
+      {/* KPI Ghost Cards + 1 Featured Peach Card — DESIGN.md compliant (zero secondary hues, zero shadows) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 transition-all hover:border-[#ff6105]/30">
+        <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-5">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
-              Sedes Operativas
-            </p>
+            <p className="text-[12px] text-[#7a7b7b] font-normal">Sedes Operativas</p>
             <Building2 className="w-4 h-4 text-[#ff6105]" />
           </div>
-          <p className="text-3xl font-light text-[#0a0a0a] mt-2">{catalogo.length}</p>
-          <p className="text-xs text-[#7a7b7b] mt-1">Sucursales registradas</p>
+          <p className="text-[32px] font-light leading-[1.22] tracking-[-0.02em] text-[#0a0a0a] mt-2">
+            {catalogo.length}
+          </p>
+          <p className="text-[12px] text-[#7a7b7b] mt-1">Sucursales registradas</p>
         </div>
 
-        <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 transition-all hover:border-[#ff6105]/30">
+        <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-5">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
-              Contratos Evaluados
-            </p>
-            <Users className="w-4 h-4 text-[#ff6105]" />
+            <p className="text-[12px] text-[#7a7b7b] font-normal">Contratos Evaluados</p>
+            <Users className="w-4 h-4 text-[#292b2a]" />
           </div>
-          <p className="text-3xl font-light text-[#0a0a0a] mt-2">
+          <p className="text-[32px] font-light leading-[1.22] tracking-[-0.02em] text-[#0a0a0a] mt-2">
             {totales.totalContratos}
           </p>
-          <p className="text-xs text-[#7a7b7b] mt-1">Total consolidado por sede</p>
+          <p className="text-[12px] text-[#7a7b7b] mt-1">Total consolidado por sede</p>
         </div>
 
-        <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 transition-all hover:border-emerald-500/30">
+        <div className="bg-[#ffdfcd] border border-[#ffa069]/40 rounded-[5px] p-5">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
-              Membresías Vigentes
-            </p>
-            <UserCheck className="w-4 h-4 text-emerald-600" />
+            <p className="text-[12px] text-[#292b2a] font-medium">Membresías Vigentes</p>
+            <UserCheck className="w-4 h-4 text-[#ff6105]" />
           </div>
-          <p className="text-3xl font-light text-emerald-600 mt-2">
+          <p className="text-[32px] font-light leading-[1.22] tracking-[-0.02em] text-[#0a0a0a] mt-2">
             {totales.totalVigentes}
           </p>
-          <p className="text-xs text-[#7a7b7b] mt-1">Con pase activo de ingreso</p>
+          <p className="text-[12px] text-[#292b2a] mt-1">Con pase activo de ingreso</p>
         </div>
 
-        <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 transition-all hover:border-rose-500/30">
+        <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-5">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
-              Vencidos o Cancelados
-            </p>
-            <UserX className="w-4 h-4 text-rose-600" />
+            <p className="text-[12px] text-[#7a7b7b] font-normal">Vencidos o Cancelados</p>
+            <UserX className="w-4 h-4 text-[#7a7b7b]" />
           </div>
-          <p className="text-3xl font-light text-rose-600 mt-2">
+          <p className="text-[32px] font-light leading-[1.22] tracking-[-0.02em] text-[#0a0a0a] mt-2">
             {totales.totalNoVigentes}
           </p>
-          <p className="text-xs text-[#7a7b7b] mt-1">Pendientes de renovación</p>
+          <p className="text-[12px] text-[#7a7b7b] mt-1">Pendientes de renovación</p>
         </div>
       </div>
 
       {loading ? (
-        <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-12 text-center space-y-3">
-          <Loader2 className="w-7 h-7 text-[#ff6105] animate-spin mx-auto" />
-          <p className="text-sm text-[#7a7b7b]">Consultando sedes y métricas...</p>
+        <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-12 text-center space-y-3">
+          <Loader2 className="w-6 h-6 text-[#ff6105] animate-spin mx-auto" />
+          <p className="text-[14px] text-[#7a7b7b]">Consultando sedes y métricas...</p>
         </div>
       ) : errorMsg ? (
-        <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-10 text-center space-y-3">
-          <p className="text-sm text-[#dc2626] font-medium">{errorMsg}</p>
+        <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-10 text-center space-y-4">
+          <p className="text-[14px] text-[#0a0a0a] font-medium">{errorMsg}</p>
           <button
             type="button"
             onClick={cargarDatos}
-            className="px-4 py-2 rounded-full bg-[#ff6105] text-white text-xs font-medium cursor-pointer"
+            className="btn-primary-pill px-6 py-2.5 text-[14px] font-medium cursor-pointer"
           >
             Reintentar
           </button>
         </div>
       ) : (
         <>
-          {/* Catálogo de Sedes */}
-          <div className="bg-white border border-[#e5e5e5] rounded-[5px] overflow-hidden">
+          {/* Catálogo de Sedes — DESIGN.md Ghost Cards 5px, flat hairline border, zero shadow */}
+          <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] overflow-hidden">
             <div className="p-5 sm:p-6 border-b border-[#e5e5e5] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-[#ffdfcd] text-[#ff6105] flex items-center justify-center shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-[8px] bg-[#f3f4f3] border border-[#e5e5e5] text-[#ff6105] flex items-center justify-center shrink-0">
                   <Building2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-medium text-[#0a0a0a]">
+                  <h2 className="text-[20px] sm:text-[24px] font-medium leading-[1.33] tracking-[-0.02em] text-[#0a0a0a]">
                     Directorio de Sucursales
                   </h2>
-                  <p className="text-xs text-[#7a7b7b]">
+                  <p className="text-[13px] text-[#7a7b7b]">
                     Información de ubicación, ciudad y teléfono de contacto por sede
                   </p>
                 </div>
               </div>
-              <span className="text-xs px-3 py-1 rounded-full bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5] self-start sm:self-auto">
+              <span className="text-[12px] px-3 py-1 rounded-[8px] bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5] self-start sm:self-auto">
                 {catalogo.length} sucursales
               </span>
             </div>
@@ -233,27 +227,25 @@ export default function SedesReportesPage() {
               {catalogo.map((sede) => (
                 <div
                   key={sede.id_sede}
-                  className="bg-[#f8f9f8] border border-[#e5e5e5] hover:border-[#ff6105]/40 hover:bg-white hover:shadow-xs rounded-[5px] p-5 flex flex-col justify-between gap-4 transition-all duration-200"
+                  className="bg-[#f3f4f3] border border-[#dfe0df] hover:border-[#ff6105]/50 hover:bg-[#ffffff] rounded-[5px] p-5 flex flex-col justify-between gap-4 transition-colors duration-200"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="whitespace-nowrap text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#ffdfcd] text-[#0a0a0a] border border-[#ff6105]/20">
+                      <span className="whitespace-nowrap text-[12px] font-medium px-2.5 py-0.5 rounded-[8px] bg-[#ffffff] text-[#0a0a0a] border border-[#e5e5e5]">
                         Sede #{sede.id_sede}
                       </span>
                       {sede.nombre_ciudad && (
-                        <span className="whitespace-nowrap text-[11px] px-2.5 py-0.5 rounded-full bg-white text-[#7a7b7b] border border-[#e5e5e5]">
+                        <span className="whitespace-nowrap text-[12px] text-[#7a7b7b]">
                           {sede.nombre_ciudad}
                         </span>
                       )}
                     </div>
 
-                    <div>
-                      <h3 className="text-base font-medium text-[#0a0a0a]">
-                        {sede.nombre_sede}
-                      </h3>
-                    </div>
+                    <h3 className="text-[18px] font-medium tracking-[-0.01em] text-[#0a0a0a]">
+                      {sede.nombre_sede}
+                    </h3>
 
-                    <div className="space-y-1.5 pt-2 border-t border-[#e5e5e5] text-xs text-[#292b2a]">
+                    <div className="space-y-1.5 pt-2 border-t border-[#e5e5e5] text-[13px] text-[#292b2a]">
                       <div className="flex items-center gap-2">
                         <MapPin className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                         <span>{sede.direccion_calle_sede || "Dirección no registrada"}</span>
@@ -267,33 +259,33 @@ export default function SedesReportesPage() {
 
                   <Link
                     href={`/socios?id_sede=${sede.id_sede}`}
-                    className="inline-flex items-center justify-between text-xs font-medium text-[#292b2a] hover:text-[#ff6105] pt-2 border-t border-[#e5e5e5] transition-colors"
+                    className="inline-flex items-center justify-between text-[13px] font-medium text-[#0a0a0a] hover:text-[#ff6105] pt-2 border-t border-[#e5e5e5] transition-colors"
                   >
                     <span>Ver socios de esta sede</span>
-                    <ArrowUpRight className="w-3.5 h-3.5" />
+                    <ArrowUpRight className="w-4 h-4 text-[#ff6105]" />
                   </Link>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Tabla de Distribución de Socios por Sede */}
-          <div className="bg-white border border-[#e5e5e5] rounded-[5px] overflow-hidden">
+          {/* Tabla de Distribución de Membresías por Sede — Monochrome + Orange */}
+          <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] overflow-hidden">
             <div className="p-5 sm:p-6 border-b border-[#e5e5e5] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-[#ffdfcd] text-[#ff6105] flex items-center justify-center shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-[8px] bg-[#f3f4f3] border border-[#e5e5e5] text-[#ff6105] flex items-center justify-center shrink-0">
                   <BarChart3 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-medium text-[#0a0a0a]">
+                  <h2 className="text-[20px] sm:text-[24px] font-medium leading-[1.33] tracking-[-0.02em] text-[#0a0a0a]">
                     Distribución de Membresías por Sede
                   </h2>
-                  <p className="text-xs text-[#7a7b7b]">
+                  <p className="text-[13px] text-[#7a7b7b]">
                     Comparativa consolidada de contratos vigentes, vencidos y cancelados
                   </p>
                 </div>
               </div>
-              <span className="text-xs px-3 py-1 rounded-full bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5] self-start sm:self-auto">
+              <span className="text-[12px] px-3 py-1 rounded-[8px] bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5] self-start sm:self-auto">
                 {resumenPorSede.length} sedes evaluadas
               </span>
             </div>
@@ -301,26 +293,26 @@ export default function SedesReportesPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#f8f9f8] border-b border-[#e5e5e5] text-[11px] uppercase tracking-wider text-[#7a7b7b]">
-                    <th className="py-3.5 px-5 font-medium whitespace-nowrap">Sucursal</th>
-                    <th className="py-3.5 px-4 font-medium text-center whitespace-nowrap">
+                  <tr className="bg-[#f3f4f3] border-b border-[#e5e5e5] text-[12px] text-[#7a7b7b]">
+                    <th className="py-3 px-5 font-medium whitespace-nowrap">Sucursal</th>
+                    <th className="py-3 px-4 font-medium text-center whitespace-nowrap">
                       Total Contratos
                     </th>
-                    <th className="py-3.5 px-4 font-medium text-center whitespace-nowrap">
+                    <th className="py-3 px-4 font-medium text-center whitespace-nowrap">
                       Vigentes
                     </th>
-                    <th className="py-3.5 px-4 font-medium text-center whitespace-nowrap">
+                    <th className="py-3 px-4 font-medium text-center whitespace-nowrap">
                       Vencidos
                     </th>
-                    <th className="py-3.5 px-4 font-medium text-center whitespace-nowrap">
+                    <th className="py-3 px-4 font-medium text-center whitespace-nowrap">
                       Cancelados
                     </th>
-                    <th className="py-3.5 px-5 font-medium whitespace-nowrap">
+                    <th className="py-3 px-5 font-medium whitespace-nowrap">
                       Cobertura Vigente
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#e5e5e5] text-sm">
+                <tbody className="divide-y divide-[#e5e5e5] text-[14px]">
                   {resumenPorSede.map((r) => {
                     const pct =
                       r.total > 0 ? Math.round((r.vigentes / r.total) * 100) : 0;
@@ -328,7 +320,7 @@ export default function SedesReportesPage() {
                     return (
                       <tr
                         key={r.nombre_sede}
-                        className="hover:bg-[#f8f9f8]/80 transition-colors"
+                        className="hover:bg-[#f3f4f3]/50 transition-colors"
                       >
                         <td className="py-3.5 px-5 font-medium text-[#0a0a0a] whitespace-nowrap">
                           {r.nombre_sede}
@@ -339,32 +331,32 @@ export default function SedesReportesPage() {
                         </td>
 
                         <td className="py-3.5 px-4 text-center">
-                          <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="inline-block px-2.5 py-0.5 rounded-[8px] text-[12px] font-medium bg-[#ffdfcd] text-[#0a0a0a] border border-[#ffa069]/40">
                             {r.vigentes}
                           </span>
                         </td>
 
                         <td className="py-3.5 px-4 text-center">
-                          <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">
+                          <span className="inline-block px-2.5 py-0.5 rounded-[8px] text-[12px] font-normal bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5]">
                             {r.vencidos}
                           </span>
                         </td>
 
                         <td className="py-3.5 px-4 text-center">
-                          <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5]">
+                          <span className="inline-block px-2.5 py-0.5 rounded-[8px] text-[12px] font-normal bg-[#ffffff] text-[#7a7b7b] border border-[#e5e5e5]">
                             {r.cancelados}
                           </span>
                         </td>
 
-                        <td className="py-3.5 px-5 min-w-[180px]">
+                        <td className="py-3.5 px-5 min-w-[170px]">
                           <div className="flex items-center gap-3">
-                            <div className="flex-1 h-2 bg-[#f3f4f3] rounded-full overflow-hidden">
+                            <div className="flex-1 h-2 bg-[#f3f4f3] rounded-[50px] overflow-hidden">
                               <div
-                                className="h-full bg-[#ff6105] rounded-full transition-all duration-500"
+                                className="h-full bg-[#ff6105] rounded-[50px] transition-all duration-500"
                                 style={{ width: `${Math.min(100, pct)}%` }}
                               />
                             </div>
-                            <span className="text-xs font-mono text-[#7a7b7b] w-10 text-right">
+                            <span className="text-[12px] font-mono text-[#7a7b7b] w-10 text-right">
                               {pct}%
                             </span>
                           </div>

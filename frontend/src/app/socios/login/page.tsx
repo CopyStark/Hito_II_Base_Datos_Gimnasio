@@ -198,18 +198,18 @@ export default function LoginPerfilPage() {
 
   return (
     <div className="space-y-8">
-      {/* Editorial Header */}
-      <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#7a7b7b] font-medium">
+      {/* Editorial Section Heading — DESIGN.md: Ghost Card 5px, weight 300 48px -0.030em, 2px #ff6105 rule */}
+      <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 text-[12px] text-[#7a7b7b] font-medium">
             <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
             <span>Portal del Socio · Cuenta Personal</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-[#0a0a0a]">
-            Acceso y Perfil de Socio
+          <h1 className="text-[34px] sm:text-[48px] font-light leading-[1.15] tracking-[-0.03em] text-[#0a0a0a]">
+            Acceso y Perfil
           </h1>
-          <div className="w-20 h-[2px] bg-[#ff6105]" />
-          <p className="text-sm text-[#7a7b7b] max-w-xl pt-1">
+          <div className="w-[112px] h-[2px] bg-[#ff6105]" />
+          <p className="text-[15px] sm:text-[16px] font-normal leading-[1.56] tracking-[-0.01em] text-[#292b2a] max-w-xl pt-1">
             Inicia sesión con tu cuenta de afiliado para consultar tu ficha personal,
             sede base registrada y accesos directos a los servicios del gimnasio.
           </p>
@@ -219,7 +219,7 @@ export default function LoginPerfilPage() {
           <button
             type="button"
             onClick={handleLogout}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs sm:text-sm font-medium bg-[#f3f4f3] hover:bg-[#fee2e2] text-[#292b2a] hover:text-[#dc2626] border border-[#e5e5e5] transition-all self-start sm:self-auto cursor-pointer"
+            className="btn-secondary-pill inline-flex items-center gap-2 px-5 py-3 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#202120] text-[#292b2a] hover:text-[#ffffff] border border-[#e5e5e5] self-start lg:self-auto shrink-0 cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>Cerrar Sesión</span>
@@ -229,55 +229,55 @@ export default function LoginPerfilPage() {
 
       {!sesion ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Formulario de Inicio de Sesión */}
-          <div className="lg:col-span-6 bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 space-y-6">
+          {/* Formulario de Inicio de Sesión — DESIGN.md Ghost Card 5px + 50px inputs + Primary Pill CTA */}
+          <div className="lg:col-span-6 bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 space-y-6">
             <div className="space-y-1">
-              <h2 className="text-xl font-medium text-[#0a0a0a]">
+              <h2 className="text-[24px] font-medium leading-[1.33] tracking-[-0.02em] text-[#0a0a0a]">
                 Iniciar Sesión
               </h2>
-              <p className="text-xs text-[#7a7b7b]">
+              <p className="text-[14px] text-[#7a7b7b]">
                 Ingresa tu usuario o correo electrónico junto con tu contraseña.
               </p>
             </div>
 
             {errorMsg && (
-              <div className="p-3.5 rounded-[5px] bg-[#fef2f2] border border-[#fecaca] text-[#dc2626] text-xs flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0" />
+              <div className="p-4 rounded-[5px] bg-[#202120] border border-[#3c3e3d] text-[#ffffff] text-[13px] flex items-center gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-[#ff6105] shrink-0" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium mb-1.5">
+                <label className="block text-[12px] text-[#292b2a] font-medium mb-1.5">
                   Usuario o Correo
                 </label>
                 <div className="relative">
-                  <User className="w-4 h-4 text-[#7a7b7b] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <User className="w-4 h-4 text-[#7a7b7b] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Ej: socio1 o daniel.matus@alumnos.cl"
-                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-full pl-10 pr-4 py-2.5 text-sm text-[#0a0a0a] placeholder-[#7a7b7b] focus:outline-none focus:border-[#ff6105] focus:bg-white transition-colors"
+                    className="input-pill w-full pl-10 pr-4 py-3 text-[15px] placeholder-[#a2a3a2]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium mb-1.5">
+                <label className="block text-[12px] text-[#292b2a] font-medium mb-1.5">
                   Contraseña
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-[#7a7b7b] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Lock className="w-4 h-4 text-[#7a7b7b] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-full pl-10 pr-4 py-2.5 text-sm text-[#0a0a0a] placeholder-[#7a7b7b] focus:outline-none focus:border-[#ff6105] focus:bg-white transition-colors"
+                    className="input-pill w-full pl-10 pr-4 py-3 text-[15px] placeholder-[#a2a3a2]"
                   />
                 </div>
               </div>
@@ -285,7 +285,7 @@ export default function LoginPerfilPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-6 rounded-full text-xs sm:text-sm font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="btn-primary-pill w-full py-3.5 px-8 text-[15px] font-medium tracking-[-0.01em] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {loading ? (
                   <>
@@ -302,17 +302,17 @@ export default function LoginPerfilPage() {
             </form>
           </div>
 
-          {/* Cuentas de Prueba Rápida sincronizadas con la BD */}
-          <div className="lg:col-span-6 bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 space-y-5">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-[#ffdfcd] text-[#ff6105] flex items-center justify-center shrink-0">
+          {/* Cuentas de Acceso Rápido — DESIGN.md Featured Peach Card (#ffdfcd) */}
+          <div className="lg:col-span-6 bg-[#ffdfcd] border border-[#ffa069]/40 rounded-[5px] p-6 sm:p-8 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-[8px] bg-[#ffffff] border border-[#e5e5e5] text-[#ff6105] flex items-center justify-center shrink-0">
                 <KeyRound className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-base font-medium text-[#0a0a0a]">
+                <h3 className="text-[18px] font-medium tracking-[-0.01em] text-[#0a0a0a]">
                   Cuentas de Acceso Rápido
                 </h3>
-                <p className="text-xs text-[#7a7b7b]">
+                <p className="text-[13px] text-[#292b2a]">
                   Selecciona una cuenta activa de demostración para ingresar con un clic
                 </p>
               </div>
@@ -329,22 +329,22 @@ export default function LoginPerfilPage() {
                     setPassword(cta.pass);
                     ejecutarLogin(cta.user, cta.pass);
                   }}
-                  className="w-full flex items-center justify-between gap-3 p-4 rounded-[5px] bg-[#f8f9f8] hover:bg-[#f3f4f3] border border-[#e5e5e5] hover:border-[#ff6105]/40 transition-all text-left cursor-pointer group disabled:opacity-60"
+                  className="w-full flex items-center justify-between gap-3 p-4 rounded-[5px] bg-[#ffffff] hover:bg-[#f3f4f3] border border-[#e5e5e5] transition-colors text-left cursor-pointer group disabled:opacity-60"
                 >
                   <div className="space-y-0.5 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-semibold text-[#0a0a0a]">
+                      <span className="font-mono text-[13px] font-medium text-[#0a0a0a]">
                         @{cta.user}
                       </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-white text-[#7a7b7b] border border-[#e5e5e5]">
+                      <span className="text-[11px] px-2 py-0.5 rounded-[8px] bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5]">
                         {cta.rol}
                       </span>
                     </div>
-                    <p className="text-xs text-[#7a7b7b] truncate">
+                    <p className="text-[12px] text-[#7a7b7b] truncate">
                       {cta.nombre} · {cta.sede}
                     </p>
                   </div>
-                  <span className="text-xs font-medium text-[#ff6105] inline-flex items-center gap-1 shrink-0 group-hover:translate-x-0.5 transition-transform">
+                  <span className="text-[13px] font-medium text-[#ff6105] inline-flex items-center gap-1 shrink-0 group-hover:translate-x-0.5 transition-transform">
                     <span>Entrar</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </span>
@@ -352,11 +352,11 @@ export default function LoginPerfilPage() {
               ))}
             </div>
 
-            <div className="pt-3 border-t border-[#e5e5e5] flex items-center justify-between text-xs text-[#7a7b7b]">
+            <div className="pt-3 border-t border-[#ffa069]/30 flex items-center justify-between text-[13px] text-[#292b2a]">
               <span>¿Necesitas habilitar la clave de otro socio?</span>
               <Link
                 href="/socios"
-                className="text-[#ff6105] font-medium hover:underline"
+                className="text-[#0a0a0a] font-medium hover:text-[#ff6105] transition-colors"
               >
                 Ir al Directorio →
               </Link>
@@ -364,104 +364,96 @@ export default function LoginPerfilPage() {
           </div>
         </div>
       ) : (
-        /* Vista Autenticada: Mi Perfil */
-        <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 space-y-6 animate-fade-in-scale">
+        /* Vista Autenticada: Mi Perfil — DESIGN.md Ghost Card 5px + Primary 50px + Secondary 24px */
+        <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 space-y-6 animate-fade-in-scale">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#e5e5e5]">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-[#ffdfcd] text-[#ff6105] border border-[#ff6105]/20 flex items-center justify-center text-xl font-semibold shrink-0">
+              <div className="w-14 h-14 rounded-[24px] bg-[#ffdfcd] text-[#ff6105] border border-[#ffa069]/40 flex items-center justify-center text-[20px] font-medium shrink-0">
                 {nombreMostrar.charAt(0).toUpperCase()}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
+                  <span className="badge-step">
                     Sesión Activa · {sesion.rol || "Socio"}
                   </span>
                   {sesion.username_usuario && (
-                    <span className="font-mono text-xs text-[#7a7b7b]">
+                    <span className="font-mono text-[13px] text-[#7a7b7b]">
                       @{sesion.username_usuario}
                     </span>
                   )}
                 </div>
-                <h2 className="text-2xl font-medium text-[#0a0a0a] mt-1">
+                <h2 className="text-[24px] font-medium leading-[1.33] tracking-[-0.02em] text-[#0a0a0a] mt-1.5">
                   {nombreMostrar}
                 </h2>
               </div>
             </div>
 
             {fichaSocio?.rut_socio && (
-              <span className="whitespace-nowrap font-mono text-xs px-3.5 py-1.5 rounded-full bg-[#f8f9f8] border border-[#e5e5e5] text-[#292b2a] self-start sm:self-auto">
+              <span className="whitespace-nowrap font-mono text-[12px] px-3.5 py-1.5 rounded-[8px] bg-[#f3f4f3] border border-[#e5e5e5] text-[#292b2a] self-start sm:self-auto">
                 RUT {fichaSocio.rut_socio}
               </span>
             )}
           </div>
 
           {loadingFicha ? (
-            <div className="py-8 text-center text-xs text-[#7a7b7b] flex items-center justify-center gap-2">
+            <div className="py-8 text-center text-[14px] text-[#7a7b7b] flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-[#ff6105]" />
               <span>Cargando datos del perfil...</span>
             </div>
           ) : fichaSocio ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-4">
+              <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-4">
                 <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
-                  <span className="text-[10px] uppercase tracking-wider font-medium">
-                    Correo Electrónico
-                  </span>
+                  <span className="text-[12px] font-normal">Correo Electrónico</span>
                   <Mail className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                 </div>
-                <p className="text-xs font-medium text-[#0a0a0a] break-all">
+                <p className="text-[14px] font-medium text-[#0a0a0a] break-all">
                   {fichaSocio.correo_socio ?? fichaSocio.correo ?? "—"}
                 </p>
               </div>
 
-              <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-4">
+              <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-4">
                 <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
-                  <span className="text-[10px] uppercase tracking-wider font-medium">
-                    Teléfono
-                  </span>
+                  <span className="text-[12px] font-normal">Teléfono</span>
                   <Phone className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                 </div>
-                <p className="text-xs font-medium text-[#0a0a0a]">
+                <p className="text-[14px] font-medium text-[#0a0a0a]">
                   {fichaSocio.telefono_socio ?? fichaSocio.telefono ?? "No registrado"}
                 </p>
               </div>
 
-              <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-4">
+              <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-4">
                 <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
-                  <span className="text-[10px] uppercase tracking-wider font-medium">
-                    Fecha de Nacimiento
-                  </span>
+                  <span className="text-[12px] font-normal">Fecha de Nacimiento</span>
                   <Calendar className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                 </div>
-                <p className="text-xs font-medium text-[#0a0a0a]">
+                <p className="text-[14px] font-medium text-[#0a0a0a]">
                   {fichaSocio.fecha_nacimiento_socio
                     ? String(fichaSocio.fecha_nacimiento_socio).slice(0, 10)
                     : "No registrada"}
                 </p>
               </div>
 
-              <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-4">
+              <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-4">
                 <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
-                  <span className="text-[10px] uppercase tracking-wider font-medium">
-                    Sede Asignada
-                  </span>
+                  <span className="text-[12px] font-normal">Sede Asignada</span>
                   <MapPin className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                 </div>
-                <p className="text-xs font-medium text-[#0a0a0a] leading-snug">
+                <p className="text-[14px] font-medium text-[#0a0a0a] leading-snug">
                   {nombreSedeSocio}
                 </p>
               </div>
             </div>
           ) : null}
 
-          {/* Acciones rápidas desde el perfil */}
+          {/* Acciones desde el perfil — DESIGN.md: 1 Primary 50px Pill + Secondary 24px Pills */}
           <div className="pt-4 border-t border-[#e5e5e5] flex flex-wrap items-center gap-3">
             {fichaSocio?.rut_socio && (
               <Link
                 href={`/socios/torniquete?identificador=${encodeURIComponent(
                   fichaSocio.rut_socio
                 )}`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-xs transition-all"
+                className="btn-primary-pill inline-flex items-center gap-2 px-7 py-3 text-[14px] font-medium"
               >
                 <ShieldCheck className="w-4 h-4" />
                 <span>Validar Mi Pase en Torniquete</span>
@@ -470,7 +462,7 @@ export default function LoginPerfilPage() {
 
             <Link
               href="/clases"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-medium bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] transition-all"
+              className="btn-secondary-pill inline-flex items-center gap-2 px-5 py-3 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5]"
             >
               <span>Ir a Reserva de Clases</span>
               <ArrowRight className="w-3.5 h-3.5 text-[#ff6105]" />
@@ -478,7 +470,7 @@ export default function LoginPerfilPage() {
 
             <Link
               href="/contratos/estado-cuenta"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-medium bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] transition-all"
+              className="btn-secondary-pill inline-flex items-center gap-2 px-5 py-3 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5]"
             >
               <span>Ver Estado de Cuenta</span>
               <ArrowRight className="w-3.5 h-3.5 text-[#ff6105]" />

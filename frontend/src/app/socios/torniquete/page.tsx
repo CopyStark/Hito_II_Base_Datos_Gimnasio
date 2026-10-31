@@ -28,7 +28,7 @@ interface PresetAcceso {
   val: string;
   titulo: string;
   subtitulo: string;
-  autorizado: boolean | null; // null mientras sincroniza en vivo
+  autorizado: boolean;
 }
 
 const INITIAL_PRESETS: PresetAcceso[] = [
@@ -99,7 +99,7 @@ function TorniqueteContent() {
   const [historial, setHistorial] = useState<HistorialIngreso[]>([]);
   const [presets, setPresets] = useState<PresetAcceso[]>(INITIAL_PRESETS);
 
-  // Sincronizar en vivo los perfiles de prueba con la base de datos real al montar
+  // Sincronizar en vivo los perfiles de prueba con SQL Server al montar
   useEffect(() => {
     let cancelado = false;
     (async () => {
@@ -131,7 +131,6 @@ function TorniqueteContent() {
       const data: ControlAccesoResult = await apiClient.socios.validarAcceso(clean);
       setResultado(data);
 
-      // Si el identificador corresponde a un perfil rápido, mantener su insignia sincronizada
       setPresets((prev) =>
         prev.map((p) =>
           p.val === clean || (data.rut_socio && p.val === data.rut_socio)
@@ -171,18 +170,18 @@ function TorniqueteContent() {
 
   return (
     <div className="space-y-8">
-      {/* Editorial Header */}
-      <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#7a7b7b] font-medium">
+      {/* Editorial Section Heading — DESIGN.md: Ghost Card 5px, weight 300 48px -0.030em, 2px #ff6105 rule */}
+      <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 text-[12px] text-[#7a7b7b] font-medium">
             <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
             <span>Control de Acceso · Recepción</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-[#0a0a0a]">
+          <h1 className="text-[34px] sm:text-[48px] font-light leading-[1.15] tracking-[-0.03em] text-[#0a0a0a]">
             Validador de Torniquete
           </h1>
-          <div className="w-20 h-[2px] bg-[#ff6105]" />
-          <p className="text-sm text-[#7a7b7b] max-w-xl pt-1">
+          <div className="w-[112px] h-[2px] bg-[#ff6105]" />
+          <p className="text-[15px] sm:text-[16px] font-normal leading-[1.56] tracking-[-0.01em] text-[#292b2a] max-w-xl pt-1">
             Verifica en tiempo real el ingreso de socios mediante RUT o ID, comprobando
             estado de cuenta, vigencia de membresía y sede asignada.
           </p>
@@ -190,39 +189,39 @@ function TorniqueteContent() {
 
         <Link
           href="/socios"
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs sm:text-sm font-medium bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] transition-all self-start sm:self-auto"
+          className="btn-secondary-pill inline-flex items-center gap-2 px-5 py-3 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] self-start lg:self-auto shrink-0"
         >
           <span>Ver Directorio de Socios</span>
           <ArrowUpRight className="w-4 h-4 text-[#ff6105]" />
         </Link>
       </div>
 
-      {/* Layout Principal: Lector a la izquierda, Semáforo a la derecha */}
+      {/* Layout Principal 2 Columnas */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Panel Lector / Escáner */}
-        <div className="lg:col-span-5 bg-white border border-[#e5e5e5] rounded-[5px] p-6 space-y-6">
+        {/* Panel Lector — DESIGN.md Ghost Card 5px, 50px input & Primary Pill CTA */}
+        <div className="lg:col-span-5 bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 space-y-6">
           <div className="space-y-1">
-            <h2 className="text-lg font-medium text-[#0a0a0a]">
+            <h2 className="text-[24px] font-medium leading-[1.33] tracking-[-0.02em] text-[#0a0a0a]">
               Terminal de Lectura
             </h2>
-            <p className="text-xs text-[#7a7b7b]">
+            <p className="text-[14px] text-[#7a7b7b]">
               Ingresa el RUT (con guión) o el número de socio para validar su pase.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium mb-1.5">
+              <label className="block text-[12px] text-[#292b2a] font-medium mb-1.5">
                 RUT o ID del Socio
               </label>
               <div className="relative">
-                <ScanLine className="w-4 h-4 text-[#ff6105] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <ScanLine className="w-4 h-4 text-[#ff6105] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   value={identificador}
                   onChange={(e) => setIdentificador(e.target.value)}
                   placeholder="Ej: 18.765.432-K o 1"
-                  className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-full pl-10 pr-4 py-2.5 text-sm font-mono text-[#0a0a0a] placeholder-[#7a7b7b] focus:outline-none focus:border-[#ff6105] focus:bg-white transition-colors"
+                  className="input-pill w-full pl-10 pr-4 py-3 text-[15px] font-mono placeholder-[#a2a3a2]"
                 />
               </div>
             </div>
@@ -230,7 +229,7 @@ function TorniqueteContent() {
             <button
               type="submit"
               disabled={loading || !identificador.trim()}
-              className="w-full py-3 px-6 rounded-full text-xs sm:text-sm font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="btn-primary-pill w-full py-3.5 px-8 text-[15px] font-medium tracking-[-0.01em] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -246,13 +245,13 @@ function TorniqueteContent() {
             </button>
           </form>
 
-          {/* Accesos rápidos de prueba sincronizados con SQL Server */}
+          {/* Perfiles de Prueba en Vivo — DESIGN.md: Monochrome + single orange rationing */}
           <div className="pt-5 border-t border-[#e5e5e5] space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
+              <p className="text-[12px] text-[#7a7b7b] font-medium">
                 Perfiles de Prueba en Vivo
               </p>
-              <span className="text-[10px] text-[#7a7b7b]">Clic para escanear</span>
+              <span className="text-[12px] text-[#a2a3a2]">Clic para escanear</span>
             </div>
             <div className="grid grid-cols-1 gap-2">
               {presets.map((p) => (
@@ -263,20 +262,27 @@ function TorniqueteContent() {
                     setIdentificador(p.val);
                     validarAcceso(p.val);
                   }}
-                  className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-[5px] bg-[#f8f9f8] hover:bg-[#f3f4f3] border border-[#e5e5e5] hover:border-[#ff6105]/40 text-xs transition-all cursor-pointer text-left"
+                  className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-[5px] bg-[#f3f4f3] hover:bg-[#e5e7eb] border border-[#e5e5e5] text-left transition-colors cursor-pointer"
                 >
                   <div className="min-w-0">
-                    <p className="font-medium text-[#0a0a0a] truncate">{p.titulo}</p>
-                    <p className="text-[11px] text-[#7a7b7b] truncate">{p.subtitulo}</p>
+                    <p className="text-[13px] font-medium text-[#0a0a0a] truncate">
+                      {p.titulo}
+                    </p>
+                    <p className="text-[12px] text-[#7a7b7b] truncate">{p.subtitulo}</p>
                   </div>
                   <span
-                    className={`shrink-0 whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                    className={`shrink-0 whitespace-nowrap px-2.5 py-0.5 rounded-[8px] text-[12px] flex items-center gap-1.5 border ${
                       p.autorizado
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-rose-50 text-rose-700 border-rose-200"
+                        ? "bg-[#ffffff] text-[#0a0a0a] font-medium border-[#e5e5e5]"
+                        : "bg-[#ffffff]/70 text-[#7a7b7b] font-normal border-[#e5e5e5]"
                     }`}
                   >
-                    {p.autorizado ? "Autorizado" : "Denegado"}
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        p.autorizado ? "bg-[#ff6105]" : "bg-[#a2a3a2]"
+                      }`}
+                    />
+                    <span>{p.autorizado ? "Autorizado" : "Denegado"}</span>
                   </span>
                 </button>
               ))}
@@ -284,44 +290,38 @@ function TorniqueteContent() {
           </div>
         </div>
 
-        {/* Panel de Estado del Torniquete + Bitácora */}
+        {/* Panel de Resolución del Torniquete + Bitácora */}
         <div className="lg:col-span-7 space-y-6">
           {errorMsg && (
-            <div className="p-4 rounded-[5px] bg-[#fef2f2] border border-[#fecaca] text-[#dc2626] text-xs sm:text-sm flex items-center gap-2.5">
-              <XCircle className="w-4 h-4 shrink-0" />
+            <div className="p-4 rounded-[5px] bg-[#202120] border border-[#3c3e3d] text-[#ffffff] text-[14px] flex items-center gap-2.5">
+              <XCircle className="w-4 h-4 text-[#ff6105] shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {!resultado && !loading ? (
-            <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-12 text-center space-y-3">
-              <div className="w-12 h-12 rounded-full bg-[#f8f9f8] border border-[#e5e5e5] flex items-center justify-center mx-auto text-[#7a7b7b]">
-                <ScanLine className="w-6 h-6 text-[#ff6105]" />
+            <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-[24px] bg-[#f3f4f3] border border-[#e5e5e5] flex items-center justify-center mx-auto">
+                <ScanLine className="w-5 h-5 text-[#ff6105]" />
               </div>
-              <h3 className="text-lg font-medium text-[#0a0a0a]">
+              <h3 className="text-[18px] font-medium tracking-[-0.01em] text-[#0a0a0a]">
                 Torniquete en Espera de Lectura
               </h3>
-              <p className="text-xs text-[#7a7b7b] max-w-md mx-auto">
+              <p className="text-[14px] text-[#7a7b7b] max-w-md mx-auto">
                 Escanea el RUT o selecciona uno de los perfiles de prueba a la izquierda
                 para consultar la autorización de ingreso en tiempo real.
               </p>
             </div>
           ) : resultado ? (
-            <div
-              className={`bg-white border border-[#e5e5e5] border-t-2 rounded-[5px] p-6 sm:p-8 transition-all animate-fade-in-scale ${
-                resultado.acceso_permitido
-                  ? "border-t-emerald-500"
-                  : "border-t-rose-500"
-              }`}
-            >
-              {/* Encabezado de Estado */}
+            <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 animate-fade-in-scale">
+              {/* Encabezado de Resolución — DESIGN.md: #ff6105 active badge vs #202120 charcoal denied badge */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#e5e5e5]">
                 <div className="flex items-center gap-3.5">
                   <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+                    className={`w-12 h-12 rounded-[24px] flex items-center justify-center shrink-0 border ${
                       resultado.acceso_permitido
-                        ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                        : "bg-rose-50 text-rose-600 border border-rose-200"
+                        ? "bg-[#ffdfcd] text-[#ff6105] border-[#ffa069]/40"
+                        : "bg-[#202120] text-[#ffffff] border-[#3c3e3d]"
                     }`}
                   >
                     {resultado.acceso_permitido ? (
@@ -332,89 +332,81 @@ function TorniqueteContent() {
                   </div>
                   <div>
                     <span
-                      className={`inline-block text-[10px] uppercase tracking-widest font-semibold px-2.5 py-0.5 rounded-full border ${
+                      className={`inline-block text-[12px] font-medium px-2.5 py-0.5 rounded-[8px] ${
                         resultado.acceso_permitido
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : "bg-rose-50 text-rose-700 border-rose-200"
+                          ? "bg-[#ff6105] text-[#ffffff]"
+                          : "bg-[#202120] text-[#ffffff]"
                       }`}
                     >
                       {resultado.acceso_permitido ? "Pase Autorizado" : "Ingreso Denegado"}
                     </span>
-                    <h2 className="text-2xl font-medium text-[#0a0a0a] mt-1">
+                    <h2 className="text-[24px] font-medium leading-[1.33] tracking-[-0.02em] text-[#0a0a0a] mt-1">
                       {resultado.nombre_completo_socio || "Socio no registrado"}
                     </h2>
                   </div>
                 </div>
 
                 {resultado.rut_socio && (
-                  <span className="whitespace-nowrap font-mono text-xs px-3 py-1.5 rounded-full bg-[#f8f9f8] border border-[#e5e5e5] text-[#292b2a] self-start sm:self-auto">
+                  <span className="whitespace-nowrap font-mono text-[12px] px-3 py-1.5 rounded-[8px] bg-[#f3f4f3] border border-[#e5e5e5] text-[#292b2a] self-start sm:self-auto">
                     RUT {resultado.rut_socio}
                   </span>
                 )}
               </div>
 
-              {/* Motivo de la resolución */}
+              {/* Motivo de la resolución — DESIGN.md: Featured Peach Wash (#ffdfcd) vs Charcoal (#202120) */}
               <div
-                className={`mt-5 p-4 rounded-[5px] border text-xs sm:text-sm font-medium flex items-center gap-2.5 ${
+                className={`mt-5 p-4 rounded-[5px] border text-[14px] font-normal flex items-center gap-2.5 ${
                   resultado.acceso_permitido
-                    ? "bg-emerald-50/70 border-emerald-200 text-emerald-900"
-                    : "bg-rose-50/70 border-rose-200 text-rose-900"
+                    ? "bg-[#ffdfcd] border-[#ffa069]/50 text-[#0a0a0a]"
+                    : "bg-[#202120] border-[#3c3e3d] text-[#ffffff]"
                 }`}
               >
                 {resultado.acceso_permitido ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-[#ff6105] shrink-0" />
                 ) : (
-                  <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <XCircle className="w-4 h-4 text-[#ff6105] shrink-0" />
                 )}
                 <span>{resultado.motivo}</span>
               </div>
 
-              {/* Ficha Resumen del Socio (Grilla 2x2 espaciosa sin truncado) */}
+              {/* Ficha Resumen del Socio (Grilla 2x2 sin truncado) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-5">
-                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-4">
+                <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-4">
                   <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
-                    <span className="text-[10px] uppercase tracking-wider font-medium">
-                      Sede Base
-                    </span>
+                    <span className="text-[12px] font-normal">Sede Base</span>
                     <MapPin className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                   </div>
-                  <p className="text-sm font-medium text-[#0a0a0a] leading-snug">
+                  <p className="text-[14px] font-medium text-[#0a0a0a] leading-snug">
                     {resultado.sede_registro || "No asignada"}
                   </p>
                 </div>
 
-                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-4">
+                <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-4">
                   <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
-                    <span className="text-[10px] uppercase tracking-wider font-medium">
-                      Plan Activo
-                    </span>
+                    <span className="text-[12px] font-normal">Plan Activo</span>
                     <CreditCard className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                   </div>
-                  <p className="text-sm font-medium text-[#0a0a0a] leading-snug">
+                  <p className="text-[14px] font-medium text-[#0a0a0a] leading-snug">
                     {resultado.nombre_plan || "Sin plan vigente"}
                   </p>
                 </div>
 
-                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-4">
+                <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-4">
                   <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
-                    <span className="text-[10px] uppercase tracking-wider font-medium">
-                      Estado de Membresía
-                    </span>
+                    <span className="text-[12px] font-normal">Estado de Membresía</span>
                     <ShieldCheck className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                   </div>
-                  <p className="text-sm font-medium text-[#0a0a0a] leading-snug">
+                  <p className="text-[14px] font-medium text-[#0a0a0a] leading-snug">
                     {resultado.contrato_vigente ? "Contrato Vigente" : "Sin vigencia activa"}
                   </p>
                 </div>
 
-                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-4">
+                <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-4">
                   <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
-                    <span className="text-[10px] uppercase tracking-wider font-medium">
-                      Fecha de Término
-                    </span>
+                    <span className="text-[12px] font-normal">Fecha de Término</span>
                     <Calendar className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
                   </div>
-                  <p className="text-sm font-medium text-[#0a0a0a] leading-snug">
+                  <p className="text-[14px] font-medium text-[#0a0a0a] leading-snug">
                     {resultado.fecha_termino_contrato || "—"}
                   </p>
                 </div>
@@ -424,18 +416,18 @@ function TorniqueteContent() {
 
           {/* Bitácora de lecturas recientes */}
           {historial.length > 0 && (
-            <div className="bg-white border border-[#e5e5e5] rounded-[5px] overflow-hidden">
-              <div className="p-4 sm:px-6 border-b border-[#e5e5e5] flex items-center justify-between">
+            <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] overflow-hidden">
+              <div className="p-4 sm:px-6 bg-[#f3f4f3] border-b border-[#e5e5e5] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-[#ff6105]" />
-                  <h3 className="text-sm font-medium text-[#0a0a0a]">
+                  <h3 className="text-[14px] font-medium text-[#0a0a0a]">
                     Bitácora de Lecturas en esta Sesión
                   </h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setHistorial([])}
-                  className="inline-flex items-center gap-1 text-xs text-[#7a7b7b] hover:text-[#0a0a0a] cursor-pointer"
+                  className="inline-flex items-center gap-1 text-[12px] text-[#7a7b7b] hover:text-[#0a0a0a] cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Limpiar</span>
@@ -445,24 +437,24 @@ function TorniqueteContent() {
                 {historial.map((item, idx) => (
                   <div
                     key={idx}
-                    className="px-6 py-3 flex items-center justify-between gap-4 text-xs hover:bg-[#f8f9f8] transition-colors"
+                    className="px-6 py-3 flex items-center justify-between gap-4 text-[13px] hover:bg-[#f3f4f3]/50 transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <span
                         className={`w-2 h-2 rounded-full shrink-0 ${
-                          item.acceso_permitido ? "bg-emerald-500" : "bg-rose-500"
+                          item.acceso_permitido ? "bg-[#ff6105]" : "bg-[#a2a3a2]"
                         }`}
                       />
                       <div className="min-w-0">
                         <p className="font-medium text-[#0a0a0a] truncate">
                           {item.nombre_completo_socio || item.identificador_consultado}
                         </p>
-                        <p className="text-[11px] text-[#7a7b7b] truncate">
+                        <p className="text-[12px] text-[#7a7b7b] truncate">
                           {item.motivo}
                         </p>
                       </div>
                     </div>
-                    <span className="font-mono text-[11px] text-[#7a7b7b] whitespace-nowrap shrink-0">
+                    <span className="font-mono text-[12px] text-[#7a7b7b] whitespace-nowrap shrink-0">
                       {item.hora}
                     </span>
                   </div>
@@ -480,7 +472,7 @@ export default function TorniquetePage() {
   return (
     <Suspense
       fallback={
-        <div className="p-12 text-center text-sm text-[#7a7b7b]">
+        <div className="p-12 text-center text-[14px] text-[#7a7b7b]">
           Cargando validador de acceso...
         </div>
       }
