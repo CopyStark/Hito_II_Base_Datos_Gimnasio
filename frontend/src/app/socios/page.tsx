@@ -1,865 +1,770 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import apiClient, { Socio } from "@/services/apiClient";
 import {
-  sociosApi,
-  SocioDetail,
-  SedeSimpleResponse,
-} from "@/services/apiClient";
+  Users,
+  UserCheck,
+  UserX,
+  Building2,
+  Search,
+  RefreshCw,
+  UserPlus,
+  Mail,
+  Phone,
+  MapPin,
+  Edit2,
+  KeyRound,
+  ShieldCheck,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  ChevronDown,
+  Loader2,
+} from "lucide-react";
 
-interface FeedbackState {
-  type: "success" | "error" | "info";
-  message: string;
+interface SedeCatalogoItem {
+  id_sede: number;
+  nombre_sede: string;
+  direccion_calle_sede?: string;
+  telefono_sede?: string;
+  nombre_ciudad?: string;
+  nombre_region?: string;
 }
 
-function SociosDirectorioContent() {
-  const searchParams = useSearchParams();
-  const initialSedeParam = searchParams.get("sede") || "";
+export default function SociosGestionPage() {
+  const [socios, setSocios] = useState<Socio[]>([]);
+  const [sedes, setSedes] = useState<SedeCatalogoItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Data states
-  const [socios, setSocios] = useState<SocioDetail[]>([]);
-  const [sedes, setSedes] = useState<SedeSimpleResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState<number | null>(null);
+  // Filtros
+  const [buscar, setBuscar] = useState<string>("");
+  const [filtroSede, setFiltroSede] = useState<string>("");
+  const [filtroEstado, setFiltroEstado] = useState<"todos" | "activos" | "inactivos">("todos");
 
-  // Filters
-  const [buscar, setBuscar] = useState("");
-  const [filtroActivo, setFiltroActivo] = useState<"todos" | "activos" | "inactivos">("todos");
-  const [filtroSede, setFiltroSede] = useState<string>(initialSedeParam);
+  // Modal Crear / Editar Socio
+  const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [editMode, setEditMode] = useState<boolean>(false);
+  const [selectedSocioId, setSelectedSocioId] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [feedback, setFeedback] = useState<{ type: "ok" | "error"; text: string } | null>(null);
 
-  // Feedback
-  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
-
-  // Modals
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingSocio, setEditingSocio] = useState<SocioDetail | null>(null);
-  const [credencialesSocio, setCredencialesSocio] = useState<SocioDetail | null>(null);
-
-  // Form states: Create
-  const [newSocio, setNewSocio] = useState({
+  const [formData, setFormData] = useState({
     rut_socio: "",
-    nombre_completo_socio: "",
-    fecha_nacimiento_socio: "",
-    correo_socio: "",
-    telefono_socio: "+56 9 ",
-    id_sede_registro_socio: 1,
-    acepta_promociones_socio: true,
-  });
-  const [creating, setCreating] = useState(false);
-
-  // Form states: Edit
-  const [editForm, setEditForm] = useState({
     nombre_completo_socio: "",
     correo_socio: "",
     telefono_socio: "",
+    fecha_nacimiento_socio: "1998-05-15",
     id_sede_registro_socio: 1,
-    acepta_promociones_socio: false,
+    acepta_promociones_socio: true,
+    activo_socio: true,
   });
-  const [updating, setUpdating] = useState(false);
 
-  // Form states: Credenciales
-  const [credForm, setCredForm] = useState({
-    username_usuario: "",
-    password: "",
-  });
-  const [savingCred, setSavingCred] = useState(false);
+  // Modal Asignar Credenciales
+  const [credModalOpen, setCredModalOpen] = useState<boolean>(false);
+  const [credSocio, setCredSocio] = useState<Socio | null>(null);
+  const [credUsername, setCredUsername] = useState<string>("");
+  const [credPassword, setCredPassword] = useState<string>("");
+  const [credSubmitting, setCredSubmitting] = useState<boolean>(false);
 
-  // Quick lookup state
-  const [quickLookupQuery, setQuickLookupQuery] = useState("");
-  const [quickLookupResult, setQuickLookupResult] = useState<SocioDetail | null>(null);
-  const [quickLookupLoading, setQuickLookupLoading] = useState(false);
-  const [quickLookupError, setQuickLookupError] = useState<string | null>(null);
-
-  // Load Sedes
-  const loadSedes = useCallback(async () => {
+  const cargarDatos = useCallback(async () => {
+    setLoading(true);
+    setErrorMsg(null);
     try {
-      const data = await sociosApi.getSedesCatalogo();
-      setSedes(data);
-      if (data.length > 0) {
-        setNewSocio((prev) => ({ ...prev, id_sede_registro_socio: data[0].id_sede }));
+      const [sociosData, sedesData] = await Promise.all([
+        apiClient.socios.getAll({
+          buscar: buscar.trim() || undefined,
+          id_sede: filtroSede ? Number(filtroSede) : undefined,
+          activo:
+            filtroEstado === "activos"
+              ? true
+              : filtroEstado === "inactivos"
+              ? false
+              : undefined,
+          limite: 200,
+        }),
+        apiClient.socios.getSedesCatalogo().catch(() => []),
+      ]);
+      setSocios(Array.isArray(sociosData) ? sociosData : []);
+      if (Array.isArray(sedesData) && sedesData.length > 0) {
+        setSedes(sedesData);
       }
     } catch (err: any) {
-      console.error("Error al cargar sedes:", err);
-    }
-  }, []);
-
-  // Load Socios
-  const loadSocios = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params: any = {};
-      if (filtroActivo === "activos") params.activo = true;
-      if (filtroActivo === "inactivos") params.activo = false;
-      if (filtroSede) params.id_sede = Number(filtroSede);
-      if (buscar.trim()) params.buscar = buscar.trim();
-
-      const data = await sociosApi.getAll(params);
-      setSocios(data as unknown as SocioDetail[]);
-    } catch (err: any) {
-      console.error("Error al cargar socios:", err);
-      setFeedback({
-        type: "error",
-        message: err.message || "Error al conectar con el servidor para obtener socios.",
-      });
+      setErrorMsg(err.message || "Error al conectar con el servidor.");
     } finally {
       setLoading(false);
     }
-  }, [filtroActivo, filtroSede, buscar]);
+  }, [buscar, filtroSede, filtroEstado]);
 
   useEffect(() => {
-    if (initialSedeParam) {
-      setFiltroSede(initialSedeParam);
-    }
-  }, [initialSedeParam]);
+    cargarDatos();
+  }, [cargarDatos]);
 
-  useEffect(() => {
-    loadSedes();
-  }, [loadSedes]);
+  // Mapa rápido de sedes por ID
+  const sedesMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    sedes.forEach((s) => {
+      map[s.id_sede] = s.nombre_sede;
+    });
+    return map;
+  }, [sedes]);
 
-  useEffect(() => {
-    loadSocios();
-  }, [loadSocios]);
+  // Estadísticas rápidas
+  const stats = useMemo(() => {
+    const total = socios.length;
+    const activos = socios.filter((s) => (s.activo_socio ?? s.activo) !== false).length;
+    const inactivos = total - activos;
+    return { total, activos, inactivos };
+  }, [socios]);
 
-  // Quick lookup by ID or RUT
-  const handleQuickLookup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = quickLookupQuery.trim();
-    if (!query) return;
-
-    setQuickLookupLoading(true);
-    setQuickLookupError(null);
-    setQuickLookupResult(null);
-
-    try {
-      let res: SocioDetail;
-      if (/^\d+$/.test(query)) {
-        res = (await sociosApi.getById(Number(query))) as unknown as SocioDetail;
-      } else {
-        res = (await sociosApi.getByRut(query)) as unknown as SocioDetail;
-      }
-      setQuickLookupResult(res);
-    } catch (err: any) {
-      setQuickLookupError(
-        err.status === 404
-          ? `No se encontró ningún socio con el identificador "${query}".`
-          : err.message || "Error al buscar socio en la base de datos."
-      );
-    } finally {
-      setQuickLookupLoading(false);
-    }
+  // Abrir modal para Nuevo Socio
+  const handleOpenCrear = () => {
+    setEditMode(false);
+    setSelectedSocioId(null);
+    setFormData({
+      rut_socio: "",
+      nombre_completo_socio: "",
+      correo_socio: "",
+      telefono_socio: "+569",
+      fecha_nacimiento_socio: "1998-05-15",
+      id_sede_registro_socio: sedes[0]?.id_sede || 1,
+      acepta_promociones_socio: true,
+      activo_socio: true,
+    });
+    setModalOpen(true);
   };
 
-  // Toggle Estado
-  const handleToggleEstado = async (socio: SocioDetail) => {
-    const nuevoEstado = !socio.activo_socio;
-    setUpdatingId(socio.id_socio);
-    try {
-      await sociosApi.cambiarEstado(socio.id_socio, nuevoEstado);
-      setSocios((prev) =>
-        prev.map((s) =>
-          s.id_socio === socio.id_socio ? { ...s, activo_socio: nuevoEstado } : s
-        )
-      );
-      if (quickLookupResult && quickLookupResult.id_socio === socio.id_socio) {
-        setQuickLookupResult({ ...quickLookupResult, activo_socio: nuevoEstado });
-      }
-      setFeedback({
-        type: "success",
-        message: `Estado de ${socio.nombre_completo_socio} cambiado a ${nuevoEstado ? "ACTIVO" : "INACTIVO"
-          }.`,
-      });
-    } catch (err: any) {
-      setFeedback({
-        type: "error",
-        message: `Error al cambiar estado: ${err.message}`,
-      });
-    } finally {
-      setUpdatingId(null);
-    }
+  // Abrir modal para Editar Socio
+  const handleOpenEditar = (socio: Socio) => {
+    setEditMode(true);
+    setSelectedSocioId(socio.id_socio);
+    setFormData({
+      rut_socio: socio.rut_socio ?? socio.rut ?? "",
+      nombre_completo_socio: socio.nombre_completo_socio ?? socio.nombre_completo ?? "",
+      correo_socio: socio.correo_socio ?? socio.correo ?? "",
+      telefono_socio: socio.telefono_socio ?? socio.telefono ?? "",
+      fecha_nacimiento_socio: socio.fecha_nacimiento_socio
+        ? String(socio.fecha_nacimiento_socio).slice(0, 10)
+        : "1998-05-15",
+      id_sede_registro_socio:
+        socio.id_sede_registro_socio ?? socio.id_sede_registro ?? sedes[0]?.id_sede ?? 1,
+      acepta_promociones_socio:
+        (socio.acepta_promociones_socio ?? socio.acepta_promociones) !== false,
+      activo_socio: (socio.activo_socio ?? socio.activo) !== false,
+    });
+    setModalOpen(true);
   };
 
-  // Create Socio
-  const handleCreateSocio = async (e: React.FormEvent) => {
+  // Guardar Crear / Actualizar Socio
+  const handleSubmitSocio = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCreating(true);
+    setSubmitting(true);
     setFeedback(null);
     try {
-      const created = await sociosApi.create({
-        rut_socio: newSocio.rut_socio.trim(),
-        nombre_completo_socio: newSocio.nombre_completo_socio.trim(),
-        fecha_nacimiento_socio: newSocio.fecha_nacimiento_socio,
-        correo_socio: newSocio.correo_socio.trim(),
-        telefono_socio: newSocio.telefono_socio.trim(),
-        id_sede_registro_socio: Number(newSocio.id_sede_registro_socio),
-        acepta_promociones_socio: newSocio.acepta_promociones_socio,
-      });
-
-      setShowCreateModal(false);
-      setNewSocio({
-        rut_socio: "",
-        nombre_completo_socio: "",
-        fecha_nacimiento_socio: "",
-        correo_socio: "",
-        telefono_socio: "+56 9 ",
-        id_sede_registro_socio: sedes[0]?.id_sede || 1,
-        acepta_promociones_socio: true,
-      });
-      setFeedback({
-        type: "success",
-        message: `¡Socio ${created.nombre_completo_socio || created.nombre_completo} registrado con éxito con ID #${created.id_socio}!`,
-      });
-      loadSocios();
+      if (editMode && selectedSocioId) {
+        const res = await apiClient.socios.update(selectedSocioId, {
+          nombre_completo_socio: formData.nombre_completo_socio.trim(),
+          correo_socio: formData.correo_socio.trim(),
+          telefono_socio: formData.telefono_socio.trim(),
+          id_sede_registro_socio: Number(formData.id_sede_registro_socio),
+          acepta_promociones_socio: formData.acepta_promociones_socio,
+          activo_socio: formData.activo_socio,
+        });
+        setFeedback({
+          type: "ok",
+          text: `Socio #${res.id_socio || selectedSocioId} actualizado correctamente.`,
+        });
+      } else {
+        const res = await apiClient.socios.create({
+          rut_socio: formData.rut_socio.trim(),
+          nombre_completo_socio: formData.nombre_completo_socio.trim(),
+          fecha_nacimiento_socio: formData.fecha_nacimiento_socio,
+          correo_socio: formData.correo_socio.trim(),
+          telefono_socio: formData.telefono_socio.trim(),
+          id_sede_registro_socio: Number(formData.id_sede_registro_socio),
+          acepta_promociones_socio: formData.acepta_promociones_socio,
+          activo_socio: true,
+        });
+        setFeedback({
+          type: "ok",
+          text: `Socio registrado exitosamente (ID #${res.id_socio}).`,
+        });
+      }
+      setModalOpen(false);
+      await cargarDatos();
     } catch (err: any) {
       setFeedback({
         type: "error",
-        message: `Error al registrar socio: ${err.message}`,
+        text: err.message || "Error al guardar los datos del socio.",
       });
     } finally {
-      setCreating(false);
+      setSubmitting(false);
     }
   };
 
-  // Open Edit Modal
-  const handleOpenEdit = (s: SocioDetail) => {
-    setEditingSocio(s);
-    setEditForm({
-      nombre_completo_socio: s.nombre_completo_socio || "",
-      correo_socio: s.correo_socio || "",
-      telefono_socio: s.telefono_socio || "",
-      id_sede_registro_socio: s.id_sede_registro_socio || 1,
-      acepta_promociones_socio: Boolean(s.acepta_promociones_socio),
-    });
-  };
-
-  // Submit Edit
-  const handleUpdateSocio = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingSocio) return;
-    setUpdating(true);
+  // Alternar estado activo/inactivo directamente
+  const handleToggleEstado = async (socio: Socio) => {
+    const id = socio.id_socio;
+    if (!id) return;
+    const estadoActual = (socio.activo_socio ?? socio.activo) !== false;
     try {
-      const updated = await sociosApi.update(editingSocio.id_socio, {
-        nombre_completo_socio: editForm.nombre_completo_socio.trim(),
-        correo_socio: editForm.correo_socio.trim(),
-        telefono_socio: editForm.telefono_socio.trim(),
-        id_sede_registro_socio: Number(editForm.id_sede_registro_socio),
-        acepta_promociones_socio: editForm.acepta_promociones_socio,
-      });
-
-      setSocios((prev) =>
-        prev.map((s) => (s.id_socio === editingSocio.id_socio ? { ...s, ...updated } : s))
-      );
-      setEditingSocio(null);
+      await apiClient.socios.cambiarEstado(id, !estadoActual);
       setFeedback({
-        type: "success",
-        message: `Datos de ${updated.nombre_completo_socio || "socio"} actualizados con éxito.`,
+        type: "ok",
+        text: `Socio #${id} marcado como ${!estadoActual ? "Activo" : "Inactivo"}.`,
       });
+      await cargarDatos();
     } catch (err: any) {
       setFeedback({
         type: "error",
-        message: `Error al actualizar: ${err.message}`,
+        text: err.message || "No se pudo cambiar el estado del socio.",
       });
-    } finally {
-      setUpdating(false);
     }
   };
 
-  // Open Credenciales Modal
-  const handleOpenCredenciales = (s: SocioDetail) => {
-    setCredencialesSocio(s);
-    const suggestedUser = s.correo_socio
-      ? s.correo_socio.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "")
-      : `socio${s.id_socio}`;
-    setCredForm({
-      username_usuario: suggestedUser,
-      password: "",
-    });
+  // Abrir modal para Asignar Credenciales
+  const handleOpenCredenciales = (socio: Socio) => {
+    setCredSocio(socio);
+    setCredUsername(`socio${socio.id_socio}`);
+    setCredPassword("");
+    setCredModalOpen(true);
   };
 
-  // Submit Credenciales
-  const handleSaveCredenciales = async (e: React.FormEvent) => {
+  const handleSubmitCredenciales = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!credencialesSocio) return;
-    setSavingCred(true);
+    if (!credSocio?.id_socio) return;
+    setCredSubmitting(true);
+    setFeedback(null);
     try {
-      const res = await sociosApi.asignarCredenciales(credencialesSocio.id_socio, {
-        username_usuario: credForm.username_usuario.trim(),
-        password: credForm.password,
+      const res = await apiClient.socios.asignarCredenciales(credSocio.id_socio, {
+        username_usuario: credUsername.trim(),
+        password: credPassword,
       });
-      setCredencialesSocio(null);
       setFeedback({
-        type: "success",
-        message: `Credenciales configuradas con éxito para ${credencialesSocio.nombre_completo_socio}. Usuario: "${res.username_usuario}". Hasheado con SHA2_512.`,
+        type: "ok",
+        text:
+          res.mensaje ||
+          `Credenciales configuradas para @${res.username_usuario || credUsername}.`,
       });
+      setCredModalOpen(false);
     } catch (err: any) {
       setFeedback({
         type: "error",
-        message: `Error al asignar credenciales: ${err.message}`,
+        text: err.message || "Error al asignar credenciales al socio.",
       });
     } finally {
-      setSavingCred(false);
+      setCredSubmitting(false);
     }
   };
-
-  // Map sede id to name
-  const getNombreSede = useCallback(
-    (idSede: number) => {
-      const sede = sedes.find((s) => s.id_sede === idSede);
-      return sede ? `${sede.nombre_sede} (${sede.nombre_ciudad})` : `Sede #${idSede}`;
-    },
-    [sedes]
-  );
-
-  // Stats
-  const totalSocios = socios.length;
-  const sociosActivos = useMemo(() => socios.filter((s) => s.activo_socio).length, [socios]);
-  const sociosInactivos = totalSocios - sociosActivos;
 
   return (
-    <div className="space-y-12">
-      {/* ===== Editorial Section Heading (amp: weight 300, negative tracking, 2px orange accent rule) ===== */}
-      <section className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="badge-step">
-                Step 1 &bull; Gestión
-              </span>
-              <span className="badge-neutral">
-                Persona 1 (Carlos)
-              </span>
-            </div>
-
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-light text-amp-ink tracking-[-0.030em] leading-[1.15]">
-              Directorio de Socios
-            </h1>
-            <div className="h-[2.5px] w-24 bg-amp-orange mt-3"></div>
-
-            <p className="text-sm text-amp-carbon mt-3 max-w-2xl font-normal leading-relaxed">
-              Administración integral de socios del gimnasio, control de estado activo/inactivo, asignación
-              de credenciales con HASHBYTES SHA2_512 y enlace directo al torniquete de acceso.
-            </p>
+    <div className="space-y-8">
+      {/* Editorial Header */}
+      <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#7a7b7b] font-medium">
+            <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
+            <span>Padrón de Socios · Administración</span>
           </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="btn-primary-pill text-xs font-medium px-5 py-2.5 flex items-center gap-2"
-            >
-              <span>+</span>
-              <span>Registrar Nuevo Socio</span>
-            </button>
-
-            <Link
-              href="/socios/torniquete"
-              className="btn-secondary-pill bg-amp-white hover:bg-amp-linen border border-amp-hairline text-amp-carbon text-xs font-normal px-4 py-2.5 flex items-center gap-2"
-            >
-              <span>Abrir Torniquete</span>
-              <span>→</span>
-            </Link>
-
-            <button
-              onClick={loadSocios}
-              disabled={loading}
-              className="btn-secondary-pill bg-amp-linen hover:bg-amp-bone border border-amp-hairline text-amp-carbon text-xs font-normal px-3 py-2.5 flex items-center justify-center"
-              title="Recargar datos"
-            >
-              <span className={loading ? "animate-spin" : ""}>↻</span>
-            </button>
-          </div>
+          <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-[#0a0a0a]">
+            Directorio de Socios
+          </h1>
+          <div className="w-20 h-[2px] bg-[#ff6105]" />
+          <p className="text-sm text-[#7a7b7b] max-w-xl pt-1">
+            Gestiona la inscripción de nuevos afiliados, actualiza sus datos de contacto,
+            administra el estado de sus cuentas y habilita sus credenciales de acceso.
+          </p>
         </div>
 
-        {/* Counter cards (amp: 5px radius, 1px hairline border, single Peach Wash featured card) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-          <div className="card-ghost p-4">
-            <span className="text-xs text-amp-slate font-normal block">Total Registrados</span>
-            <span className="text-2xl sm:text-3xl font-light text-amp-ink tracking-tight mt-1 block">
-              {totalSocios}
-            </span>
-          </div>
-
-          {/* Featured Card (Peach Wash) — as designated in DESIGN.md: reserved for a single card per section */}
-          <div className="card-peach p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-amp-carbon font-medium">Socios Activos</span>
-              <span className="w-2 h-2 rounded-full bg-amp-orange"></span>
-            </div>
-            <span className="text-2xl sm:text-3xl font-medium text-amp-ink tracking-tight mt-1 block">
-              {sociosActivos}
-            </span>
-          </div>
-
-          <div className="card-ghost p-4">
-            <span className="text-xs text-amp-slate font-normal block">Socios Inactivos</span>
-            <span className="text-2xl sm:text-3xl font-light text-amp-ink tracking-tight mt-1 block">
-              {sociosInactivos}
-            </span>
-          </div>
-
-          <div className="card-ghost p-4">
-            <span className="text-xs text-amp-slate font-normal block">Sedes Conectadas</span>
-            <span className="text-2xl sm:text-3xl font-light text-amp-ink tracking-tight mt-1 block">
-              {sedes.length}
-            </span>
-          </div>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={cargarDatos}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-medium bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] transition-all cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-[#ff6105]" : ""}`} />
+            <span>Actualizar</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenCrear}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs sm:text-sm font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-sm hover:shadow transition-all cursor-pointer active:scale-95"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Registrar Socio</span>
+          </button>
         </div>
-      </section>
+      </div>
 
-      {/* ===== Feedback Notification Toast ===== */}
+      {/* Feedback Banner */}
       {feedback && (
         <div
-          className={`flex items-center justify-between p-4 rounded-[5px] text-xs font-normal border transition-all ${feedback.type === "success"
-              ? "bg-amp-linen border-amp-orange text-amp-ink"
-              : feedback.type === "error"
-                ? "bg-[#fff2f0] border-[#ffccc7] text-amp-ink"
-                : "bg-amp-linen border-amp-hairline text-amp-carbon"
-            }`}
+          className={`p-4 rounded-[5px] border flex items-center justify-between text-xs sm:text-sm animate-fade-in-scale ${
+            feedback.type === "ok"
+              ? "bg-[#f0fdf4] border-[#bbf7d0] text-[#15803d]"
+              : "bg-[#fef2f2] border-[#fecaca] text-[#dc2626]"
+          }`}
         >
           <div className="flex items-center gap-2.5">
-            <span className="w-2 h-2 rounded-full bg-amp-orange"></span>
-            <span>{feedback.message}</span>
+            {feedback.type === "ok" ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+            )}
+            <span>{feedback.text}</span>
           </div>
           <button
+            type="button"
             onClick={() => setFeedback(null)}
-            className="text-xs text-amp-slate hover:text-amp-ink px-2 py-0.5 rounded-[24px] border border-amp-hairline bg-amp-white"
+            className="text-xs opacity-70 hover:opacity-100 px-2 cursor-pointer"
           >
-            ✕ Cerrar
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* ===== Quick Lookup Card (Búsqueda Unitaria por RUT o ID) ===== */}
-      <section className="card-ghost p-5 sm:p-6 space-y-4">
-        <div>
-          <span className="text-xs text-amp-orange font-medium uppercase tracking-wider">Consulta Unitaria</span>
-          <h2 className="text-base font-medium text-amp-ink mt-0.5">
-            Búsqueda Rápida en SQL Server (GET /socios/{`{id}`} o /socios/rut/{`{rut}`})
-          </h2>
-          <p className="text-xs text-amp-slate mt-1 font-normal">
-            Consulte directamente los datos relacionales de un socio ingresando su identificador numérico o RUT completo.
-          </p>
+      {/* KPI Ghost Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 transition-all hover:border-[#ff6105]/30">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
+              Socios Listados
+            </p>
+            <Users className="w-4 h-4 text-[#ff6105]" />
+          </div>
+          <p className="text-3xl font-light text-[#0a0a0a] mt-2">{stats.total}</p>
+          <p className="text-xs text-[#7a7b7b] mt-1">Registros según filtros activos</p>
         </div>
 
-        <form onSubmit={handleQuickLookup} className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            placeholder="Ingrese ID (ej: 1) o RUT con o sin puntos (ej: 18.765.432-K)..."
-            value={quickLookupQuery}
-            onChange={(e) => setQuickLookupQuery(e.target.value)}
-            className="input-pill flex-1 px-4 py-2.5 text-xs sm:text-sm font-normal placeholder-amp-ash"
-          />
-          <button
-            type="submit"
-            disabled={quickLookupLoading || !quickLookupQuery.trim()}
-            className="btn-primary-pill text-xs font-medium px-6 py-2.5 flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {quickLookupLoading ? (
-              <span>Consultando...</span>
-            ) : (
-              <>
-                <span>Consultar</span>
-                <span>→</span>
-              </>
-            )}
-          </button>
-        </form>
-
-        {quickLookupError && (
-          <div className="p-3 rounded-[5px] bg-[#fff2f0] border border-[#ffccc7] text-xs text-amp-ink">
-            {quickLookupError}
+        <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 transition-all hover:border-emerald-500/30">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
+              Socios Activos
+            </p>
+            <UserCheck className="w-4 h-4 text-emerald-600" />
           </div>
-        )}
+          <p className="text-3xl font-light text-emerald-600 mt-2">{stats.activos}</p>
+          <p className="text-xs text-[#7a7b7b] mt-1">Habilitados en el sistema</p>
+        </div>
 
-        {quickLookupResult && (
-          <div className="p-4 rounded-[5px] bg-amp-linen border border-amp-hairline text-xs text-amp-carbon flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mt-2">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium text-sm text-amp-ink">
-                  {quickLookupResult.nombre_completo_socio}
-                </span>
-                <span className="badge-step text-[10px] py-0.5 px-2">
-                  ID #{quickLookupResult.id_socio}
-                </span>
-                <span className="badge-neutral text-[10px] py-0.5 px-2">
-                  {quickLookupResult.activo_socio ? "Activo" : "Inactivo"}
-                </span>
-              </div>
-              <p className="text-amp-slate font-normal">
-                RUT: <strong className="text-amp-carbon font-medium">{quickLookupResult.rut_socio}</strong> &bull; Correo: <strong className="text-amp-carbon font-medium">{quickLookupResult.correo_socio}</strong> &bull; Teléfono: {quickLookupResult.telefono_socio}
-              </p>
-              <p className="text-amp-slate font-normal">
-                Sede: <span className="text-amp-carbon font-medium">{getNombreSede(quickLookupResult.id_sede_registro_socio)}</span> &bull; Promociones: {quickLookupResult.acepta_promociones_socio ? "Sí" : "No"}
-              </p>
-            </div>
+        <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 transition-all hover:border-rose-500/30">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
+              Socios Inactivos
+            </p>
+            <UserX className="w-4 h-4 text-rose-600" />
+          </div>
+          <p className="text-3xl font-light text-rose-600 mt-2">{stats.inactivos}</p>
+          <p className="text-xs text-[#7a7b7b] mt-1">Cuentas suspendidas o de baja</p>
+        </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={() => handleToggleEstado(quickLookupResult)}
-                className="btn-secondary-pill px-3 py-1.5 bg-amp-white hover:bg-amp-bone border border-amp-hairline text-amp-carbon text-xs font-normal"
-              >
-                {quickLookupResult.activo_socio ? "Desactivar" : "Activar"}
-              </button>
-              <button
-                onClick={() => handleOpenEdit(quickLookupResult)}
-                className="btn-secondary-pill px-3 py-1.5 bg-amp-white hover:bg-amp-bone border border-amp-hairline text-amp-carbon text-xs font-normal"
-              >
-                Editar
-              </button>
-              <Link
-                href={`/socios/torniquete?rut=${encodeURIComponent(quickLookupResult.rut_socio)}`}
-                className="btn-primary-pill px-3 py-1.5 text-xs font-medium"
-              >
-                Probar en Torniquete →
-              </Link>
+        <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 transition-all hover:border-[#ff6105]/30">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
+              Sedes Operativas
+            </p>
+            <Building2 className="w-4 h-4 text-[#ff6105]" />
+          </div>
+          <p className="text-3xl font-light text-[#0a0a0a] mt-2">{sedes.length || "—"}</p>
+          <p className="text-xs text-[#7a7b7b] mt-1">Sucursales disponibles</p>
+        </div>
+      </div>
+
+      {/* Barra de Filtros */}
+      <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 flex flex-col lg:flex-row items-stretch lg:items-end justify-between gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+          {/* Buscador por texto, RUT o correo */}
+          <div>
+            <label className="block text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium mb-1.5">
+              Buscar por nombre, RUT o correo
+            </label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-[#7a7b7b] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={buscar}
+                onChange={(e) => setBuscar(e.target.value)}
+                placeholder="Ej: 18.900.013-K, Fernanda o correo..."
+                className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-full pl-10 pr-4 py-2 text-sm text-[#0a0a0a] placeholder-[#7a7b7b] focus:outline-none focus:border-[#ff6105] focus:bg-white transition-colors"
+              />
             </div>
           </div>
-        )}
-      </section>
 
-      {/* ===== Main Filter & Search Bar ===== */}
-      <section className="space-y-4">
-        <div className="p-4 rounded-[5px] bg-amp-linen border border-amp-hairline flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          {/* Search input (Pill 50px radius) */}
-          <div className="flex-1 relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-amp-slate text-xs">
-              🔍
-            </span>
-            <input
-              type="text"
-              placeholder="Filtrar por Nombre, RUT o Correo (GET /socios/?buscar=...)"
-              value={buscar}
-              onChange={(e) => setBuscar(e.target.value)}
-              className="input-pill w-full pl-10 pr-8 py-2 text-xs sm:text-sm font-normal placeholder-amp-ash"
-            />
-            {buscar && (
-              <button
-                onClick={() => setBuscar("")}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-amp-slate hover:text-amp-ink"
+          {/* Selector de Sede */}
+          <div>
+            <label className="block text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium mb-1.5">
+              Filtrar por Sede
+            </label>
+            <div className="relative">
+              <select
+                value={filtroSede}
+                onChange={(e) => setFiltroSede(e.target.value)}
+                className="w-full appearance-none bg-[#f8f9f8] border border-[#e5e5e5] rounded-full pl-4 pr-9 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white transition-colors cursor-pointer"
               >
-                ✕
-              </button>
-            )}
+                <option value="">Todas las sedes</option>
+                {sedes.map((s) => (
+                  <option key={s.id_sede} value={s.id_sede}>
+                    {s.nombre_sede} {s.nombre_ciudad ? `(${s.nombre_ciudad})` : ""}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-[#7a7b7b] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
+        </div>
 
-          {/* Status Tab buttons (24px secondary pills) */}
-          <div className="flex items-center gap-1 bg-amp-white p-1 rounded-[24px] border border-amp-hairline">
-            {(["todos", "activos", "inactivos"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setFiltroActivo(tab)}
-                className={`px-3 py-1 rounded-[24px] text-xs capitalize transition-all ${filtroActivo === tab
-                    ? "bg-amp-orange text-amp-white font-medium"
-                    : "text-amp-slate hover:text-amp-ink font-normal"
-                  }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          {/* Sede selector filter (24px pill) */}
-          <div className="w-full md:w-56">
-            <select
-              value={filtroSede}
-              onChange={(e) => setFiltroSede(e.target.value)}
-              className="w-full px-3 py-2 rounded-[24px] bg-amp-white border border-amp-hairline text-xs font-normal text-amp-carbon focus:outline-none focus:border-amp-orange cursor-pointer"
+        {/* Estado (Pills) */}
+        <div className="flex items-center gap-1.5 bg-[#f8f9f8] p-1 rounded-full border border-[#e5e5e5] self-start lg:self-auto">
+          {(["todos", "activos", "inactivos"] as const).map((est) => (
+            <button
+              key={est}
+              type="button"
+              onClick={() => setFiltroEstado(est)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium capitalize transition-all cursor-pointer ${
+                filtroEstado === est
+                  ? "bg-white text-[#0a0a0a] shadow-xs border border-[#e5e5e5]"
+                  : "text-[#7a7b7b] hover:text-[#0a0a0a]"
+              }`}
             >
-              <option value="">Todas las Sedes</option>
-              {sedes.map((s) => (
-                <option key={s.id_sede} value={s.id_sede}>
-                  {s.nombre_sede} ({s.nombre_ciudad})
-                </option>
-              ))}
-            </select>
-          </div>
+              {est}
+            </button>
+          ))}
         </div>
+      </div>
 
-        {/* ===== Socios Table (amp: 5px radius, 1px border #e5e5e5, white surface, Linen headers) ===== */}
-        <div className="card-ghost overflow-hidden">
-          {loading ? (
-            <div className="p-16 text-center text-amp-slate space-y-3">
-              <div className="w-6 h-6 border-2 border-amp-orange border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="text-xs font-normal">Cargando directorio de socios desde SQL Server...</p>
-            </div>
-          ) : socios.length === 0 ? (
-            <div className="p-16 text-center text-amp-slate space-y-2">
-              <p className="text-sm font-medium text-amp-ink">
-                No se encontraron socios con los filtros actuales.
-              </p>
-              <p className="text-xs font-normal text-amp-slate">
-                Intente modificando el término de búsqueda o registre un nuevo socio.
-              </p>
-              <button
-                onClick={() => {
-                  setBuscar("");
-                  setFiltroActivo("todos");
-                  setFiltroSede("");
-                }}
-                className="btn-secondary-pill mt-3 text-xs px-3 py-1.5 bg-amp-linen border border-amp-hairline text-amp-carbon"
-              >
-                Limpiar Filtros
-              </button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs sm:text-sm">
-                <thead className="bg-amp-linen text-amp-slate uppercase text-[11px] tracking-wider border-b border-amp-hairline font-medium">
-                  <tr>
-                    <th className="px-4 py-3">ID</th>
-                    <th className="px-4 py-3">Socio</th>
-                    <th className="px-4 py-3">Contacto</th>
-                    <th className="px-4 py-3">Sede Registro</th>
-                    <th className="px-4 py-3 text-center">Estado</th>
-                    <th className="px-4 py-3 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-amp-hairline">
-                  {socios.map((s) => (
+      {/* Tabla de Socios */}
+      <div className="bg-white border border-[#e5e5e5] rounded-[5px] overflow-hidden">
+        {loading ? (
+          <div className="p-12 text-center space-y-3">
+            <Loader2 className="w-7 h-7 text-[#ff6105] animate-spin mx-auto" />
+            <p className="text-sm text-[#7a7b7b]">Cargando directorio de socios...</p>
+          </div>
+        ) : errorMsg ? (
+          <div className="p-10 text-center space-y-3">
+            <p className="text-sm text-[#dc2626] font-medium">{errorMsg}</p>
+            <button
+              type="button"
+              onClick={cargarDatos}
+              className="px-4 py-2 rounded-full bg-[#ff6105] text-white text-xs font-medium cursor-pointer"
+            >
+              Reintentar
+            </button>
+          </div>
+        ) : socios.length === 0 ? (
+          <div className="p-12 text-center space-y-2">
+            <Users className="w-8 h-8 text-[#7a7b7b] mx-auto stroke-[1.5]" />
+            <p className="text-base font-medium text-[#0a0a0a]">
+              No se encontraron socios con los filtros seleccionados
+            </p>
+            <p className="text-xs text-[#7a7b7b]">
+              Intenta limpiar la búsqueda o registra un nuevo socio.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#f8f9f8] border-b border-[#e5e5e5] text-[11px] uppercase tracking-wider text-[#7a7b7b]">
+                  <th className="py-3.5 px-5 font-medium">Socio</th>
+                  <th className="py-3.5 px-4 font-medium">RUT</th>
+                  <th className="py-3.5 px-4 font-medium">Contacto</th>
+                  <th className="py-3.5 px-4 font-medium">Sede</th>
+                  <th className="py-3.5 px-4 font-medium">Estado</th>
+                  <th className="py-3.5 px-5 font-medium text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#e5e5e5] text-sm">
+                {socios.map((s) => {
+                  const id = s.id_socio;
+                  const rut = s.rut_socio ?? s.rut ?? "—";
+                  const nombreCompleto =
+                    s.nombre_completo_socio ?? s.nombre_completo ?? `Socio #${id}`;
+                  const correo = s.correo_socio ?? s.correo ?? "—";
+                  const telefono = s.telefono_socio ?? s.telefono ?? "—";
+                  const idSede = s.id_sede_registro_socio ?? s.id_sede_registro ?? 1;
+                  const nombreSede = sedesMap[idSede] || `Sede #${idSede}`;
+                  const activo = (s.activo_socio ?? s.activo) !== false;
+
+                  return (
                     <tr
-                      key={s.id_socio}
-                      className="hover:bg-amp-linen/50 transition-colors"
+                      key={id}
+                      className="hover:bg-[#f8f9f8]/80 transition-colors"
                     >
-                      {/* ID */}
-                      <td className="px-4 py-3.5 font-mono text-amp-slate text-xs">
-                        #{s.id_socio}
-                      </td>
-
-                      {/* Socio Name + RUT */}
-                      <td className="px-4 py-3.5">
-                        <div className="font-medium text-amp-ink">
-                          {s.nombre_completo_socio}
-                        </div>
-                        <div className="text-xs font-mono text-amp-slate mt-0.5">
-                          {s.rut_socio}
-                        </div>
-                      </td>
-
-                      {/* Contact */}
-                      <td className="px-4 py-3.5 text-xs font-normal">
-                        <div className="text-amp-carbon flex items-center gap-1.5">
-                          <span>✉</span>
-                          <span className="truncate max-w-[180px]">{s.correo_socio}</span>
-                        </div>
-                        <div className="text-amp-slate mt-1 flex items-center gap-1.5">
-                          <span>📞</span>
-                          <span>{s.telefono_socio}</span>
+                      <td className="py-3.5 px-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-[#ffdfcd] text-[#ff6105] flex items-center justify-center text-xs font-semibold shrink-0">
+                            {nombreCompleto.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium text-[#0a0a0a]">
+                              {nombreCompleto}
+                            </p>
+                            <p className="text-[11px] text-[#7a7b7b]">ID #{id}</p>
+                          </div>
                         </div>
                       </td>
 
-                      {/* Sede */}
-                      <td className="px-4 py-3.5 text-xs text-amp-carbon font-normal">
-                        <span className="px-2.5 py-1 rounded-[8px] bg-amp-linen border border-amp-hairline">
-                          {getNombreSede(s.id_sede_registro_socio)}
+                      <td className="py-3.5 px-4">
+                        <span className="font-mono text-xs px-2.5 py-1 rounded-full bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5]">
+                          {rut}
                         </span>
                       </td>
 
-                      {/* State Toggle */}
-                      <td className="px-4 py-3.5 text-center">
+                      <td className="py-3.5 px-4 text-xs text-[#292b2a] space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-[#7a7b7b] shrink-0" />
+                          <span className="truncate max-w-[200px]">{correo}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[#7a7b7b]">
+                          <Phone className="w-3.5 h-3.5 shrink-0" />
+                          <span>{telefono}</span>
+                        </div>
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-[#f8f9f8] text-[#292b2a] border border-[#e5e5e5]">
+                          <MapPin className="w-3 h-3 text-[#ff6105]" />
+                          <span>{nombreSede}</span>
+                        </span>
+                      </td>
+
+                      <td className="py-3.5 px-4">
                         <button
+                          type="button"
                           onClick={() => handleToggleEstado(s)}
-                          disabled={updatingId === s.id_socio}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-[8px] text-xs font-medium border transition-all ${s.activo_socio
-                              ? "bg-amp-linen text-amp-ink border-amp-orange"
-                              : "bg-amp-bone text-amp-slate border-amp-hairline"
-                            }`}
-                          title="Clic para alternar estado"
+                          title="Clic para cambiar estado"
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer ${
+                            activo
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                              : "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
+                          }`}
                         >
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${s.activo_socio ? "bg-amp-orange" : "bg-amp-slate"
-                              }`}
-                          ></span>
-                          <span>{s.activo_socio ? "Activo" : "Inactivo"}</span>
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              activo ? "bg-emerald-600" : "bg-rose-600"
+                            }`}
+                          />
+                          <span>{activo ? "Activo" : "Inactivo"}</span>
                         </button>
                       </td>
 
-                      {/* Actions */}
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="py-3.5 px-5 text-right">
+                        <div className="inline-flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => handleOpenEdit(s)}
-                            className="btn-secondary-pill px-3 py-1 bg-amp-white hover:bg-amp-linen text-amp-carbon text-xs font-normal border border-amp-hairline"
+                            type="button"
+                            onClick={() => handleOpenEditar(s)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] transition-colors cursor-pointer"
                             title="Editar datos del socio"
                           >
-                            Editar
+                            <Edit2 className="w-3 h-3" />
+                            <span>Editar</span>
                           </button>
 
                           <button
+                            type="button"
                             onClick={() => handleOpenCredenciales(s)}
-                            className="btn-secondary-pill px-3 py-1 bg-amp-linen hover:bg-amp-bone text-amp-carbon text-xs font-normal border border-amp-hairline"
-                            title="Asignar credenciales de acceso"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs bg-[#ffdfcd]/60 hover:bg-[#ffdfcd] text-[#0a0a0a] border border-[#ff6105]/30 transition-colors cursor-pointer"
+                            title="Asignar usuario y contraseña"
                           >
-                            Credenciales
+                            <KeyRound className="w-3 h-3 text-[#ff6105]" />
+                            <span>Clave</span>
                           </button>
 
                           <Link
-                            href={`/socios/torniquete?rut=${encodeURIComponent(s.rut_socio)}`}
-                            className="btn-secondary-pill px-3 py-1 bg-amp-white hover:bg-amp-linen text-amp-orange hover:text-amp-orange text-xs font-medium border border-amp-orange"
+                            href={`/socios/torniquete?identificador=${encodeURIComponent(rut)}`}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs bg-[#0a0a0a] hover:bg-[#292b2a] text-white transition-colors"
                             title="Validar acceso en torniquete"
                           >
-                            Torniquete →
+                            <ShieldCheck className="w-3 h-3 text-[#ff6105]" />
+                            <span>Acceso</span>
                           </Link>
                         </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </section>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
-      {/* ===== MODAL: REGISTRAR NUEVO SOCIO (POST /socios/) ===== */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-amp-ink/50 backdrop-blur-sm animate-fade-in-scale">
-          <div className="card-ghost bg-amp-white p-6 sm:p-8 max-w-lg w-full space-y-6">
-            <div className="flex items-center justify-between border-b border-amp-hairline pb-4">
+      {/* Modal Crear / Editar Socio */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-[#e5e5e5] rounded-[5px] max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-xl animate-fade-in-scale">
+            <div className="flex items-start justify-between gap-4 border-b border-[#e5e5e5] pb-4">
               <div>
-                <span className="badge-step text-[10px] py-0.5 px-2">POST /socios/</span>
-                <h3 className="text-xl font-light text-amp-ink tracking-tight mt-1">Registrar Nuevo Socio</h3>
+                <p className="text-[11px] uppercase tracking-wider text-[#ff6105] font-medium">
+                  {editMode ? "Actualización de Ficha" : "Inscripción de Socio"}
+                </p>
+                <h3 className="text-xl font-medium text-[#0a0a0a] mt-0.5">
+                  {editMode ? `Editar Socio #${selectedSocioId}` : "Registrar Nuevo Socio"}
+                </h3>
               </div>
               <button
-                onClick={() => setShowCreateModal(false)}
-                className="text-amp-slate hover:text-amp-ink text-sm p-1 rounded-full"
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-[#f3f4f3] hover:bg-[#e5e7eb] flex items-center justify-center text-[#292b2a] cursor-pointer"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateSocio} className="space-y-4">
+            <form onSubmit={handleSubmitSocio} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-amp-carbon mb-1">
+                  <label className="block text-xs font-medium text-[#292b2a] mb-1">
                     RUT del Socio *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="18.765.432-K"
-                    value={newSocio.rut_socio}
+                    disabled={editMode}
+                    value={formData.rut_socio}
                     onChange={(e) =>
-                      setNewSocio({ ...newSocio, rut_socio: e.target.value })
+                      setFormData({ ...formData, rut_socio: e.target.value })
                     }
-                    className="input-pill w-full px-3 py-2 text-xs"
+                    placeholder="Ej: 19.456.789-0"
+                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] disabled:opacity-60 focus:outline-none focus:border-[#ff6105] focus:bg-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-amp-carbon mb-1">
-                    Fecha de Nacimiento *
+                  <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                    Sede Asignada *
+                  </label>
+                  <select
+                    required
+                    value={formData.id_sede_registro_socio}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        id_sede_registro_socio: Number(e.target.value),
+                      })
+                    }
+                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
+                  >
+                    {sedes.map((s) => (
+                      <option key={s.id_sede} value={s.id_sede}>
+                        {s.nombre_sede} {s.nombre_ciudad ? `(${s.nombre_ciudad})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                    Nombre Completo *
                   </label>
                   <input
-                    type="date"
+                    type="text"
                     required
-                    value={newSocio.fecha_nacimiento_socio}
+                    value={formData.nombre_completo_socio}
                     onChange={(e) =>
-                      setNewSocio({ ...newSocio, fecha_nacimiento_socio: e.target.value })
+                      setFormData({
+                        ...formData,
+                        nombre_completo_socio: e.target.value,
+                      })
                     }
-                    className="input-pill w-full px-3 py-2 text-xs text-amp-carbon"
+                    placeholder="Ej: Valentina Soto Muñoz"
+                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-medium text-amp-carbon mb-1">
-                  Nombre Completo *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Carlos Andrés Silva"
-                  value={newSocio.nombre_completo_socio}
-                  onChange={(e) =>
-                    setNewSocio({ ...newSocio, nombre_completo_socio: e.target.value })
-                  }
-                  className="input-pill w-full px-3 py-2 text-xs"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-amp-carbon mb-1">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-[#292b2a] mb-1">
                     Correo Electrónico *
                   </label>
                   <input
                     type="email"
                     required
-                    placeholder="socio@correo.cl"
-                    value={newSocio.correo_socio}
+                    value={formData.correo_socio}
                     onChange={(e) =>
-                      setNewSocio({ ...newSocio, correo_socio: e.target.value })
+                      setFormData({ ...formData, correo_socio: e.target.value })
                     }
-                    className="input-pill w-full px-3 py-2 text-xs"
+                    placeholder="socio@gimnasiodb.cl"
+                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-amp-carbon mb-1">
-                    Teléfono Celular *
+                  <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                    Teléfono *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="+56 9 1234 5678"
-                    value={newSocio.telefono_socio}
+                    value={formData.telefono_socio}
                     onChange={(e) =>
-                      setNewSocio({ ...newSocio, telefono_socio: e.target.value })
+                      setFormData({ ...formData, telefono_socio: e.target.value })
                     }
-                    className="input-pill w-full px-3 py-2 text-xs"
+                    placeholder="+56987654321"
+                    className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
                   />
                 </div>
+
+                {!editMode ? (
+                  <div>
+                    <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                      Fecha de Nacimiento *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.fecha_nacimiento_socio}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          fecha_nacimiento_socio: e.target.value,
+                        })
+                      }
+                      className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                      Estado del Socio
+                    </label>
+                    <select
+                      value={formData.activo_socio ? "true" : "false"}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          activo_socio: e.target.value === "true",
+                        })
+                      }
+                      className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
+                    >
+                      <option value="true">Activo</option>
+                      <option value="false">Inactivo</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-amp-carbon mb-1">
-                  Sede de Registro *
-                </label>
-                <select
-                  value={newSocio.id_sede_registro_socio}
-                  onChange={(e) =>
-                    setNewSocio({ ...newSocio, id_sede_registro_socio: Number(e.target.value) })
-                  }
-                  className="input-pill w-full px-3 py-2 text-xs"
-                >
-                  {sedes.map((s) => (
-                    <option key={s.id_sede} value={s.id_sede}>
-                      {s.nombre_sede} — {s.nombre_ciudad}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="promo_check"
-                  checked={newSocio.acepta_promociones_socio}
-                  onChange={(e) =>
-                    setNewSocio({ ...newSocio, acepta_promociones_socio: e.target.checked })
-                  }
-                  className="rounded border-amp-hairline text-amp-orange focus:ring-amp-orange w-4 h-4 cursor-pointer"
-                />
-                <label htmlFor="promo_check" className="text-xs text-amp-slate cursor-pointer font-normal">
-                  Acepta recibir promociones y notificaciones del gimnasio
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-amp-hairline">
+              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#e5e5e5]">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="btn-secondary-pill px-4 py-2 bg-amp-linen border border-amp-hairline text-amp-carbon text-xs font-normal"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 rounded-full text-xs font-medium bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={creating}
-                  className="btn-primary-pill px-5 py-2 text-xs font-medium flex items-center gap-2"
+                  disabled={submitting}
+                  className="px-5 py-2 rounded-full text-xs font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-xs transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {creating && <span>↻</span>}
-                  <span>Guardar Socio</span>
+                  {submitting
+                    ? "Guardando..."
+                    : editMode
+                    ? "Guardar Cambios"
+                    : "Registrar Socio"}
                 </button>
               </div>
             </form>
@@ -867,206 +772,80 @@ function SociosDirectorioContent() {
         </div>
       )}
 
-      {/* ===== MODAL: EDITAR SOCIO (PUT /socios/{id}) ===== */}
-      {editingSocio && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-amp-ink/50 backdrop-blur-sm animate-fade-in-scale">
-          <div className="card-ghost bg-amp-white p-6 sm:p-8 max-w-lg w-full space-y-6">
-            <div className="flex items-center justify-between border-b border-amp-hairline pb-4">
+      {/* Modal Asignar Credenciales */}
+      {credModalOpen && credSocio && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-[#e5e5e5] rounded-[5px] max-w-md w-full p-6 sm:p-8 space-y-5 shadow-xl animate-fade-in-scale">
+            <div className="flex items-start justify-between gap-4 border-b border-[#e5e5e5] pb-4">
               <div>
-                <span className="badge-step text-[10px] py-0.5 px-2">
-                  PUT /socios/{editingSocio.id_socio}
-                </span>
-                <h3 className="text-xl font-light text-amp-ink tracking-tight mt-1">Editar Datos del Socio</h3>
-                <p className="text-xs text-amp-slate font-mono">RUT: {editingSocio.rut_socio}</p>
+                <p className="text-[11px] uppercase tracking-wider text-[#ff6105] font-medium">
+                  Credenciales de Acceso
+                </p>
+                <h3 className="text-xl font-medium text-[#0a0a0a] mt-0.5">
+                  Configurar Cuenta de Socio
+                </h3>
+                <p className="text-xs text-[#7a7b7b] mt-0.5">
+                  {credSocio.nombre_completo_socio ?? credSocio.nombre_completo} (
+                  {credSocio.rut_socio ?? credSocio.rut})
+                </p>
               </div>
               <button
-                onClick={() => setEditingSocio(null)}
-                className="text-amp-slate hover:text-amp-ink text-sm p-1 rounded-full"
+                type="button"
+                onClick={() => setCredModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-[#f3f4f3] hover:bg-[#e5e7eb] flex items-center justify-center text-[#292b2a] cursor-pointer"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleUpdateSocio} className="space-y-4">
+            <form onSubmit={handleSubmitCredenciales} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-amp-carbon mb-1">
-                  Nombre Completo
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.nombre_completo_socio}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, nombre_completo_socio: e.target.value })
-                  }
-                  className="input-pill w-full px-3 py-2 text-xs"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-amp-carbon mb-1">
-                    Correo Electrónico
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={editForm.correo_socio}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, correo_socio: e.target.value })
-                    }
-                    className="input-pill w-full px-3 py-2 text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-amp-carbon mb-1">
-                    Teléfono
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editForm.telefono_socio}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, telefono_socio: e.target.value })
-                    }
-                    className="input-pill w-full px-3 py-2 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-amp-carbon mb-1">
-                  Sede de Registro
-                </label>
-                <select
-                  value={editForm.id_sede_registro_socio}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, id_sede_registro_socio: Number(e.target.value) })
-                  }
-                  className="input-pill w-full px-3 py-2 text-xs"
-                >
-                  {sedes.map((s) => (
-                    <option key={s.id_sede} value={s.id_sede}>
-                      {s.nombre_sede} — {s.nombre_ciudad}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="promo_edit_check"
-                  checked={editForm.acepta_promociones_socio}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, acepta_promociones_socio: e.target.checked })
-                  }
-                  className="rounded border-amp-hairline text-amp-orange focus:ring-amp-orange w-4 h-4 cursor-pointer"
-                />
-                <label htmlFor="promo_edit_check" className="text-xs text-amp-slate cursor-pointer font-normal">
-                  Acepta recibir promociones y novedades
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-amp-hairline">
-                <button
-                  type="button"
-                  onClick={() => setEditingSocio(null)}
-                  className="btn-secondary-pill px-4 py-2 bg-amp-linen border border-amp-hairline text-amp-carbon text-xs font-normal"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={updating}
-                  className="btn-primary-pill px-5 py-2 text-xs font-medium flex items-center gap-2"
-                >
-                  {updating && <span>↻</span>}
-                  <span>Guardar Cambios</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ===== MODAL: ASIGNAR CREDENCIALES (POST /socios/{id}/credenciales) ===== */}
-      {credencialesSocio && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-amp-ink/50 backdrop-blur-sm animate-fade-in-scale">
-          <div className="card-ghost bg-amp-white p-6 sm:p-8 max-w-md w-full space-y-6">
-            <div className="flex items-center justify-between border-b border-amp-hairline pb-4">
-              <div>
-                <span className="badge-step text-[10px] py-0.5 px-2">
-                  POST /socios/{credencialesSocio.id_socio}/credenciales
-                </span>
-                <h3 className="text-xl font-light text-amp-ink tracking-tight mt-1">Credenciales de Acceso</h3>
-                <p className="text-xs text-amp-slate font-medium">{credencialesSocio.nombre_completo_socio}</p>
-              </div>
-              <button
-                onClick={() => setCredencialesSocio(null)}
-                className="text-amp-slate hover:text-amp-ink text-sm p-1 rounded-full"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-3 rounded-[5px] bg-amp-linen border border-amp-hairline text-xs text-amp-carbon font-normal">
-              💡 La contraseña se almacenará protegida mediante el estándar criptográfico nativo de SQL Server:
-              <code className="block mt-1 font-mono text-[11px] bg-amp-white border border-amp-hairline p-1.5 rounded-[5px] text-amp-orange">
-                HASHBYTES(&apos;SHA2_512&apos;, @password)
-              </code>
-            </div>
-
-            <form onSubmit={handleSaveCredenciales} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-amp-carbon mb-1">
-                  Nombre de Usuario (username_usuario) *
+                <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                  Nombre de Usuario (Login) *
                 </label>
                 <input
                   type="text"
                   required
                   minLength={3}
-                  value={credForm.username_usuario}
-                  onChange={(e) =>
-                    setCredForm({ ...credForm, username_usuario: e.target.value })
-                  }
-                  className="input-pill w-full px-3 py-2 text-xs"
+                  value={credUsername}
+                  onChange={(e) => setCredUsername(e.target.value)}
+                  placeholder="Ej: socio1"
+                  className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-amp-carbon mb-1">
-                  Nueva Contraseña (mínimo 6 caracteres) *
+                <label className="block text-xs font-medium text-[#292b2a] mb-1">
+                  Contraseña *
                 </label>
                 <input
                   type="password"
                   required
                   minLength={6}
-                  placeholder="••••••••"
-                  value={credForm.password}
-                  onChange={(e) =>
-                    setCredForm({ ...credForm, password: e.target.value })
-                  }
-                  className="input-pill w-full px-3 py-2 text-xs"
+                  value={credPassword}
+                  onChange={(e) => setCredPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] px-3.5 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#ff6105] focus:bg-white"
                 />
+                <p className="text-[11px] text-[#7a7b7b] mt-1.5">
+                  La contraseña se almacena cifrada de forma segura en la base de datos.
+                </p>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-amp-hairline">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#e5e5e5]">
                 <button
                   type="button"
-                  onClick={() => setCredencialesSocio(null)}
-                  className="btn-secondary-pill px-4 py-2 bg-amp-linen border border-amp-hairline text-amp-carbon text-xs font-normal"
+                  onClick={() => setCredModalOpen(false)}
+                  className="px-4 py-2 rounded-full text-xs font-medium bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={savingCred}
-                  className="btn-primary-pill px-5 py-2 text-xs font-medium flex items-center gap-2"
+                  disabled={credSubmitting}
+                  className="px-5 py-2 rounded-full text-xs font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-xs transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {savingCred && <span>↻</span>}
-                  <span>Guardar Credenciales</span>
+                  {credSubmitting ? "Guardando..." : "Guardar Credenciales"}
                 </button>
               </div>
             </form>
@@ -1074,20 +853,5 @@ function SociosDirectorioContent() {
         </div>
       )}
     </div>
-  );
-}
-
-export default function SociosDirectorioPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="p-16 text-center text-amp-slate">
-          <div className="w-6 h-6 border-2 border-amp-orange border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-          <p className="text-xs font-normal">Cargando directorio de socios...</p>
-        </div>
-      }
-    >
-      <SociosDirectorioContent />
-    </Suspense>
   );
 }

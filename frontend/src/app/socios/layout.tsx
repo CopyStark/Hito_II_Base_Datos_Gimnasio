@@ -1,39 +1,41 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Users,
+  ShieldCheck,
+  Building2,
+  UserCircle,
+  ArrowLeft,
+  ChevronRight,
+} from "lucide-react";
 
-interface NavItem {
-  name: string;
-  href: string;
-  icon: string;
-  description: string;
-}
-
-const NAV_ITEMS: NavItem[] = [
+const TABS = [
   {
-    name: "Gestión de Socios",
     href: "/socios",
-    icon: "👥",
-    description: "Listado, registro, edición y credenciales de socios",
+    label: "Directorio de Socios",
+    icon: Users,
+    exact: true,
   },
   {
-    name: "Torniquete & Acceso",
     href: "/socios/torniquete",
-    icon: "🚪",
-    description: "Control de acceso en tiempo real y simulación de torniquete",
+    label: "Control de Acceso",
+    icon: ShieldCheck,
+    exact: false,
   },
   {
-    name: "Sedes & Reportes",
     href: "/socios/sedes",
-    icon: "🏢",
-    description: "Catálogo de sedes e informe analítico de socios por sucursal",
+    label: "Sedes y Reportes",
+    icon: Building2,
+    exact: false,
   },
   {
-    name: "Login & Mi Perfil",
     href: "/socios/login",
-    icon: "🔐",
-    description: "Autenticación multi-rol SHA2_512 y consulta de perfil",
+    label: "Acceso y Perfil",
+    icon: UserCircle,
+    exact: false,
   },
 ];
 
@@ -43,111 +45,103 @@ export default function SociosLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-amp-white text-amp-ink flex flex-col font-sans selection:bg-amp-peach selection:text-amp-ink">
-      {/* Announcement Bar (DESIGN.md: 40-48px Linen background with Carbon text) */}
-      <div className="bg-amp-linen border-b border-amp-hairline py-2 px-4 text-center text-xs text-amp-carbon">
-        <div className="max-w-[1200px] mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amp-orange"></span>
-            <span className="text-amp-slate font-normal">Módulo de Socios & Acceso</span>
-            <span className="text-amp-ash hidden sm:inline">&bull;</span>
-            <span className="text-amp-carbon hidden sm:inline font-normal">FastAPI + pyodbc en SQL Server</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-amp-slate font-normal text-[11px]">Responsable:</span>
-            <span className="badge-step text-[11px] py-0.5 px-2.5">
-              Persona 1 &bull; Carlos
+    <div className="min-h-screen bg-[#f8f9f8] text-[#0a0a0a] flex flex-col font-sans">
+      {/* Top Header */}
+      <header
+        className={`sticky top-0 z-30 transition-all duration-300 ${
+          scrolled
+            ? "bg-white/95 backdrop-blur-md shadow-xs border-b border-[#e5e5e5]"
+            : "bg-white border-b border-[#e5e5e5]"
+        }`}
+      >
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="group text-sm text-[#7a7b7b] hover:text-[#0a0a0a] transition-colors flex items-center gap-1.5"
+            >
+              <ArrowLeft className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
+              <span>Inicio</span>
+            </Link>
+            <span className="h-4 w-px bg-[#e5e5e5]" />
+            <Link
+              href="/"
+              className="group flex items-center gap-1.5 text-[#0a0a0a] tracking-[-0.03em] text-[20px] font-medium"
+            >
+              <span>gimnasio</span>
+              <span className="inline-block w-2 h-2 rounded-full bg-[#ff6105] transition-transform duration-300 group-hover:scale-125" />
+              <span className="font-light text-[#7a7b7b]">db</span>
+            </Link>
+            <span className="hidden sm:inline-block text-xs px-2.5 py-0.5 rounded-full bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5]">
+              Módulo Socios
             </span>
           </div>
-        </div>
-      </div>
 
-      {/* Top Navigation Header (DESIGN.md: Canvas white, 64-72px, hairline border) */}
-      <header className="sticky top-0 z-50 bg-amp-white/95 backdrop-blur-md border-b border-amp-hairline">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-16">
-            {/* Brand Logo & Back to Home */}
-            <div className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="text-xs text-amp-slate hover:text-amp-ink transition-colors flex items-center gap-1.5 py-1 px-2.5 rounded-[24px] hover:bg-amp-linen border border-transparent hover:border-amp-hairline"
-                title="Volver a la portada general"
-              >
-                <span>←</span>
-                <span>Portada</span>
-              </Link>
-
-              <span className="text-amp-hairline">|</span>
-
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-[8px] bg-amp-ink text-amp-white flex items-center justify-center text-sm font-medium">
-                  G
-                </div>
-                <div>
-                  <span className="font-medium text-base tracking-tight text-amp-ink">
-                    GimnasioDB
-                  </span>
-                  <span className="text-amp-orange ml-0.5 text-base font-medium">.</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick action button top right (mirrors Nav CTA in amp guide) */}
-            <div className="flex items-center gap-3">
-              <Link
-                href="/socios/torniquete"
-                className="btn-primary-pill text-xs font-medium px-4 py-2 flex items-center gap-1.5"
-              >
-                <span>Torniquete</span>
-                <span className="text-amp-peach">→</span>
-              </Link>
-            </div>
+          {/* Acceso rápido en el header con estilo píldora limpio */}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/socios/torniquete"
+              className="flex items-center gap-2 bg-[#f3f4f3] hover:bg-[#ebebea] transition-colors px-3.5 py-1.5 rounded-full border border-[#e5e5e5] text-xs text-[#292b2a] font-medium"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#ff6105] shrink-0" />
+              <span>Recepción:</span>
+              <span className="text-[#0a0a0a] font-semibold">Torniquete</span>
+              <ChevronRight className="w-3.5 h-3.5 text-[#7a7b7b]" />
+            </Link>
           </div>
+        </div>
 
-          {/* Sub-navigation Tabs (Secondary pill button style, 24px radius) */}
-          <nav className="flex items-center gap-2 overflow-x-auto py-2.5 -mb-px scrollbar-none border-t border-amp-hairline">
-            {NAV_ITEMS.map((item) => {
-              const isActive =
-                item.href === "/socios"
-                  ? pathname === "/socios"
-                  : pathname?.startsWith(item.href);
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-[24px] text-xs font-medium whitespace-nowrap transition-all duration-200 ${
-                    isActive
-                      ? "bg-amp-orange text-amp-white shadow-sm"
-                      : "text-amp-carbon hover:text-amp-ink bg-amp-linen hover:bg-amp-bone border border-amp-hairline"
+        {/* Sub-navegación de vistas con indicador activo */}
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-8 flex items-center gap-1.5 overflow-x-auto py-2 border-t border-[#f3f4f3]">
+          {TABS.map((tab) => {
+            const isActive = tab.exact
+              ? pathname === tab.href
+              : pathname.startsWith(tab.href);
+            const Icon = tab.icon;
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={`relative px-4 py-2 rounded-full text-xs sm:text-sm whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+                  isActive
+                    ? "bg-white text-[#0a0a0a] font-medium shadow-sm border border-[#e5e5e5]"
+                    : "text-[#7a7b7b] font-normal border border-transparent hover:bg-[#f3f4f3] hover:text-[#0a0a0a] hover:-translate-y-0.5"
+                }`}
+              >
+                <Icon
+                  className={`w-4 h-4 transition-colors ${
+                    isActive ? "text-[#ff6105]" : "text-[#7a7b7b]"
                   }`}
-                >
-                  <span>{item.icon}</span>
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
-          </nav>
+                />
+                <span>{tab.label}</span>
+                {isActive && (
+                  <span className="absolute -bottom-2 left-4 right-4 h-[2px] bg-[#ff6105] rounded-full" />
+                )}
+              </Link>
+            );
+          })}
         </div>
       </header>
 
-      {/* Main Content Area: Max width 1200px as strictly specified in DESIGN.md */}
-      <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 py-10">
-        {children}
+      {/* Main Content */}
+      <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-8 py-8 sm:py-10">
+        <div key={pathname} className="animate-fade-in-scale">
+          {children}
+        </div>
       </main>
 
-      {/* Footer (DESIGN.md: Linen alt surface, hairline border, Slate text) */}
-      <footer className="border-t border-amp-hairline bg-amp-linen py-8 text-center text-xs text-amp-slate">
-        <div className="max-w-[1200px] mx-auto px-4 space-y-2">
-          <p className="font-normal text-amp-carbon">
-            GimnasioDB &bull; Sistema de Gestión de Gimnasio
-          </p>
-          <p className="text-[11px] text-amp-slate font-normal">
-            Módulo de Socios, Torniquete y Sedes &bull; Realizado por <strong>Persona 1 (Carlos)</strong> &bull; FastAPI + pyodbc en SQL Server
-          </p>
-        </div>
+      {/* Footer Minimalista */}
+      <footer className="bg-white border-t border-[#e5e5e5] py-6 px-4 sm:px-8 text-center text-xs text-[#7a7b7b]">
+        gimnasiodb · Red de Gimnasios &amp; Gestión Deportiva
       </footer>
     </div>
   );

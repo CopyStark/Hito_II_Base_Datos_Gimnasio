@@ -1,371 +1,374 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import React, { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { sociosApi, ControlAccesoResult } from "@/services/apiClient";
+import apiClient, { ControlAccesoResult } from "@/services/apiClient";
+import {
+  ShieldCheck,
+  ShieldAlert,
+  ScanLine,
+  CheckCircle2,
+  XCircle,
+  MapPin,
+  CreditCard,
+  Calendar,
+  Clock,
+  ArrowUpRight,
+  Trash2,
+  Loader2,
+} from "lucide-react";
 
-interface AccessLogEntry {
-  id: string;
-  timestamp: string;
-  identificador: string;
-  resultado: ControlAccesoResult;
+interface HistorialIngreso extends ControlAccesoResult {
+  hora: string;
+  identificador_consultado: string;
 }
+
+const PRESETS = [
+  { label: "Socio #13 (Vigente)", val: "13", badge: "Autorizado" },
+  { label: "RUT 18.900.013-K", val: "18.900.013-K", badge: "Autorizado" },
+  { label: "Socio #1 (Vencido)", val: "1", badge: "Denegado" },
+  { label: "Socio #2 (Sin contrato)", val: "2", badge: "Denegado" },
+  { label: "Socio #5 (Inactivo)", val: "5", badge: "Denegado" },
+];
 
 function TorniqueteContent() {
   const searchParams = useSearchParams();
-  const initialRut = searchParams.get("rut") || "";
+  const initialIdentificador = searchParams.get("identificador") || "";
 
-  const [identificador, setIdentificador] = useState(initialRut);
-  const [loading, setLoading] = useState(false);
-  const [currentResult, setCurrentResult] = useState<ControlAccesoResult | null>(null);
-  const [accessLogs, setAccessLogs] = useState<AccessLogEntry[]>([]);
-  const [lastTestedId, setLastTestedId] = useState<string>("");
+  const [identificador, setIdentificador] = useState<string>(initialIdentificador);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [resultado, setResultado] = useState<ControlAccesoResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [historial, setHistorial] = useState<HistorialIngreso[]>([]);
 
-  const handleValidarAcceso = async (idToTest?: string) => {
-    const val = (idToTest || identificador).trim();
-    if (!val) return;
-
+  const validarAcceso = useCallback(async (valor: string) => {
+    const clean = valor.trim();
+    if (!clean) return;
     setLoading(true);
-    setLastTestedId(val);
-
+    setErrorMsg(null);
     try {
-      const res = await sociosApi.validarAcceso(val);
-      setCurrentResult(res);
-
-      const newEntry: AccessLogEntry = {
-        id: Math.random().toString(36).substring(2, 9),
-        timestamp: new Date().toLocaleTimeString(),
-        identificador: val,
-        resultado: res,
+      const data: ControlAccesoResult = await apiClient.socios.validarAcceso(clean);
+      setResultado(data);
+      const nuevoRegistro: HistorialIngreso = {
+        ...data,
+        identificador_consultado: clean,
+        hora: new Date().toLocaleTimeString("es-CL", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
       };
-      setAccessLogs((prev) => [newEntry, ...prev.slice(0, 19)]);
+      setHistorial((prev) => [nuevoRegistro, ...prev.slice(0, 9)]);
     } catch (err: any) {
-      const errRes: ControlAccesoResult = {
-        acceso_permitido: false,
-        motivo: `Error al conectar con la base de datos: ${err.message}`,
-        nombre_completo_socio: null,
-      };
-      setCurrentResult(errRes);
+      setErrorMsg(err.message || "Error al validar el acceso en el servidor.");
+      setResultado(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (initialRut) {
-      handleValidarAcceso(initialRut);
+    if (initialIdentificador) {
+      validarAcceso(initialIdentificador);
     }
-  }, [initialRut]);
+  }, [initialIdentificador, validarAcceso]);
 
-  // Preset buttons for quick validation tests
-  const presetTests = [
-    { label: "Socio #1 · Daniel Matus (Permitido)", value: "1" },
-    { label: "RUT 18.765.432-K (Permitido)", value: "18.765.432-K" },
-    { label: "Socia #2 · Emilia Osorio (Permitido)", value: "2" },
-    { label: "Socia #13 · Inactiva (Denegado)", value: "13" },
-    { label: "Socia #15 · Sin Contrato (Denegado)", value: "15" },
-    { label: "No Registrado #9999 (Denegado)", value: "9999" },
-  ];
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    validarAcceso(identificador);
+  };
 
   return (
-    <div className="space-y-12">
-      {/* Editorial Section Heading (amp: weight 300, negative tracking, orange accent rule) */}
-      <section className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="badge-step">
-                Step 2 &bull; Control
-              </span>
-              <span className="badge-neutral">
-                GET /socios/acceso/validar/{`{identificador}`}
-              </span>
-            </div>
+    <div className="space-y-8">
+      {/* Editorial Header */}
+      <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#7a7b7b] font-medium">
+            <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
+            <span>Control de Acceso · Recepción</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-[#0a0a0a]">
+            Validador de Torniquete
+          </h1>
+          <div className="w-20 h-[2px] bg-[#ff6105]" />
+          <p className="text-sm text-[#7a7b7b] max-w-xl pt-1">
+            Verifica en tiempo real el ingreso de socios mediante RUT o ID, comprobando
+            estado de cuenta, vigencia de membresía y sede asignada.
+          </p>
+        </div>
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-light text-amp-ink tracking-[-0.030em] leading-[1.15]">
-              Control de Acceso & Torniquete
-            </h1>
-            <div className="h-[2.5px] w-24 bg-amp-orange mt-3"></div>
+        <Link
+          href="/socios"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs sm:text-sm font-medium bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] transition-all self-start sm:self-auto"
+        >
+          <span>Ver Directorio de Socios</span>
+          <ArrowUpRight className="w-4 h-4 text-[#ff6105]" />
+        </Link>
+      </div>
 
-            <p className="text-sm text-amp-carbon mt-3 max-w-2xl font-normal leading-relaxed">
-              Simulador de torniquete inteligente de portería. Valida en tiempo real si el socio existe en el catálogo,
-              se encuentra activo y cuenta con un contrato vigente al día de hoy en SQL Server.
+      {/* Layout Principal: Lector a la izquierda, Semáforo a la derecha */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Panel Lector / Escáner */}
+        <div className="lg:col-span-5 bg-white border border-[#e5e5e5] rounded-[5px] p-6 space-y-6">
+          <div className="space-y-1">
+            <h2 className="text-lg font-medium text-[#0a0a0a]">
+              Terminal de Lectura
+            </h2>
+            <p className="text-xs text-[#7a7b7b]">
+              Ingresa el RUT (con o sin guión) o el número de socio para validar su pase.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Link
-              href="/socios"
-              className="btn-secondary-pill bg-amp-white hover:bg-amp-linen border border-amp-hairline text-amp-carbon text-xs font-normal px-4 py-2.5 flex items-center gap-2"
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium mb-1.5">
+                RUT o ID del Socio
+              </label>
+              <div className="relative">
+                <ScanLine className="w-4 h-4 text-[#ff6105] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={identificador}
+                  onChange={(e) => setIdentificador(e.target.value)}
+                  placeholder="Ej: 18.900.013-K o 13"
+                  className="w-full bg-[#f8f9f8] border border-[#e5e5e5] rounded-full pl-10 pr-4 py-2.5 text-sm font-mono text-[#0a0a0a] placeholder-[#7a7b7b] focus:outline-none focus:border-[#ff6105] focus:bg-white transition-colors"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !identificador.trim()}
+              className="w-full py-3 px-6 rounded-full text-xs sm:text-sm font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <span>← Volver al Directorio</span>
-            </Link>
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Verificando credencial...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Validar Ingreso</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Accesos rápidos de prueba */}
+          <div className="pt-5 border-t border-[#e5e5e5] space-y-3">
+            <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium">
+              Perfiles de Prueba Rápida
+            </p>
+            <div className="grid grid-cols-1 gap-2">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.val}
+                  type="button"
+                  onClick={() => {
+                    setIdentificador(p.val);
+                    validarAcceso(p.val);
+                  }}
+                  className="flex items-center justify-between px-3.5 py-2 rounded-[5px] bg-[#f8f9f8] hover:bg-[#f3f4f3] border border-[#e5e5e5] hover:border-[#ff6105]/40 text-xs transition-all cursor-pointer text-left"
+                >
+                  <span className="font-medium text-[#0a0a0a]">{p.label}</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                      p.badge === "Autorizado"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-rose-50 text-rose-700 border-rose-200"
+                    }`}
+                  >
+                    {p.badge}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </section>
 
-      {/* Main Grid: Left Column Scanner / Right Column Physical Turnstile */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Input and Scanner Control */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="card-ghost p-6 space-y-5">
-            <div>
-              <span className="text-xs text-amp-orange font-medium uppercase tracking-wider">Lectura RFID</span>
-              <h2 className="text-base font-medium text-amp-ink mt-0.5">
-                Simulación de Escáner de Entrada
-              </h2>
-              <p className="text-xs text-amp-slate mt-1 font-normal">
-                Ingrese el RUT (con o sin puntos/guión) o el ID numérico del socio para simular el paso por el sensor.
+        {/* Panel de Estado del Torniquete + Bitácora */}
+        <div className="lg:col-span-7 space-y-6">
+          {errorMsg && (
+            <div className="p-4 rounded-[5px] bg-[#fef2f2] border border-[#fecaca] text-[#dc2626] text-xs sm:text-sm flex items-center gap-2.5">
+              <XCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {!resultado && !loading ? (
+            <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-[#f8f9f8] border border-[#e5e5e5] flex items-center justify-center mx-auto text-[#7a7b7b]">
+                <ScanLine className="w-6 h-6 text-[#ff6105]" />
+              </div>
+              <h3 className="text-lg font-medium text-[#0a0a0a]">
+                Torniquete en Espera de Lectura
+              </h3>
+              <p className="text-xs text-[#7a7b7b] max-w-md mx-auto">
+                Escanea el RUT o selecciona uno de los perfiles de prueba a la izquierda
+                para consultar la autorización de ingreso en tiempo real.
               </p>
             </div>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleValidarAcceso();
-              }}
-              className="space-y-4"
+          ) : resultado ? (
+            <div
+              className={`rounded-[5px] border p-6 sm:p-8 transition-all animate-fade-in-scale ${
+                resultado.acceso_permitido
+                  ? "bg-white border-emerald-300 shadow-xs"
+                  : "bg-white border-rose-300 shadow-xs"
+              }`}
             >
-              <div>
-                <label className="block text-xs font-medium text-amp-carbon mb-1.5">
-                  Identificador del Socio (RUT o ID) *
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-amp-slate text-sm">
-                    🪪
-                  </span>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej: 18.765.432-K o 1"
-                    value={identificador}
-                    onChange={(e) => setIdentificador(e.target.value)}
-                    className="input-pill w-full pl-11 pr-8 py-2.5 text-xs sm:text-sm font-mono placeholder-amp-ash"
-                  />
-                  {identificador && (
-                    <button
-                      type="button"
-                      onClick={() => setIdentificador("")}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-amp-slate hover:text-amp-ink"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || !identificador.trim()}
-                className="btn-primary-pill w-full py-3 text-xs font-medium flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {loading ? (
-                  <span>Validando en SQL Server...</span>
-                ) : (
-                  <>
-                    <span>Validar Paso en Torniquete</span>
-                    <span>→</span>
-                  </>
-                )}
-              </button>
-            </form>
-
-            {/* Quick Test Presets */}
-            <div className="pt-4 border-t border-amp-hairline space-y-2.5">
-              <span className="text-xs font-medium text-amp-carbon block">
-                Pruebas Rápidas Sugeridas:
-              </span>
-              <div className="grid grid-cols-2 gap-2">
-                {presetTests.map((preset) => (
-                  <button
-                    key={preset.value}
-                    type="button"
-                    onClick={() => {
-                      setIdentificador(preset.value);
-                      handleValidarAcceso(preset.value);
-                    }}
-                    className="p-2.5 rounded-[5px] bg-amp-linen hover:bg-amp-bone border border-amp-hairline text-left text-xs transition-all flex flex-col"
+              {/* Encabezado de Estado */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#e5e5e5]">
+                <div className="flex items-center gap-3.5">
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+                      resultado.acceso_permitido
+                        ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                        : "bg-rose-50 text-rose-600 border border-rose-200"
+                    }`}
                   >
-                    <span className="font-medium text-amp-ink">{preset.label}</span>
-                    <span className="text-[10px] font-mono text-amp-slate">{preset.value}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Physical Turnstile Status & Visual Feedback */}
-        <div className="lg:col-span-7 space-y-6">
-          <div className="card-ghost p-6 sm:p-8 space-y-6">
-            <div className="flex items-center justify-between pb-3 border-b border-amp-hairline">
-              <h2 className="text-base font-medium text-amp-ink">
-                Estado Físico del Torniquete
-              </h2>
-              {currentResult && (
-                <span className="text-xs text-amp-slate font-normal">
-                  Última prueba: <strong className="text-amp-carbon font-medium">{lastTestedId}</strong>
-                </span>
-              )}
-            </div>
-
-            {/* Standby state */}
-            {!currentResult ? (
-              <div className="py-16 text-center border border-dashed border-amp-hairline rounded-[5px] space-y-3 bg-amp-linen/50">
-                <span className="text-4xl block opacity-60">🚪</span>
-                <p className="text-base font-light text-amp-ink tracking-tight">
-                  Torniquete en Espera (Standby)
-                </p>
-                <p className="text-xs text-amp-slate max-w-sm mx-auto font-normal">
-                  Acerque una credencial o digite un RUT/ID en el panel lateral para ejecutar la verificación de membresía.
-                </p>
-              </div>
-            ) : currentResult.acceso_permitido ? (
-              /* GRANTED ACCESS: Featured Peach Wash Card (#ffdfcd, 5px radius) */
-              <div className="card-peach p-6 sm:p-8 space-y-6 animate-fade-in-scale">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <span className="badge-step text-[11px] py-0.5 px-2.5">
-                      BARRERA DESBLOQUEADA &bull; PASE ADELANTE
-                    </span>
-                    <h3 className="text-2xl font-light text-amp-ink tracking-tight mt-2">
-                      {currentResult.nombre_completo_socio}
-                    </h3>
-                    <p className="text-xs font-mono text-amp-carbon">
-                      RUT: {currentResult.rut_socio} &bull; ID Socio: #{currentResult.id_socio}
-                    </p>
-                  </div>
-                  <span className="text-3xl">🔓</span>
-                </div>
-
-                <div className="p-3.5 rounded-[5px] bg-amp-white/80 border border-amp-hairline text-xs text-amp-carbon font-normal">
-                  {currentResult.motivo}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
-                  <div className="p-3 rounded-[5px] bg-amp-white/70 border border-amp-hairline">
-                    <span className="text-amp-slate block text-[11px]">Sede de Registro:</span>
-                    <strong className="text-amp-ink font-medium text-xs mt-0.5 block">
-                      {currentResult.sede_registro || "Principal"}
-                    </strong>
-                  </div>
-                  <div className="p-3 rounded-[5px] bg-amp-white/70 border border-amp-hairline">
-                    <span className="text-amp-slate block text-[11px]">Plan de Membresía:</span>
-                    <strong className="text-amp-orange font-medium text-xs mt-0.5 block">
-                      {currentResult.nombre_plan || "Vigente"}
-                    </strong>
-                  </div>
-                  <div className="p-3 rounded-[5px] bg-amp-white/70 border border-amp-hairline">
-                    <span className="text-amp-slate block text-[11px]">Vencimiento Contrato:</span>
-                    <strong className="text-amp-ink font-medium text-xs mt-0.5 block">
-                      {currentResult.fecha_termino_contrato
-                        ? String(currentResult.fecha_termino_contrato)
-                        : "Vigente"}
-                    </strong>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* DENIED ACCESS: Charcoal Dark elevated section (#202120 Charcoal, 5px radius) */
-              <div className="rounded-[5px] bg-amp-charcoal text-amp-white p-6 sm:p-8 space-y-6 animate-fade-in-scale">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[8px] bg-amp-smoke border border-amp-hairline/20 text-xs text-amp-peach font-medium">
-                      BARRERA BLOQUEADA &bull; ACCESO DENEGADO
-                    </span>
-                    <h3 className="text-2xl font-light text-amp-white tracking-tight mt-2">
-                      {currentResult.nombre_completo_socio || "Socio No Identificado"}
-                    </h3>
-                    {currentResult.rut_socio && (
-                      <p className="text-xs font-mono text-amp-ash">
-                        RUT: {currentResult.rut_socio} &bull; ID: #{currentResult.id_socio}
-                      </p>
+                    {resultado.acceso_permitido ? (
+                      <CheckCircle2 className="w-6 h-6" />
+                    ) : (
+                      <ShieldAlert className="w-6 h-6" />
                     )}
                   </div>
-                  <span className="text-3xl">🔒</span>
+                  <div>
+                    <span
+                      className={`inline-block text-[10px] uppercase tracking-widest font-semibold px-2.5 py-0.5 rounded-full border ${
+                        resultado.acceso_permitido
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-rose-50 text-rose-700 border-rose-200"
+                      }`}
+                    >
+                      {resultado.acceso_permitido ? "Pase Autorizado" : "Ingreso Denegado"}
+                    </span>
+                    <h2 className="text-2xl font-medium text-[#0a0a0a] mt-1">
+                      {resultado.nombre_completo_socio || "Socio no registrado"}
+                    </h2>
+                  </div>
                 </div>
 
-                <div className="p-3.5 rounded-[5px] bg-amp-smoke/70 border border-amp-hairline/10 text-xs text-amp-peach font-normal">
-                  {currentResult.motivo}
+                {resultado.rut_socio && (
+                  <span className="font-mono text-xs px-3 py-1.5 rounded-full bg-[#f8f9f8] border border-[#e5e5e5] text-[#292b2a] self-start sm:self-auto">
+                    RUT {resultado.rut_socio}
+                  </span>
+                )}
+              </div>
+
+              {/* Motivo de la resolución */}
+              <div
+                className={`mt-5 p-4 rounded-[5px] border text-xs sm:text-sm font-medium flex items-center gap-2.5 ${
+                  resultado.acceso_permitido
+                    ? "bg-emerald-50/70 border-emerald-200 text-emerald-900"
+                    : "bg-rose-50/70 border-rose-200 text-rose-900"
+                }`}
+              >
+                {resultado.acceso_permitido ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span>{resultado.motivo}</span>
+              </div>
+
+              {/* Ficha Resumen del Socio */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-3.5">
+                  <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
+                    <span className="text-[10px] uppercase tracking-wider font-medium">
+                      Sede Base
+                    </span>
+                    <MapPin className="w-3.5 h-3.5 text-[#ff6105]" />
+                  </div>
+                  <p className="text-xs font-medium text-[#0a0a0a] truncate">
+                    {resultado.sede_registro || "—"}
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs">
-                  <div className="p-3 rounded-[5px] bg-amp-smoke/40 border border-amp-hairline/10">
-                    <span className="text-amp-ash block text-[11px]">Estado del Socio:</span>
-                    <strong className="text-amp-white font-medium text-xs mt-0.5 block">
-                      {currentResult.activo_socio === null
-                        ? "No Registrado en BD"
-                        : currentResult.activo_socio
-                        ? "Activo"
-                        : "Inactivo"}
-                    </strong>
+                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-3.5">
+                  <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
+                    <span className="text-[10px] uppercase tracking-wider font-medium">
+                      Plan Activo
+                    </span>
+                    <CreditCard className="w-3.5 h-3.5 text-[#ff6105]" />
                   </div>
-                  <div className="p-3 rounded-[5px] bg-amp-smoke/40 border border-amp-hairline/10">
-                    <span className="text-amp-ash block text-[11px]">Contrato Vigente:</span>
-                    <strong className="text-amp-white font-medium text-xs mt-0.5 block">
-                      {currentResult.contrato_vigente
-                        ? "Vigente"
-                        : "Sin Contrato Vigente / Vencido"}
-                    </strong>
+                  <p className="text-xs font-medium text-[#0a0a0a] truncate">
+                    {resultado.nombre_plan || "Sin plan"}
+                  </p>
+                </div>
+
+                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-3.5">
+                  <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
+                    <span className="text-[10px] uppercase tracking-wider font-medium">
+                      Contrato
+                    </span>
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#ff6105]" />
                   </div>
+                  <p className="text-xs font-medium text-[#0a0a0a]">
+                    {resultado.contrato_vigente ? "Vigente" : "Sin vigencia"}
+                  </p>
+                </div>
+
+                <div className="bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] p-3.5">
+                  <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
+                    <span className="text-[10px] uppercase tracking-wider font-medium">
+                      Fecha Término
+                    </span>
+                    <Calendar className="w-3.5 h-3.5 text-[#ff6105]" />
+                  </div>
+                  <p className="text-xs font-medium text-[#0a0a0a]">
+                    {resultado.fecha_termino_contrato || "—"}
+                  </p>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          ) : null}
 
-          {/* Access Audit Log */}
-          {accessLogs.length > 0 && (
-            <div className="card-ghost p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-amp-ink">
-                  Historial de Escaneos de la Sesión
-                </h3>
+          {/* Bitácora de lecturas recientes */}
+          {historial.length > 0 && (
+            <div className="bg-white border border-[#e5e5e5] rounded-[5px] overflow-hidden">
+              <div className="p-4 sm:px-6 border-b border-[#e5e5e5] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#ff6105]" />
+                  <h3 className="text-sm font-medium text-[#0a0a0a]">
+                    Bitácora de Lecturas en esta Sesión
+                  </h3>
+                </div>
                 <button
-                  onClick={() => setAccessLogs([])}
-                  className="text-xs text-amp-slate hover:text-amp-orange transition-colors"
+                  type="button"
+                  onClick={() => setHistorial([])}
+                  className="inline-flex items-center gap-1 text-xs text-[#7a7b7b] hover:text-[#0a0a0a] cursor-pointer"
                 >
-                  Limpiar historial
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Limpiar</span>
                 </button>
               </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-amp-linen text-amp-slate border-b border-amp-hairline uppercase text-[10px] font-medium">
-                    <tr>
-                      <th className="px-3 py-2">Hora</th>
-                      <th className="px-3 py-2">Identificador</th>
-                      <th className="px-3 py-2">Socio</th>
-                      <th className="px-3 py-2">Resultado</th>
-                      <th className="px-3 py-2">Motivo</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-amp-hairline">
-                    {accessLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-amp-linen/50 transition-colors">
-                        <td className="px-3 py-2 font-mono text-amp-slate">{log.timestamp}</td>
-                        <td className="px-3 py-2 font-mono text-amp-carbon">{log.identificador}</td>
-                        <td className="px-3 py-2 font-medium text-amp-ink">
-                          {log.resultado.nombre_completo_socio || "—"}
-                        </td>
-                        <td className="px-3 py-2">
-                          <span
-                            className={`px-2 py-0.5 rounded-[8px] font-medium text-[10px] ${
-                              log.resultado.acceso_permitido
-                                ? "bg-amp-peach text-amp-ink border border-amp-orange"
-                                : "bg-amp-bone text-amp-slate border border-amp-hairline"
-                            }`}
-                          >
-                            {log.resultado.acceso_permitido ? "PERMITIDO" : "DENEGADO"}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-amp-slate truncate max-w-[220px]">
-                          {log.resultado.motivo}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="divide-y divide-[#e5e5e5]">
+                {historial.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="px-6 py-3 flex items-center justify-between text-xs hover:bg-[#f8f9f8] transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          item.acceso_permitido ? "bg-emerald-500" : "bg-rose-500"
+                        }`}
+                      />
+                      <div>
+                        <p className="font-medium text-[#0a0a0a]">
+                          {item.nombre_completo_socio || item.identificador_consultado}
+                        </p>
+                        <p className="text-[11px] text-[#7a7b7b]">{item.motivo}</p>
+                      </div>
+                    </div>
+                    <span className="font-mono text-[11px] text-[#7a7b7b]">
+                      {item.hora}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -379,9 +382,8 @@ export default function TorniquetePage() {
   return (
     <Suspense
       fallback={
-        <div className="p-16 text-center text-amp-slate">
-          <div className="w-6 h-6 border-2 border-amp-orange border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-          <p className="text-xs font-normal">Iniciando simulador de torniquete...</p>
+        <div className="p-12 text-center text-sm text-[#7a7b7b]">
+          Cargando validador de acceso...
         </div>
       }
     >
