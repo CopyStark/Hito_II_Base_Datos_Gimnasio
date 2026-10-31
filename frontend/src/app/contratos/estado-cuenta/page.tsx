@@ -6,15 +6,31 @@ import apiClient, {
   Socio,
   PlanMembresia,
 } from "@/services/apiClient";
+import { getStoredSocioActual } from "@/components/clases/socioActual";
 
 export default function EstadoCuentaPage() {
   const [socios, setSocios] = useState<Socio[]>([]);
   const [idSocioSeleccionado, setIdSocioSeleccionado] = useState<number>(1);
+  const [socioInicializado, setSocioInicializado] = useState<boolean>(false);
   const [estadoCuenta, setEstadoCuenta] = useState<EstadoCuentaSocio | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const idUrl = Number(params.get("id_socio"));
+      if (idUrl > 0) {
+        setIdSocioSeleccionado(idUrl);
+      } else {
+        const stored = getStoredSocioActual();
+        if (stored?.id_socio > 0) {
+          setIdSocioSeleccionado(stored.id_socio);
+        }
+      }
+    } catch {}
+    setSocioInicializado(true);
+
     apiClient.socios
       .getAll({ limite: 200 })
       .then((data) => setSocios(data))
@@ -125,8 +141,10 @@ export default function EstadoCuentaPage() {
   };
 
   useEffect(() => {
-    consultarEstadoCuenta(idSocioSeleccionado);
-  }, [idSocioSeleccionado]);
+    if (socioInicializado) {
+      consultarEstadoCuenta(idSocioSeleccionado);
+    }
+  }, [socioInicializado, idSocioSeleccionado]);
 
   return (
     <div className="space-y-8">
@@ -150,7 +168,17 @@ export default function EstadoCuentaPage() {
           </label>
           <select
             value={idSocioSeleccionado}
-            onChange={(e) => setIdSocioSeleccionado(Number(e.target.value))}
+            onChange={(e) => {
+              const nuevoId = Number(e.target.value);
+              setIdSocioSeleccionado(nuevoId);
+              try {
+                const url = new URL(window.location.href);
+                if (url.searchParams.has("id_socio")) {
+                  url.searchParams.set("id_socio", String(nuevoId));
+                  window.history.replaceState({}, "", url.toString());
+                }
+              } catch {}
+            }}
             className="bg-slate-950 border border-emerald-500/40 rounded-xl px-3 py-2 text-xs sm:text-sm text-white"
           >
             {socios.map((s) => (

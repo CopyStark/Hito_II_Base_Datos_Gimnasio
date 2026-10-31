@@ -27,8 +27,10 @@ import {
 import {
   SOCIOS_PRUEBA,
   SocioActual,
+  getOpcionesSociosSelector,
   getStoredSocioActual,
   setStoredSocioActual,
+  sincronizarSocioDesdeId,
   subscribeSocioActual,
 } from "@/components/clases/socioActual";
 
@@ -83,6 +85,7 @@ function esSesionFutura(fechaStr?: string | null, horaStr?: string | null): bool
 export default function ClasesPage() {
   // --- Socio en Sesión (Dinámico) ---
   const [socioActual, setSocioActual] = useState<SocioActual>(SOCIOS_PRUEBA[0]);
+  const [socioInicializado, setSocioInicializado] = useState(false);
 
   // --- Estados de Datos ---
   const [clases, setClases] = useState<ClaseResponse[]>([]);
@@ -92,6 +95,10 @@ export default function ClasesPage() {
   const [misInscripciones, setMisInscripciones] = useState<
     InscripcionSocioDetalleResponse[]
   >([]);
+
+  // --- Refs anti-condición de carrera ---
+  const ultimoSocioInscripcionRef = useRef<number>(0);
+  const sesionReqIdRef = useRef<number>(0);
 
   // --- Estados de Carga ---
   const [loadingClases, setLoadingClases] = useState(true);
@@ -133,14 +140,6 @@ export default function ClasesPage() {
   const resolverIdSedeSocio = useCallback(
     (socio: SocioActual, listaSedes: SedeSimpleResponse[]): string => {
       if (listaSedes.length > 0) {
-        if (socio.nombre_sede_registro) {
-          const porNombreExacto = listaSedes.find(
-            (s) =>
-              s.nombre_sede.toLowerCase() ===
-              socio.nombre_sede_registro!.toLowerCase()
-          );
-          if (porNombreExacto) return String(porNombreExacto.id_sede);
-        }
         if (socio.id_sede_registro_socio) {
           const porId = listaSedes.find(
             (s) => s.id_sede === socio.id_sede_registro_socio
@@ -148,6 +147,13 @@ export default function ClasesPage() {
           if (porId) return String(porId.id_sede);
         }
         if (socio.nombre_sede_registro) {
+          const porNombreExacto = listaSedes.find(
+            (s) =>
+              s.nombre_sede.toLowerCase() ===
+              socio.nombre_sede_registro!.toLowerCase()
+          );
+          if (porNombreExacto) return String(porNombreExacto.id_sede);
+
           const porNombreParcial = listaSedes.find(
             (s) =>
               s.nombre_sede
@@ -167,20 +173,49 @@ export default function ClasesPage() {
     []
   );
 
-  // Sincronizar socio actual con localStorage y eventos entre componentes (ej. selector del layout)
+  // Sincronizar socio actual con query `?id_socio=`, localStorage y eventos entre componentes
   useEffect(() => {
-    const current = getStoredSocioActual();
-    setSocioActual(current);
-    const sedeInicial = resolverIdSedeSocio(current, sedesRef.current);
-    if (sedeInicial) {
-      setFiltroSede(sedeInicial);
-    }
-
     const unsubscribe = subscribeSocioActual((nuevo) => {
       setSocioActual(nuevo);
       const nuevaSede = resolverIdSedeSocio(nuevo, sedesRef.current);
       setFiltroSede(nuevaSede);
     });
+
+    const params = new URLSearchParams(window.location.search);
+    const idUrl = Number(params.get("id_socio"));
+
+    if (idUrl > 0) {
+      const almacenado = getStoredSocioActual();
+      const baseLocal =
+        almacenado.id_socio === idUrl
+          ? almacenado
+          : SOCIOS_PRUEBA.find((s) => s.id_socio === idUrl);
+
+      if (baseLocal) {
+        setSocioActual(baseLocal);
+        const sedeIni = resolverIdSedeSocio(baseLocal, sedesRef.current);
+        if (sedeIni) setFiltroSede(sedeIni);
+        setSocioInicializado(true);
+      }
+
+      sincronizarSocioDesdeId(idUrl).then((res) => {
+        if (res) {
+          setSocioActual(res);
+          const sedeRes = resolverIdSedeSocio(res, sedesRef.current);
+          if (sedeRes) setFiltroSede(sedeRes);
+        }
+        setSocioInicializado(true);
+      });
+    } else {
+      const current = getStoredSocioActual();
+      setSocioActual(current);
+      const sedeInicial = resolverIdSedeSocio(current, sedesRef.current);
+      if (sedeInicial) {
+        setFiltroSede(sedeInicial);
+      }
+      setSocioInicializado(true);
+    }
+
     return unsubscribe;
   }, [resolverIdSedeSocio]);
 
@@ -228,6 +263,7 @@ export default function ClasesPage() {
 
   // Cargar Sesiones Disponibles con filtros aplicados
   const cargarSesiones = useCallback(async () => {
+    const reqId = ++sesionReqIdRef.current;
     try {
       setLoadingSesiones(true);
       const params: { fecha?: string; id_sede?: number; id_clase?: number } = {};
@@ -236,15 +272,19 @@ export default function ClasesPage() {
       if (filtroClase) params.id_clase = Number(filtroClase);
 
       const data = await clasesApi.getSesiones(params);
+      if (reqId !== sesionReqIdRef.current) return;
       setSesiones(data);
     } catch (err: any) {
+      if (reqId !== sesionReqIdRef.current) return;
       console.error("Error al cargar sesiones:", err);
       setFeedback({
         type: "error",
         message: err.message || "Error al obtener las sesiones disponibles.",
       });
     } finally {
-      setLoadingSesiones(false);
+      if (reqId === sesionReqIdRef.current) {
+        setLoadingSesiones(false);
+      }
     }
   }, [filtroFecha, filtroSede, filtroClase]);
 
@@ -253,14 +293,19 @@ export default function ClasesPage() {
     async (idSocioOverride?: number) => {
       const id = idSocioOverride ?? socioActual.id_socio;
       if (!id) return;
+      ultimoSocioInscripcionRef.current = id;
       try {
         setLoadingInscripciones(true);
         const data = await clasesApi.getInscripcionesSocio(id);
+        if (ultimoSocioInscripcionRef.current !== id) return;
         setMisInscripciones(data);
       } catch (err: any) {
+        if (ultimoSocioInscripcionRef.current !== id) return;
         console.error("Error al cargar inscripciones:", err);
       } finally {
-        setLoadingInscripciones(false);
+        if (ultimoSocioInscripcionRef.current === id) {
+          setLoadingInscripciones(false);
+        }
       }
     },
     [socioActual.id_socio]
@@ -272,26 +317,38 @@ export default function ClasesPage() {
     cargarSedes();
   }, [cargarClases, cargarSedes]);
 
-  // Recargar inscripciones cuando cambie el socio actual
+  // Recargar inscripciones cuando cambie el socio actual (una vez resuelto en cliente)
   useEffect(() => {
-    if (socioActual.id_socio) {
+    if (socioInicializado && socioActual.id_socio) {
       cargarMisInscripciones(socioActual.id_socio);
     }
-  }, [socioActual.id_socio, cargarMisInscripciones]);
+  }, [socioInicializado, socioActual.id_socio, cargarMisInscripciones]);
 
   // Cargar sesiones cuando cambian los filtros
   useEffect(() => {
     cargarSesiones();
   }, [cargarSesiones]);
 
+  const opcionesSocios = useMemo(
+    () => getOpcionesSociosSelector(socioActual),
+    [socioActual]
+  );
+
   // Cambiar socio desde el selector de perfil y sincronizar filtro de sede de inmediato
   const handleCambiarSocio = (nuevoId: number) => {
-    const encontrado = SOCIOS_PRUEBA.find((s) => s.id_socio === nuevoId);
+    const encontrado = opcionesSocios.find((s) => s.id_socio === nuevoId);
     if (encontrado) {
       setSocioActual(encontrado);
       setStoredSocioActual(encontrado);
       const nuevaSede = resolverIdSedeSocio(encontrado, sedesRef.current);
       setFiltroSede(nuevaSede);
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has("id_socio")) {
+          url.searchParams.set("id_socio", String(nuevoId));
+          window.history.replaceState({}, "", url.toString());
+        }
+      } catch {}
     }
   };
 
@@ -425,13 +482,13 @@ export default function ClasesPage() {
     [misInscripciones]
   );
 
-  // Nombre de sede legible para el socio actual
+  // Nombre de sede legible autoritativo desde SQL Server para el socio actual
   const nombreSedeSocioActual = useMemo(() => {
     if (sedes.length > 0 && socioActual.id_sede_registro_socio) {
       const match = sedes.find(
         (s) => s.id_sede === socioActual.id_sede_registro_socio
       );
-      if (match && !socioActual.nombre_sede_registro) {
+      if (match) {
         return match.nombre_sede;
       }
     }
@@ -501,12 +558,22 @@ export default function ClasesPage() {
                 onChange={(e) => handleCambiarSocio(Number(e.target.value))}
                 className="w-full sm:w-auto appearance-none bg-[#f3f4f3]/80 hover:bg-[#f3f4f3] border border-[#e5e5e5] rounded-full pl-4 pr-9 py-1.5 text-xs sm:text-sm text-[#0a0a0a] font-medium focus:outline-none focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] cursor-pointer transition-all duration-200"
               >
-                {SOCIOS_PRUEBA.map((s) => (
-                  <option key={s.id_socio} value={s.id_socio}>
-                    {s.nombre_completo_socio} —{" "}
-                    {s.nombre_sede_registro || `Sede ${s.id_sede_registro_socio}`}
-                  </option>
-                ))}
+                {opcionesSocios.map((s) => {
+                  const sedeOpt =
+                    (s.id_sede_registro_socio
+                      ? sedes.find((sd) => sd.id_sede === s.id_sede_registro_socio)
+                          ?.nombre_sede
+                      : undefined) ||
+                    s.nombre_sede_registro ||
+                    (s.id_sede_registro_socio
+                      ? `Sede #${s.id_sede_registro_socio}`
+                      : "Sin sede");
+                  return (
+                    <option key={s.id_socio} value={s.id_socio}>
+                      {s.nombre_completo_socio} — {sedeOpt}
+                    </option>
+                  );
+                })}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-[#7a7b7b] pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
             </div>

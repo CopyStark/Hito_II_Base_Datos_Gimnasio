@@ -1,8 +1,13 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import apiClient, { LoginResult, Socio } from "@/services/apiClient";
+import {
+  SOCIOS_PRUEBA,
+  SocioActual,
+  setStoredSocioActual,
+} from "@/components/clases/socioActual";
 import {
   User,
   Lock,
@@ -185,6 +190,8 @@ export default function LoginPerfilPage() {
     setErrorMsg(null);
   };
 
+  const idSocioActivo = fichaSocio?.id_socio ?? sesion?.id_socio ?? null;
+
   const nombreMostrar =
     fichaSocio?.nombre_completo_socio ??
     fichaSocio?.nombre_completo ??
@@ -195,6 +202,50 @@ export default function LoginPerfilPage() {
   const idSedeSocio =
     fichaSocio?.id_sede_registro_socio ?? fichaSocio?.id_sede_registro ?? 1;
   const nombreSedeSocio = sedesMap[idSedeSocio] || `Sede #${idSedeSocio}`;
+
+  const sincronizarSocioGlobal = useCallback(() => {
+    if (!idSocioActivo) return;
+    const basePrueba = SOCIOS_PRUEBA.find((s) => s.id_socio === idSocioActivo);
+    const idSede =
+      fichaSocio?.id_sede_registro_socio ??
+      fichaSocio?.id_sede_registro ??
+      basePrueba?.id_sede_registro_socio;
+    const nombreSede =
+      (idSede ? sedesMap[idSede] : undefined) ||
+      basePrueba?.nombre_sede_registro ||
+      (idSede ? `Sede #${idSede}` : undefined);
+
+    const payload: SocioActual = {
+      id_socio: idSocioActivo,
+      nombre_completo_socio:
+        fichaSocio?.nombre_completo_socio ??
+        fichaSocio?.nombre_completo ??
+        sesion?.nombre_completo_socio ??
+        basePrueba?.nombre_completo_socio ??
+        sesion?.username_usuario ??
+        `Socio #${idSocioActivo}`,
+      correo_socio:
+        fichaSocio?.correo_socio ??
+        fichaSocio?.correo ??
+        basePrueba?.correo_socio ??
+        "—",
+      rut_socio:
+        fichaSocio?.rut_socio ??
+        fichaSocio?.rut ??
+        basePrueba?.rut_socio ??
+        "—",
+      id_sede_registro_socio: idSede,
+      nombre_sede_registro: nombreSede,
+    };
+
+    setStoredSocioActual(payload);
+  }, [idSocioActivo, fichaSocio, sesion, sedesMap]);
+
+  useEffect(() => {
+    if (sesion && idSocioActivo) {
+      sincronizarSocioGlobal();
+    }
+  }, [sesion, idSocioActivo, sincronizarSocioGlobal]);
 
   return (
     <div className="space-y-8">
@@ -461,7 +512,8 @@ export default function LoginPerfilPage() {
             )}
 
             <Link
-              href="/clases"
+              href={idSocioActivo ? `/clases?id_socio=${idSocioActivo}` : "/clases"}
+              onClick={sincronizarSocioGlobal}
               className="btn-secondary-pill inline-flex items-center gap-2 px-5 py-3 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5]"
             >
               <span>Ir a Reserva de Clases</span>
@@ -469,7 +521,12 @@ export default function LoginPerfilPage() {
             </Link>
 
             <Link
-              href="/contratos/estado-cuenta"
+              href={
+                idSocioActivo
+                  ? `/contratos/estado-cuenta?id_socio=${idSocioActivo}`
+                  : "/contratos/estado-cuenta"
+              }
+              onClick={sincronizarSocioGlobal}
               className="btn-secondary-pill inline-flex items-center gap-2 px-5 py-3 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5]"
             >
               <span>Ver Estado de Cuenta</span>

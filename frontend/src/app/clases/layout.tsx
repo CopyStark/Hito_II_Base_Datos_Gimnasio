@@ -15,8 +15,10 @@ import {
 import {
   SOCIOS_PRUEBA,
   SocioActual,
+  getOpcionesSociosSelector,
   getStoredSocioActual,
   setStoredSocioActual,
+  sincronizarSocioDesdeId,
   subscribeSocioActual,
 } from "@/components/clases/socioActual";
 
@@ -70,10 +72,20 @@ export default function ClasesLayout({
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    setSocioActual(getStoredSocioActual());
     const unsubscribe = subscribeSocioActual((s) => {
       setSocioActual(s);
     });
+
+    const params = new URLSearchParams(window.location.search);
+    const idUrl = Number(params.get("id_socio"));
+    if (idUrl > 0) {
+      sincronizarSocioDesdeId(idUrl).then((res) => {
+        if (res) setSocioActual(res);
+      });
+    } else {
+      setSocioActual(getStoredSocioActual());
+    }
+
     return unsubscribe;
   }, []);
 
@@ -85,12 +97,21 @@ export default function ClasesLayout({
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const opcionesSocios = getOpcionesSociosSelector(socioActual);
+
   const handleCambiarSocio = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = Number(e.target.value);
-    const encontrado = SOCIOS_PRUEBA.find((s) => s.id_socio === id);
+    const encontrado = opcionesSocios.find((s) => s.id_socio === id);
     if (encontrado) {
       setSocioActual(encontrado);
       setStoredSocioActual(encontrado);
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has("id_socio")) {
+          url.searchParams.set("id_socio", String(id));
+          window.history.replaceState({}, "", url.toString());
+        }
+      } catch {}
     }
   };
 
@@ -150,7 +171,7 @@ export default function ClasesLayout({
                   onChange={handleCambiarSocio}
                   className="appearance-none bg-transparent text-[#0a0a0a] font-medium focus:outline-none cursor-pointer text-xs"
                 >
-                  {SOCIOS_PRUEBA.map((s) => (
+                  {opcionesSocios.map((s) => (
                     <option
                       key={s.id_socio}
                       value={s.id_socio}
