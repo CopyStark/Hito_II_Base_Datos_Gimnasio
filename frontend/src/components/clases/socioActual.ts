@@ -199,6 +199,7 @@ export async function sincronizarSocioDesdeId(
       ? listaSedes.find((s) => s.id_sede === idSede)
       : undefined;
 
+    const enPrueba = SOCIOS_PRUEBA.find((s) => s.id_socio === idSocio);
     const socioVivo: SocioActual = {
       id_socio: ficha.id_socio ?? idSocio,
       nombre_completo_socio:
