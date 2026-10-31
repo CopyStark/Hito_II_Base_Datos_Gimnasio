@@ -143,13 +143,12 @@ export default function ClasesLayout({
               <div className="flex items-center gap-2.5 sm:gap-3">
                 <Link
                   href="/"
-                  className="group flex items-center text-[20px] sm:text-[22px] tracking-[-0.03em] whitespace-nowrap shrink-0"
+                  className="group flex items-center gap-2 text-[20px] sm:text-[22px] tracking-[-0.03em] font-medium shrink-0 text-[#0a0a0a]"
+                  title="Volver al Portal General"
                 >
-                  <span className="font-semibold text-[#0a0a0a] transition-transform duration-300 group-hover:-translate-y-0.5">
-                    gimnasio
-                  </span>
-                  <span className="text-[#ff6105] font-black"> • </span>
-                  <span className="font-normal text-[#292b2a]">db</span>
+                  <span>gimnasio</span>
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#ff6105] transition-transform duration-200 ease-in-out group-hover:scale-125" />
+                  <span className="font-light text-[#7a7b7b]">db</span>
                 </Link>
 
                 <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5] whitespace-nowrap">

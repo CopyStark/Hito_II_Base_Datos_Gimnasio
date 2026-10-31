@@ -303,14 +303,28 @@ export default function InstructorPage() {
         }).`,
       });
     } catch (err: any) {
-      const msg =
-        err.data?.detail ||
-        err.message ||
+      const errorDetail =
+        err?.response?.data?.detail ||
+        err?.data?.detail ||
+        err?.message ||
         "No fue posible actualizar la asistencia. Intente nuevamente.";
+      const msg =
+        typeof errorDetail === "string"
+          ? errorDetail
+          : Array.isArray(errorDetail)
+          ? errorDetail
+              .map((d: any) =>
+                typeof d === "string" ? d : d.msg || JSON.stringify(d)
+              )
+              .join(" | ")
+          : typeof errorDetail === "object"
+          ? errorDetail.msg || errorDetail.message || JSON.stringify(errorDetail)
+          : String(errorDetail);
+
       setToastFeedback({
         id: Date.now(),
         type: "error",
-        message: `Error al registrar asistencia: ${String(msg)}`,
+        message: `Error al registrar asistencia: ${msg}`,
       });
     } finally {
       setAsistenciaDrafts((prev) => ({
@@ -612,23 +626,23 @@ export default function InstructorPage() {
             <div className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
               {toastFeedback && (
                 <div
-                  className={`p-3.5 rounded-[5px] border text-xs sm:text-sm font-medium flex items-center justify-between gap-3 transition-all animate-fade-in-scale ${
+                  className={`sticky top-0 z-30 p-3.5 rounded-[5px] border text-xs sm:text-sm font-medium flex items-center justify-between gap-3 transition-all animate-fade-in-scale shadow-lg ${
                     toastFeedback.type === "success"
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                      : "bg-rose-50 border-rose-200 text-rose-800"
+                      ? "bg-[#ffdfcd] border-[#ffa069]/60 text-[#0a0a0a]"
+                      : "bg-[#202120] border-[#ef4444] text-[#ffffff] ring-1 ring-[#ef4444]/40 shadow-red-950/30"
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
                     {toastFeedback.type === "success" ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-[#ff6105] shrink-0" />
                     ) : (
-                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <AlertTriangle className="w-4 h-4 text-[#ef4444] shrink-0" />
                     )}
                     <span>{toastFeedback.message}</span>
                   </div>
                   <button
                     onClick={() => setToastFeedback(null)}
-                    className="text-[#7a7b7b] hover:text-[#0a0a0a] p-1 rounded-full hover:bg-white"
+                    className="text-[#a2a3a2] hover:text-white p-1 rounded-full hover:bg-white/10"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -875,6 +889,58 @@ export default function InstructorPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Alerta Flotante Fija (Toast) a nivel de página */}
+      {toastFeedback && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed bottom-6 right-6 z-[9999] max-w-sm sm:max-w-md w-[calc(100vw-3rem)] p-4 rounded-[5px] border shadow-2xl flex items-start justify-between gap-3 animate-fade-in-scale ${
+            toastFeedback.type === "error"
+              ? "bg-[#202120] border-[#ef4444] text-[#ffffff] ring-1 ring-[#ef4444]/40 shadow-red-950/40"
+              : "bg-[#ffdfcd] border-[#ffa069]/60 text-[#0a0a0a] shadow-orange-950/20"
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <span className="shrink-0 mt-0.5">
+              {toastFeedback.type === "success" ? (
+                <CheckCircle2 className="w-5 h-5 text-[#ff6105]" />
+              ) : (
+                <AlertTriangle className="w-5 h-5 text-[#ef4444]" />
+              )}
+            </span>
+            <div>
+              <strong
+                className={`block text-sm font-semibold ${
+                  toastFeedback.type === "error" ? "text-[#fca5a5]" : "text-[#0a0a0a]"
+                }`}
+              >
+                {toastFeedback.type === "success"
+                  ? "Operación Exitosa"
+                  : "Error en Asistencia"}
+              </strong>
+              <p
+                className={`text-xs sm:text-sm mt-0.5 leading-relaxed ${
+                  toastFeedback.type === "error" ? "text-zinc-200" : "text-[#292b2a]"
+                }`}
+              >
+                {toastFeedback.message}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setToastFeedback(null)}
+            className={`p-1 rounded-full shrink-0 transition-colors ${
+              toastFeedback.type === "error"
+                ? "text-zinc-400 hover:text-white hover:bg-white/10"
+                : "text-[#7a7b7b] hover:text-[#0a0a0a] hover:bg-[#f3f4f3]"
+            }`}
+            title="Cerrar notificación"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>

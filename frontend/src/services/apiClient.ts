@@ -49,12 +49,14 @@ export const API_BASE_URL = getApiBaseUrl();
 export class ApiError extends Error {
   status: number;
   data: any;
+  response?: { status: number; data: any };
 
   constructor(message: string, status: number, data?: any) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.data = data;
+    this.response = { status, data };
   }
 }
 

@@ -219,12 +219,13 @@ export default function ClasesPage() {
     return unsubscribe;
   }, [resolverIdSedeSocio]);
 
-  // Auto-descartar Notificaciones Flotantes (Toast) tras 5 segundos
+  // Auto-descartar Notificaciones Flotantes (Toast) tras 5 segundos (7s para errores)
   useEffect(() => {
     if (feedback) {
+      const duration = feedback.type === "error" ? 7000 : 5000;
       const timer = setTimeout(() => {
         setFeedback(null);
-      }, 5000);
+      }, duration);
       return () => clearTimeout(timer);
     }
   }, [feedback]);
@@ -363,6 +364,25 @@ export default function ClasesPage() {
     });
   };
 
+  // Helper para normalizar el mensaje de error devuelto por la API / SQL Server
+  const extraerMensajeError = (err: any, fallback: string): string => {
+    const raw =
+      err?.response?.data?.detail ||
+      err?.data?.detail ||
+      err?.message ||
+      fallback;
+    if (typeof raw === "string") return raw;
+    if (Array.isArray(raw)) {
+      return raw
+        .map((d: any) => (typeof d === "string" ? d : d.msg || JSON.stringify(d)))
+        .join(" | ");
+    }
+    if (typeof raw === "object") {
+      return raw.msg || raw.message || JSON.stringify(raw);
+    }
+    return String(raw);
+  };
+
   // Acción: Inscribirme en una sesión
   const handleInscribir = async (id_sesion: number) => {
     setActionLoadingId(id_sesion);
@@ -385,13 +405,13 @@ export default function ClasesPage() {
         cargarMisInscripciones(socioActual.id_socio),
       ]);
     } catch (err: any) {
-      const errorMsg =
-        err.data?.detail ||
-        err.message ||
-        "No fue posible completar la inscripción. Verifique las reglas de negocio.";
+      const errorMsg = extraerMensajeError(
+        err,
+        "No fue posible completar la inscripción. Verifique las reglas de negocio."
+      );
       setFeedback({
         type: "error",
-        message: String(errorMsg),
+        message: errorMsg,
       });
     } finally {
       setActionLoadingId(null);
@@ -422,13 +442,13 @@ export default function ClasesPage() {
         cargarMisInscripciones(socioActual.id_socio),
       ]);
     } catch (err: any) {
-      const errorMsg =
-        err.data?.detail ||
-        err.message ||
-        "Error al cancelar la inscripción. Verifique que la sesión sea futura.";
+      const errorMsg = extraerMensajeError(
+        err,
+        "Error al cancelar la inscripción. Verifique que la sesión sea futura."
+      );
       setFeedback({
         type: "error",
-        message: String(errorMsg),
+        message: errorMsg,
       });
     } finally {
       setActionLoadingId(null);
@@ -606,34 +626,60 @@ export default function ClasesPage() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-6 right-6 z-50 max-w-sm sm:max-w-md w-full p-4 rounded-[5px] border border-[#e5e5e5] shadow-lg bg-white flex items-start justify-between gap-3 animate-fade-in-scale"
+          className={`fixed bottom-6 right-6 z-[9999] max-w-sm sm:max-w-md w-[calc(100vw-3rem)] p-4 rounded-[5px] border shadow-2xl flex items-start justify-between gap-3 animate-fade-in-scale ${
+            feedback.type === "error"
+              ? "bg-[#202120] border-[#ef4444] text-[#ffffff] ring-1 ring-[#ef4444]/40 shadow-red-950/40"
+              : feedback.type === "success"
+              ? "bg-[#ffdfcd] border-[#ffa069]/60 text-[#0a0a0a] shadow-orange-950/20"
+              : "bg-white border-[#e5e5e5] text-[#0a0a0a]"
+          }`}
         >
           <div className="flex items-start gap-3">
             <span className="shrink-0 mt-0.5">
               {feedback.type === "success" ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                <CheckCircle2 className="w-5 h-5 text-[#ff6105]" />
               ) : feedback.type === "error" ? (
-                <AlertTriangle className="w-5 h-5 text-[#ff6105]" />
+                <AlertTriangle className="w-5 h-5 text-[#ef4444]" />
               ) : (
                 <Info className="w-5 h-5 text-[#292b2a]" />
               )}
             </span>
             <div>
-              <strong className="block text-sm font-medium text-[#0a0a0a]">
+              <strong
+                className={`block text-sm font-semibold ${
+                  feedback.type === "error"
+                    ? "text-[#fca5a5]"
+                    : feedback.type === "success"
+                    ? "text-[#0a0a0a]"
+                    : "text-[#0a0a0a]"
+                }`}
+              >
                 {feedback.type === "success"
                   ? "Operación Exitosa"
                   : feedback.type === "error"
-                  ? "Aviso del Sistema"
+                  ? "Error en la Solicitud"
                   : "Información"}
               </strong>
-              <p className="text-xs sm:text-sm mt-0.5 text-[#7a7b7b] leading-relaxed">
+              <p
+                className={`text-xs sm:text-sm mt-0.5 leading-relaxed ${
+                  feedback.type === "error"
+                    ? "text-zinc-200"
+                    : feedback.type === "success"
+                    ? "text-[#292b2a]"
+                    : "text-[#7a7b7b]"
+                }`}
+              >
                 {feedback.message}
               </p>
             </div>
           </div>
           <button
             onClick={() => setFeedback(null)}
-            className="text-[#7a7b7b] hover:text-[#0a0a0a] p-1 rounded-full hover:bg-[#f3f4f3] shrink-0 transition-colors"
+            className={`p-1 rounded-full shrink-0 transition-colors ${
+              feedback.type === "error"
+                ? "text-zinc-400 hover:text-white hover:bg-white/10"
+                : "text-[#7a7b7b] hover:text-[#0a0a0a] hover:bg-[#f3f4f3]"
+            }`}
             title="Cerrar notificación"
           >
             <X className="w-4 h-4" />
