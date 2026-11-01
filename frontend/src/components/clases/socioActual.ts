@@ -43,13 +43,13 @@ export const SOCIOS_PRUEBA: SocioActual[] = [
     nota_prueba: "Activo, Contrato Vigente",
   },
   {
-    id_socio: 10,
-    nombre_completo_socio: "Vicente Rodríguez",
-    correo_socio: "socio47@alumnos.cl",
-    rut_socio: "12.809.624-7",
-    id_sede_registro_socio: 1,
-    nombre_sede_registro: "Sede Antofagasta Sur",
-    nota_prueba: "Contrato Vencido (Prueba error 50030)",
+    id_socio: 15,
+    nombre_completo_socio: "Antonia Contreras",
+    correo_socio: "socio52@alumnos.cl",
+    rut_socio: "13.108.521-2",
+    id_sede_registro_socio: 4,
+    nombre_sede_registro: "Sede Santiago Centro",
+    nota_prueba: "Contrato Cancelado / Sin contrato vigente (Para validar error 50030)",
   },
   {
     id_socio: 13,
@@ -58,16 +58,7 @@ export const SOCIOS_PRUEBA: SocioActual[] = [
     rut_socio: "12.988.962-0",
     id_sede_registro_socio: 2,
     nombre_sede_registro: "Sede La Serena Centro",
-    nota_prueba: "Inactivo (activo_socio = 0)",
-  },
-  {
-    id_socio: 15,
-    nombre_completo_socio: "Antonia Contreras",
-    correo_socio: "socio52@alumnos.cl",
-    rut_socio: "13.108.521-2",
-    id_sede_registro_socio: 4,
-    nombre_sede_registro: "Sede Santiago Centro",
-    nota_prueba: "Contrato Cancelado",
+    nota_prueba: "Inactivo (activo_socio = 0) (Para validar error 50030 de cuenta inactiva)",
   },
 ];
 

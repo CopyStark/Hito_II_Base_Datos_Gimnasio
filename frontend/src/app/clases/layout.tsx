@@ -10,17 +10,7 @@ import {
   Wrench,
   BarChart3,
   ArrowLeft,
-  ChevronDown,
 } from "lucide-react";
-import {
-  SOCIOS_PRUEBA,
-  SocioActual,
-  getOpcionesSociosSelector,
-  getStoredSocioActual,
-  setStoredSocioActual,
-  sincronizarSocioDesdeId,
-  subscribeSocioActual,
-} from "@/components/clases/socioActual";
 
 interface NavItem {
   name: string;
@@ -68,26 +58,7 @@ export default function ClasesLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [socioActual, setSocioActual] = useState<SocioActual>(SOCIOS_PRUEBA[0]);
   const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const unsubscribe = subscribeSocioActual((s) => {
-      setSocioActual(s);
-    });
-
-    const params = new URLSearchParams(window.location.search);
-    const idUrl = Number(params.get("id_socio"));
-    if (idUrl > 0) {
-      sincronizarSocioDesdeId(idUrl).then((res) => {
-        if (res) setSocioActual(res);
-      });
-    } else {
-      setSocioActual(getStoredSocioActual());
-    }
-
-    return unsubscribe;
-  }, []);
 
   useEffect(() => {
     const onScroll = () => {
@@ -96,24 +67,6 @@ export default function ClasesLayout({
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  const opcionesSocios = getOpcionesSociosSelector(socioActual);
-
-  const handleCambiarSocio = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = Number(e.target.value);
-    const encontrado = opcionesSocios.find((s) => s.id_socio === id);
-    if (encontrado) {
-      setSocioActual(encontrado);
-      setStoredSocioActual(encontrado);
-      try {
-        const url = new URL(window.location.href);
-        if (url.searchParams.has("id_socio")) {
-          url.searchParams.set("id_socio", String(id));
-          window.history.replaceState({}, "", url.toString());
-        }
-      } catch {}
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#f8f9f8] text-[#0a0a0a] flex flex-col font-sans">
@@ -154,33 +107,6 @@ export default function ClasesLayout({
                 <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5] whitespace-nowrap">
                   Módulo Clases
                 </span>
-              </div>
-            </div>
-
-            {/* Selector Compacto de Socio en Sesión */}
-            <div className="flex items-center gap-2 text-xs">
-              <div className="relative flex items-center gap-2 bg-[#f3f4f3]/80 hover:bg-[#f3f4f3] border border-[#e5e5e5] hover:border-[#ff6105]/40 rounded-full pl-3 pr-7 py-1.5 text-[#292b2a] transition-all duration-200">
-                <span className="w-2 h-2 rounded-full bg-[#ff6105] shrink-0" />
-                <span className="hidden md:inline text-[#7a7b7b] text-[11px] font-normal">
-                  Socio:
-                </span>
-                <select
-                  aria-label="Seleccionar Socio de prueba"
-                  value={socioActual.id_socio}
-                  onChange={handleCambiarSocio}
-                  className="appearance-none bg-transparent text-[#0a0a0a] font-medium focus:outline-none cursor-pointer text-xs"
-                >
-                  {opcionesSocios.map((s) => (
-                    <option
-                      key={s.id_socio}
-                      value={s.id_socio}
-                      className="bg-white text-[#0a0a0a]"
-                    >
-                      {s.nombre_completo_socio} {s.nota_prueba ? `(${s.nota_prueba})` : ""}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-[#7a7b7b] pointer-events-none absolute right-2.5" />
               </div>
             </div>
           </div>
