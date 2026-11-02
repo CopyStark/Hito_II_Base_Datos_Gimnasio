@@ -201,9 +201,27 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
       try {
         errorData = await response.json();
         if (errorData?.detail) {
-          errorDetail = typeof errorData.detail === "string"
-            ? errorData.detail
-            : JSON.stringify(errorData.detail);
+          if (typeof errorData.detail === "string") {
+            errorDetail = errorData.detail;
+          } else if (Array.isArray(errorData.detail)) {
+            const mensajes = errorData.detail.map((item: any) => {
+              const campo = item.loc?.[item.loc.length - 1] || "campo";
+              if (item.type === "string_too_short" || (item.msg && String(item.msg).includes("at least"))) {
+                const min = item.ctx?.min_length || 3;
+                if (campo === "username_o_correo" || campo === "username" || campo === "correo") {
+                  return `El usuario o correo debe tener al menos ${min} caracteres.`;
+                }
+                return `El campo '${campo}' debe tener al menos ${min} caracteres.`;
+              }
+              if (item.type === "missing") {
+                return `El campo '${campo}' es obligatorio.`;
+              }
+              return item.msg || JSON.stringify(item);
+            });
+            errorDetail = mensajes.join(" ");
+          } else {
+            errorDetail = JSON.stringify(errorData.detail);
+          }
         }
       } catch {
         // Si la respuesta no es JSON válido

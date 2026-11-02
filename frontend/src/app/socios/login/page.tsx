@@ -154,11 +154,17 @@ export default function LoginPerfilPage() {
   }, []);
 
   const ejecutarLogin = async (u: string, p: string) => {
+    const usuarioLimpio = u.trim();
+    if (usuarioLimpio.length < 3) {
+      setErrorMsg("El usuario o correo debe tener al menos 3 caracteres.");
+      return;
+    }
+
     setLoading(true);
     setErrorMsg(null);
     try {
       const data: LoginResult = await apiClient.socios.login({
-        username_o_correo: u.trim(),
+        username_o_correo: usuarioLimpio,
         password: p,
       });
       setSesion(data);
@@ -169,7 +175,17 @@ export default function LoginPerfilPage() {
         setFichaSocio(null);
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Credenciales inválidas o cuenta inactiva.");
+      const msg = err.message || "";
+      if (
+        msg.includes("string_too_short") ||
+        msg.includes("at least 3") ||
+        msg.includes("least 3 characters") ||
+        msg.includes("username_o_correo")
+      ) {
+        setErrorMsg("El usuario o correo debe tener al menos 3 caracteres.");
+      } else {
+        setErrorMsg(msg || "Credenciales inválidas o cuenta inactiva.");
+      }
     } finally {
       setLoading(false);
     }
@@ -177,7 +193,18 @@ export default function LoginPerfilPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password) return;
+    if (!username.trim()) {
+      setErrorMsg("Por favor, ingresa tu usuario o correo electrónico.");
+      return;
+    }
+    if (username.trim().length < 3) {
+      setErrorMsg("El usuario o correo debe tener al menos 3 caracteres.");
+      return;
+    }
+    if (!password) {
+      setErrorMsg("Por favor, ingresa tu contraseña.");
+      return;
+    }
     await ejecutarLogin(username, password);
   };
 
