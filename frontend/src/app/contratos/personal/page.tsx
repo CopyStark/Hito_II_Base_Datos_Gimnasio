@@ -1,10 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import apiClient, {
   PersonalItem,
   ReporteIngresosItem,
 } from "@/services/apiClient";
+import {
+  BarChart3,
+  Users,
+  UserPlus,
+  RefreshCw,
+  Search,
+  MapPin,
+  Mail,
+  Phone,
+  Edit2,
+  Trash2,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  ChevronDown,
+  Loader2,
+  Briefcase,
+} from "lucide-react";
 
 const CARGOS = [
   "Recepcionista",
@@ -30,6 +49,7 @@ const MESES_NOMBRES: Record<number, string> = {
 };
 
 export default function PersonalYFinanzasPage() {
+  const [mounted, setMounted] = useState(false);
   const [ingresos, setIngresos] = useState<ReporteIngresosItem[]>([]);
   const [personal, setPersonal] = useState<PersonalItem[]>([]);
   const [sedes, setSedes] = useState<any[]>([]);
@@ -55,6 +75,24 @@ export default function PersonalYFinanzasPage() {
   const [cargoPersonal, setCargoPersonal] = useState("Recepcionista");
   const [idSedePersonal, setIdSedePersonal] = useState("1");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!showPersonalModal) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowPersonalModal(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showPersonalModal]);
 
   const cargarTodo = async () => {
     setLoading(true);
@@ -275,349 +313,529 @@ export default function PersonalYFinanzasPage() {
   );
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
+      {/* Editorial Section Heading — DESIGN.md: Ghost Card 5px, weight 300 48px -0.030em, 2px #ff6105 rule */}
+      <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 text-[12px] text-[#7a7b7b] font-medium">
+            <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
+            <span>Administración y Finanzas · Ingresos y Recursos Humanos</span>
+          </div>
+          <h1 className="text-[34px] sm:text-[48px] font-light leading-[1.15] tracking-[-0.03em] text-[#0a0a0a]">
+            Personal y Finanzas
+          </h1>
+          <div className="w-[112px] h-[2px] bg-[#ff6105]" />
+          <p className="text-[15px] sm:text-[16px] font-normal leading-[1.56] tracking-[-0.01em] text-[#292b2a] max-w-xl pt-1">
+            Analiza la recaudación consolidada por sucursal y período mensual, y administra la
+            nómina de funcionarios asignados a cada sede.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 self-start lg:self-auto shrink-0">
+          <button
+            type="button"
+            onClick={cargarTodo}
+            disabled={loading}
+            className="btn-secondary-pill inline-flex items-center gap-2 px-5 py-3 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-[#ff6105]" : "text-[#292b2a]"}`} />
+            <span>Actualizar</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={abrirNuevoPersonal}
+            className="btn-primary-pill inline-flex items-center gap-2 px-7 py-3.5 text-[15px] font-medium tracking-[-0.01em] cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Registrar Personal</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Feedback Banner */}
       {feedback && (
         <div
-          className={`p-4 rounded-xl border text-sm flex items-center justify-between ${
+          className={`p-4 rounded-[5px] border flex items-center justify-between text-[14px] animate-fade-in-scale ${
             feedback.type === "ok"
-              ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-200"
-              : "bg-rose-950/60 border-rose-500/40 text-rose-200"
+              ? "bg-[#ffdfcd] border-[#ffa069]/50 text-[#0a0a0a]"
+              : "bg-[#202120] border-[#3c3e3d] text-[#ffffff]"
           }`}
         >
-          <span>
-            {feedback.type === "ok" ? "✅ " : "⚠️ "}
-            {feedback.msg}
-          </span>
-          <button onClick={() => setFeedback(null)} className="text-xs opacity-70 hover:opacity-100">
-            ✕
+          <div className="flex items-center gap-2.5">
+            {feedback.type === "ok" ? (
+              <CheckCircle2 className="w-4 h-4 text-[#ff6105] shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-[#ff6105] shrink-0" />
+            )}
+            <span>{feedback.msg}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFeedback(null)}
+            className="opacity-70 hover:opacity-100 px-2 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
       {/* =====================================================================
-          SECCIÓN 1: VISTA ANALÍTICA vw_Reporte_Ingresos_Por_Sede
+          SECCIÓN 1: REPORTE ANALÍTICO DE INGRESOS POR SEDE Y PERÍODO
          ===================================================================== */}
-      <section className="bg-slate-900/80 border border-emerald-500/30 rounded-2xl p-6 space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
-              Vista SQL Server: [dbo].[vw_Reporte_Ingresos_Por_Sede]
+      <section className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] overflow-hidden">
+        <div className="bg-[#f3f4f3] border-b border-[#e5e5e5] p-5 sm:p-6 flex flex-col xl:flex-row xl:items-center justify-between gap-5">
+          <div className="space-y-1">
+            <span className="badge-neutral bg-[#ffffff]">
+              <BarChart3 className="w-3.5 h-3.5 text-[#ff6105]" />
+              <span>Consolidado Financiero</span>
             </span>
-            <h1 className="text-2xl font-extrabold text-white mt-1">
-              📈 Reporte Analítico de Ingresos por Sede y Período
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Consolidación financiera en tiempo real mediante <code>INNER JOIN</code> entre <code>Pago</code>, <code>Contrato</code>, <code>Socio</code> y <code>Sede</code>.
-            </p>
+            <h2 className="text-[22px] sm:text-[24px] font-light leading-[1.33] tracking-[-0.02em] text-[#0a0a0a] pt-1">
+              Reporte Analítico de Ingresos por Sede y Período
+            </h2>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <input
-              type="text"
-              placeholder="Filtrar sede..."
-              value={filtroSedeIngreso}
-              onChange={(e) => setFiltroSedeIngreso(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"
-            />
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative">
+              <Search className="w-4 h-4 text-[#7a7b7b] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Filtrar sede..."
+                value={filtroSedeIngreso}
+                onChange={(e) => setFiltroSedeIngreso(e.target.value)}
+                className="input-pill pl-10 pr-4 py-2 text-[13px] w-48 placeholder-[#a2a3a2]"
+              />
+            </div>
+
             <input
               type="number"
               placeholder="Año (ej: 2026)"
               value={filtroAnio}
               onChange={(e) => setFiltroAnio(e.target.value)}
-              className="w-32 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"
+              className="input-pill px-4 py-2 text-[13px] w-36 placeholder-[#a2a3a2]"
             />
-            <div className="bg-emerald-950/60 border border-emerald-500/40 rounded-xl px-4 py-2 text-right">
-              <span className="text-[10px] uppercase text-emerald-300 block">
+
+            {/* Single Peach Wash Featured Box */}
+            <div className="bg-[#ffdfcd] border border-[#ffa069]/50 rounded-[5px] px-4 py-2 text-left sm:text-right">
+              <span className="text-[11px] font-medium text-[#292b2a] block">
                 Recaudación Total Consolidada
               </span>
-              <span className="text-base font-extrabold text-white font-mono">
+              <span className="text-[20px] font-light tracking-[-0.02em] text-[#0a0a0a] font-mono">
                 ${totalIngresosGlobal.toLocaleString("es-CL")}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {ingresos.map((item, idx) => {
-            const pct = Math.round((Number(item.total_ingresos) / maxIngresoItem) * 100);
-            return (
-              <div
-                key={`${item.nombre_sede}-${item.anio_pago}-${item.mes_pago}-${idx}`}
-                className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2"
-              >
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-white">{item.nombre_sede}</span>
-                  <span className="font-mono text-slate-400">
-                    {MESES_NOMBRES[item.mes_pago] || `Mes ${item.mes_pago}`} {item.anio_pago}
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+        <div className="p-6">
+          {loading ? (
+            <div className="py-10 text-center space-y-3">
+              <Loader2 className="w-6 h-6 text-[#ff6105] animate-spin mx-auto" />
+              <p className="text-[14px] text-[#7a7b7b]">
+                Calculando consolidado de ingresos por sede...
+              </p>
+            </div>
+          ) : ingresos.length === 0 ? (
+            <div className="py-10 text-center space-y-2">
+              <BarChart3 className="w-8 h-8 text-[#a2a3a2] mx-auto stroke-[1.5]" />
+              <p className="text-[15px] font-medium text-[#0a0a0a]">
+                Sin registros de recaudación para este filtro
+              </p>
+              <p className="text-[13px] text-[#7a7b7b]">
+                Prueba limpiando el nombre de sede o el año consultado.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {ingresos.map((item, idx) => {
+                const pct = Math.round((Number(item.total_ingresos) / maxIngresoItem) * 100);
+                return (
                   <div
-                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <span className="text-slate-500">Recaudación del período</span>
-                  <span className="font-mono font-extrabold text-emerald-400 text-sm">
-                    ${Number(item.total_ingresos).toLocaleString("es-CL")}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+                    key={`${item.nombre_sede}-${item.anio_pago}-${item.mes_pago}-${idx}`}
+                    className="p-5 rounded-[5px] bg-[#ffffff] border border-[#e5e5e5] space-y-3 hover:border-[#292b2a]/30 transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[15px] font-medium text-[#0a0a0a] truncate">
+                        {item.nombre_sede}
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-[8px] bg-[#f3f4f3] border border-[#e5e5e5] font-mono text-[12px] text-[#7a7b7b] whitespace-nowrap">
+                        {MESES_NOMBRES[item.mes_pago] || `Mes ${item.mes_pago}`} {item.anio_pago}
+                      </span>
+                    </div>
+
+                    <div className="w-full h-2 bg-[#f3f4f3] rounded-[8px] overflow-hidden">
+                      <div
+                        className="h-full bg-[#ff6105] rounded-[8px] transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[13px] pt-0.5">
+                      <span className="text-[#7a7b7b]">Recaudación del período</span>
+                      <span className="font-mono font-medium text-[#0a0a0a] text-[16px]">
+                        ${Number(item.total_ingresos).toLocaleString("es-CL")}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
       {/* =====================================================================
-          SECCIÓN 2: NÓMINA Y GESTIÓN DE PERSONAL ([dbo].[Personal])
+          SECCIÓN 2: NÓMINA Y GESTIÓN DE PERSONAL
          ===================================================================== */}
-      <section className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-cyan-400">
-              Tabla SQL Server: [dbo].[Personal] ({personal.length} funcionarios)
-            </span>
-            <h2 className="text-xl font-extrabold text-white mt-1">
-              👔 Nómina y Administración de Personal por Sede
-            </h2>
-          </div>
-          <button
-            onClick={abrirNuevoPersonal}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-emerald-900/40"
-          >
-            + Registrar Personal
-          </button>
-        </div>
-
-        {/* Filtros de Personal */}
-        <div className="flex flex-wrap gap-3 text-xs">
-          <div className="flex gap-2 flex-1 min-w-[220px]">
-            <input
-              type="text"
-              placeholder="Buscar por Nombre, RUT o Correo..."
-              value={buscarPersonal}
-              onChange={(e) => setBuscarPersonal(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && cargarTodo()}
-              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"
-            />
-            <button
-              onClick={cargarTodo}
-              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold"
-            >
-              🔍 Buscar
-            </button>
+      <section className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] overflow-hidden">
+        <div className="bg-[#f3f4f3] border-b border-[#e5e5e5] p-5 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <h2 className="text-[22px] sm:text-[24px] font-light leading-[1.33] tracking-[-0.02em] text-[#0a0a0a]">
+                Nómina de Personal por Sede
+              </h2>
+              <span className="badge-neutral bg-[#ffffff]">
+                {personal.length} funcionarios
+              </span>
+            </div>
           </div>
 
-          <select
-            value={filtroCargo}
-            onChange={(e) => setFiltroCargo(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200"
-          >
-            <option value="">Todos los cargos</option>
-            {CARGOS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          {/* Filtros de Personal */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+            <div className="md:col-span-6 flex gap-2">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-[#7a7b7b] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre, RUT o correo..."
+                  value={buscarPersonal}
+                  onChange={(e) => setBuscarPersonal(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && cargarTodo()}
+                  className="input-pill w-full pl-10 pr-4 py-2.5 text-[14px] placeholder-[#a2a3a2]"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={cargarTodo}
+                className="btn-secondary-pill px-5 py-2.5 text-[13px] font-medium bg-[#202120] hover:bg-[#0a0a0a] text-[#ffffff] border border-[#202120] cursor-pointer shrink-0"
+              >
+                Buscar
+              </button>
+            </div>
 
-          <select
-            value={filtroSedePersonal}
-            onChange={(e) => setFiltroSedePersonal(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200"
-          >
-            <option value="">Todas las sedes</option>
-            {sedes.map((s) => (
-              <option key={s.id_sede} value={s.id_sede}>
-                {s.nombre_sede}
-              </option>
-            ))}
-          </select>
+            <div className="md:col-span-3 relative">
+              <select
+                value={filtroCargo}
+                onChange={(e) => setFiltroCargo(e.target.value)}
+                className="input-pill w-full appearance-none pl-4 pr-10 py-2.5 text-[14px] cursor-pointer"
+              >
+                <option value="">Todos los cargos</option>
+                {CARGOS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-[#7a7b7b] absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            <div className="md:col-span-3 relative">
+              <select
+                value={filtroSedePersonal}
+                onChange={(e) => setFiltroSedePersonal(e.target.value)}
+                className="input-pill w-full appearance-none pl-4 pr-10 py-2.5 text-[14px] cursor-pointer"
+              >
+                <option value="">Todas las sedes</option>
+                {sedes.map((s) => (
+                  <option key={s.id_sede} value={s.id_sede}>
+                    {s.nombre_sede}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-[#7a7b7b] absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
         </div>
 
-        {/* Tabla de Personal */}
+        {/* Tabla de Personal — Balanced non-clipping columns matching Directorio de Socios */}
         {loading ? (
-          <p className="text-sm text-emerald-400 animate-pulse py-6 text-center">
-            Consultando tabla [Personal] en SQL Server...
-          </p>
+          <div className="p-12 text-center space-y-3">
+            <Loader2 className="w-6 h-6 text-[#ff6105] animate-spin mx-auto" />
+            <p className="text-[14px] text-[#7a7b7b]">Cargando nómina de personal...</p>
+          </div>
+        ) : personal.length === 0 ? (
+          <div className="p-12 text-center space-y-2">
+            <Users className="w-8 h-8 text-[#a2a3a2] mx-auto stroke-[1.5]" />
+            <p className="text-[16px] font-medium text-[#0a0a0a]">
+              No se encontraron funcionarios con los filtros seleccionados
+            </p>
+            <p className="text-[14px] text-[#7a7b7b]">
+              Intenta limpiar la búsqueda o registra un nuevo integrante del equipo.
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 uppercase">
-                  <th className="py-2.5 px-3">ID</th>
-                  <th className="py-2.5 px-3">Funcionario</th>
-                  <th className="py-2.5 px-3">RUT</th>
-                  <th className="py-2.5 px-3">Cargo</th>
-                  <th className="py-2.5 px-3">Sede Asignada</th>
-                  <th className="py-2.5 px-3">Contacto</th>
-                  <th className="py-2.5 px-3 text-right">Acciones</th>
+                <tr className="bg-[#ffffff] border-b border-[#e5e5e5] text-[12px] text-[#7a7b7b]">
+                  <th className="py-3 px-4 font-medium">Funcionario</th>
+                  <th className="py-3 px-3 font-medium whitespace-nowrap">RUT</th>
+                  <th className="py-3 px-3 font-medium whitespace-nowrap">Cargo</th>
+                  <th className="py-3 px-3 font-medium">Sede Asignada</th>
+                  <th className="py-3 px-3 font-medium">Contacto</th>
+                  <th className="py-3 px-4 font-medium text-right whitespace-nowrap">
+                    Acciones
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {personal.map((p) => (
-                  <tr key={p.id_personal} className="hover:bg-slate-800/40">
-                    <td className="py-2.5 px-3 font-mono text-slate-400">#{p.id_personal}</td>
-                    <td className="py-2.5 px-3 font-bold text-white">
-                      {p.nombre_completo_personal}
-                    </td>
-                    <td className="py-2.5 px-3 font-mono text-slate-300">{p.rut_personal}</td>
-                    <td className="py-2.5 px-3">
-                      <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-semibold">
-                        {p.cargo_personal}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-300">
-                      {p.nombre_sede || `Sede #${p.id_sede_personal}`}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-400">
-                      <div>{p.correo_personal}</div>
-                      <div className="font-mono text-[10px]">{p.telefono_personal}</div>
-                    </td>
-                    <td className="py-2.5 px-3 text-right space-x-1.5">
-                      <button
-                        onClick={() => abrirEditarPersonal(p)}
-                        className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200"
-                      >
-                        ✏️ Editar
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleEliminarPersonal(p.id_personal, p.nombre_completo_personal)
-                        }
-                        className="px-2.5 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900/70 text-rose-300 border border-rose-500/30"
-                      >
-                        🗑️
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-[#e5e5e5] text-[14px]">
+                {personal.map((p) => {
+                  const nombreSede = p.nombre_sede || `Sede #${p.id_sede_personal}`;
+
+                  return (
+                    <tr
+                      key={p.id_personal}
+                      className="hover:bg-[#f3f4f3]/50 transition-colors"
+                    >
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-[8px] bg-[#f3f4f3] border border-[#e5e5e5] text-[#0a0a0a] flex items-center justify-center text-[12px] font-medium shrink-0">
+                            {p.nombre_completo_personal.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p
+                              className="font-medium text-[#0a0a0a] leading-snug truncate max-w-[180px]"
+                              title={p.nombre_completo_personal}
+                            >
+                              {p.nombre_completo_personal}
+                            </p>
+                            <p className="text-[12px] text-[#7a7b7b]">ID #{p.id_personal}</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span className="inline-block whitespace-nowrap font-mono text-[12px] px-2 py-0.5 rounded-[8px] bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5]">
+                          {p.rut_personal}
+                        </span>
+                      </td>
+
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-[#ffffff] text-[#0a0a0a] border border-[#e5e5e5] text-[12px] font-medium">
+                          <Briefcase className="w-3 h-3 text-[#ff6105] shrink-0" />
+                          <span>{p.cargo_personal}</span>
+                        </span>
+                      </td>
+
+                      <td className="py-3.5 px-3">
+                        <div
+                          className="inline-flex items-center gap-1.5 text-[12px] text-[#292b2a] max-w-[165px]"
+                          title={nombreSede}
+                        >
+                          <MapPin className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
+                          <span className="truncate">{nombreSede}</span>
+                        </div>
+                      </td>
+
+                      <td className="py-3.5 px-3 text-[12px] text-[#292b2a] space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-[#7a7b7b] shrink-0" />
+                          <span className="truncate max-w-[175px]" title={p.correo_personal}>
+                            {p.correo_personal}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[#7a7b7b] whitespace-nowrap">
+                          <Phone className="w-3.5 h-3.5 shrink-0" />
+                          <span>{p.telefono_personal}</span>
+                        </div>
+                      </td>
+
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => abrirEditarPersonal(p)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[12px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] transition-colors cursor-pointer"
+                            title="Editar datos del funcionario"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                            <span>Editar</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleEliminarPersonal(p.id_personal, p.nombre_completo_personal)
+                            }
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[12px] font-normal bg-[#ffffff] hover:bg-[#202120] text-[#292b2a] hover:text-[#ffffff] border border-[#e5e5e5] hover:border-[#202120] transition-colors cursor-pointer"
+                            title="Eliminar funcionario"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Eliminar</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </section>
 
-      {/* Modal Crear / Editar Personal */}
-      {showPersonalModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-emerald-500/40 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">
-                {editingId ? `Editar Personal #${editingId}` : "Registrar Nuevo Personal"}
-              </h3>
-              <button
-                onClick={() => setShowPersonalModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleGuardarPersonal} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-300 mb-1">RUT</label>
-                <input
-                  type="text"
-                  required
-                  disabled={!!editingId}
-                  value={rutPersonal}
-                  onChange={(e) => setRutPersonal(e.target.value)}
-                  placeholder="Ej: 15.678.234-5"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white disabled:opacity-50"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-300 mb-1">
-                  Nombre Completo
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={nombrePersonal}
-                  onChange={(e) => setNombrePersonal(e.target.value)}
-                  placeholder="Ej: Camila Rojas"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+      {/* Modal Crear / Editar Personal — Portal en document.body */}
+      {mounted &&
+        showPersonalModal &&
+        createPortal(
+          <div
+            onClick={() => setShowPersonalModal(false)}
+            className="fixed inset-0 z-50 bg-[#0a0a0a]/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] max-w-lg w-full p-6 sm:p-8 space-y-6 my-auto"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-[#e5e5e5] pb-4">
                 <div>
-                  <label className="block font-semibold text-slate-300 mb-1">Correo</label>
-                  <input
-                    type="email"
-                    required
-                    value={correoPersonal}
-                    onChange={(e) => setCorreoPersonal(e.target.value)}
-                    placeholder="nombre@gimnasiodb.cl"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"
-                  />
+                  <span className="badge-step">
+                    {editingId ? "Edición" : "Recursos Humanos"}
+                  </span>
+                  <h3 className="text-[24px] font-medium leading-[1.33] tracking-[-0.02em] text-[#0a0a0a] mt-2">
+                    {editingId
+                      ? `Editar Personal #${editingId}`
+                      : "Registrar Nuevo Personal"}
+                  </h3>
                 </div>
-                <div>
-                  <label className="block font-semibold text-slate-300 mb-1">Teléfono</label>
-                  <input
-                    type="text"
-                    required
-                    value={telefonoPersonal}
-                    onChange={(e) => setTelefonoPersonal(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-300 mb-1">Cargo</label>
-                  <select
-                    value={cargoPersonal}
-                    onChange={(e) => setCargoPersonal(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"
-                  >
-                    {CARGOS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-300 mb-1">Sede</label>
-                  <select
-                    value={idSedePersonal}
-                    onChange={(e) => setIdSedePersonal(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"
-                  >
-                    {sedes.map((s) => (
-                      <option key={s.id_sede} value={s.id_sede}>
-                        {s.nombre_sede}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowPersonalModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold"
+                  className="w-9 h-9 rounded-[24px] bg-[#f3f4f3] hover:bg-[#e5e7eb] border border-[#e5e5e5] flex items-center justify-center text-[#292b2a] cursor-pointer"
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
-                >
-                  {submitting ? "Guardando..." : "Guardar"}
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+
+              <form onSubmit={handleGuardarPersonal} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                      RUT *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      disabled={!!editingId}
+                      value={rutPersonal}
+                      onChange={(e) => setRutPersonal(e.target.value)}
+                      placeholder="Ej: 15.678.234-5"
+                      className="input-pill w-full px-4 py-2.5 text-[14px] placeholder-[#a2a3a2] disabled:bg-[#f3f4f3] disabled:text-[#7a7b7b]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                      Cargo *
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={cargoPersonal}
+                        onChange={(e) => setCargoPersonal(e.target.value)}
+                        className="input-pill w-full appearance-none pl-4 pr-9 py-2.5 text-[14px] cursor-pointer"
+                      >
+                        {CARGOS.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-[#7a7b7b] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                      Nombre Completo *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={nombrePersonal}
+                      onChange={(e) => setNombrePersonal(e.target.value)}
+                      placeholder="Ej: Camila Rojas"
+                      className="input-pill w-full px-4 py-2.5 text-[14px] placeholder-[#a2a3a2]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                      Correo Electrónico *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={correoPersonal}
+                      onChange={(e) => setCorreoPersonal(e.target.value)}
+                      placeholder="nombre@gimnasiodb.cl"
+                      className="input-pill w-full px-4 py-2.5 text-[14px] placeholder-[#a2a3a2]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                      Teléfono *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={telefonoPersonal}
+                      onChange={(e) => setTelefonoPersonal(e.target.value)}
+                      className="input-pill w-full px-4 py-2.5 text-[14px] placeholder-[#a2a3a2]"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                      Sede Asignada *
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={idSedePersonal}
+                        onChange={(e) => setIdSedePersonal(e.target.value)}
+                        className="input-pill w-full appearance-none pl-4 pr-9 py-2.5 text-[14px] cursor-pointer"
+                      >
+                        {sedes.map((s) => (
+                          <option key={s.id_sede} value={s.id_sede}>
+                            {s.nombre_sede}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-[#7a7b7b] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#e5e5e5]">
+                  <button
+                    type="button"
+                    onClick={() => setShowPersonalModal(false)}
+                    className="btn-secondary-pill px-5 py-2.5 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="btn-primary-pill px-6 py-2.5 text-[14px] font-medium cursor-pointer disabled:opacity-50"
+                  >
+                    {submitting ? "Guardando..." : "Guardar"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

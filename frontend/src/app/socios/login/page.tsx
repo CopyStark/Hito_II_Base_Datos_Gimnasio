@@ -1,345 +1,567 @@
 "use client";
 
-import { useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { sociosApi, LoginResult, SocioDetail } from "@/services/apiClient";
+import apiClient, { LoginResult, Socio } from "@/services/apiClient";
+import {
+  SOCIOS_PRUEBA,
+  SocioActual,
+  setStoredSocioActual,
+} from "@/components/clases/socioActual";
+import {
+  User,
+  Lock,
+  LogOut,
+  Mail,
+  Phone,
+  Calendar,
+  MapPin,
+  ShieldCheck,
+  ArrowRight,
+  AlertTriangle,
+  KeyRound,
+  Loader2,
+} from "lucide-react";
 
-export default function SociosLoginPage() {
-  const [identificador, setIdentificador] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+const STORAGE_KEY = "gimnasio_sesion_usuario";
+
+interface CuentaDemo {
+  idSocio: number;
+  user: string;
+  pass: string;
+  rol: string;
+  nombre: string;
+  sede: string;
+}
+
+const INITIAL_CUENTAS_PRUEBA: CuentaDemo[] = [
+  {
+    idSocio: 1,
+    user: "socio1",
+    pass: "Clave#socio1",
+    rol: "Socio",
+    nombre: "Daniel Matus",
+    sede: "Sede Antofagasta Sur",
+  },
+  {
+    idSocio: 2,
+    user: "socio2",
+    pass: "Clave#socio2",
+    rol: "Socio",
+    nombre: "Emilia Osorio",
+    sede: "Sede La Serena Centro",
+  },
+  {
+    idSocio: 3,
+    user: "socio3",
+    pass: "Clave#socio3",
+    rol: "Socio",
+    nombre: "Yulissa Ulloa",
+    sede: "Sede Antofagasta Sur",
+  },
+];
+
+export default function LoginPerfilPage() {
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Authenticated user state
-  const [sessionUser, setSessionUser] = useState<LoginResult | null>(null);
-  const [socioData, setSocioData] = useState<SocioDetail | null>(null);
-  const [loadingProfile, setLoadingProfileProfile] = useState(false);
+  const [sesion, setSesion] = useState<LoginResult | null>(null);
+  const [fichaSocio, setFichaSocio] = useState<Socio | null>(null);
+  const [loadingFicha, setLoadingFicha] = useState<boolean>(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!identificador.trim() || !password) return;
+  const [sedes, setSedes] = useState<Array<{ id_sede: number; nombre_sede: string }>>([]);
+  const [cuentasDemo, setCuentasDemo] = useState<CuentaDemo[]>(INITIAL_CUENTAS_PRUEBA);
+
+  const sedesMap = useMemo(() => {
+    const m: Record<number, string> = {};
+    sedes.forEach((s) => {
+      m[s.id_sede] = s.nombre_sede;
+    });
+    return m;
+  }, [sedes]);
+
+  const cargarFichaSocio = async (idSocio: number) => {
+    setLoadingFicha(true);
+    try {
+      const data = await apiClient.socios.getById(idSocio);
+      setFichaSocio(data);
+    } catch {
+      setFichaSocio(null);
+    } finally {
+      setLoadingFicha(false);
+    }
+  };
+
+  // Cargar catálogo de sedes y sincronizar nombres reales de cuentas rápidas
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      try {
+        const [sedesRes, ...sociosDemoRes] = await Promise.allSettled([
+          apiClient.socios.getSedesCatalogo(),
+          ...INITIAL_CUENTAS_PRUEBA.map((c) => apiClient.socios.getById(c.idSocio)),
+        ]);
+
+        if (cancelado) return;
+
+        const mapaLocal: Record<number, string> = {};
+        if (sedesRes.status === "fulfilled" && Array.isArray(sedesRes.value)) {
+          setSedes(sedesRes.value);
+          sedesRes.value.forEach((s: any) => {
+            mapaLocal[s.id_sede] = s.nombre_sede;
+          });
+        }
+
+        setCuentasDemo((prev) =>
+          prev.map((c, idx) => {
+            const r = sociosDemoRes[idx];
+            if (r && r.status === "fulfilled" && r.value) {
+              const s = r.value as Socio;
+              const idSede = s.id_sede_registro_socio ?? s.id_sede_registro ?? 1;
+              return {
+                ...c,
+                nombre:
+                  s.nombre_completo_socio ?? s.nombre_completo ?? c.nombre,
+                sede: mapaLocal[idSede] || c.sede,
+              };
+            }
+            return c;
+          })
+        );
+      } catch {
+        // Conservar valores por defecto verificados
+      }
+    })();
+
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as LoginResult;
+        setSesion(parsed);
+        if (parsed.id_socio) {
+          cargarFichaSocio(parsed.id_socio);
+        }
+      }
+    } catch {
+      // Ignorar errores de lectura de localStorage
+    }
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  const ejecutarLogin = async (u: string, p: string) => {
+    const usuarioLimpio = u.trim();
+    if (usuarioLimpio.length < 3) {
+      setErrorMsg("El usuario o correo debe tener al menos 3 caracteres.");
+      return;
+    }
 
     setLoading(true);
     setErrorMsg(null);
-
     try {
-      const res = await sociosApi.login({
-        username_o_correo: identificador.trim(),
-        password: password,
+      const data: LoginResult = await apiClient.socios.login({
+        username_o_correo: usuarioLimpio,
+        password: p,
       });
-
-      setSessionUser(res);
-
-      // If user has associated socio, load extra profile info
-      if (res.id_socio) {
-        setLoadingProfileProfile(true);
-        try {
-          const detail = await sociosApi.getById(res.id_socio);
-          setSocioData(detail as unknown as SocioDetail);
-        } catch {
-          // If detailed fetch fails, basic info in res is still available
-        } finally {
-          setLoadingProfileProfile(false);
-        }
+      setSesion(data);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      if (data.id_socio) {
+        await cargarFichaSocio(data.id_socio);
+      } else {
+        setFichaSocio(null);
       }
     } catch (err: any) {
-      setErrorMsg(
-        err.status === 401
-          ? "Credenciales inválidas. Verifique su usuario/correo y contraseña."
-          : err.status === 403
-          ? "Acceso bloqueado: La cuenta del socio se encuentra inactiva."
-          : err.message || "Error al intentar iniciar sesión."
-      );
+      const msg = err.message || "";
+      if (
+        msg.includes("string_too_short") ||
+        msg.includes("at least 3") ||
+        msg.includes("least 3 characters") ||
+        msg.includes("username_o_correo")
+      ) {
+        setErrorMsg("El usuario o correo debe tener al menos 3 caracteres.");
+      } else {
+        setErrorMsg(msg || "Credenciales inválidas o cuenta inactiva.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim()) {
+      setErrorMsg("Por favor, ingresa tu usuario o correo electrónico.");
+      return;
+    }
+    if (username.trim().length < 3) {
+      setErrorMsg("El usuario o correo debe tener al menos 3 caracteres.");
+      return;
+    }
+    if (!password) {
+      setErrorMsg("Por favor, ingresa tu contraseña.");
+      return;
+    }
+    await ejecutarLogin(username, password);
+  };
+
   const handleLogout = () => {
-    setSessionUser(null);
-    setSocioData(null);
+    localStorage.removeItem(STORAGE_KEY);
+    setSesion(null);
+    setFichaSocio(null);
+    setUsername("");
     setPassword("");
     setErrorMsg(null);
   };
 
-  // Preset demo accounts for quick testing
-  const demoAccounts = [
-    { label: "Administrador General", user: "admin", pass: "Clave#admin", rol: "Admin" },
-    { label: "Instructor Juan Pérez", user: "juan.instructor", pass: "Clave#juan123", rol: "Instructor" },
-    { label: "Socio Registrado", user: "daniel.matus@alumnos.cl", pass: "Clave#socio1", rol: "Socio" },
-  ];
+  const idSocioActivo = fichaSocio?.id_socio ?? sesion?.id_socio ?? null;
+
+  const nombreMostrar =
+    fichaSocio?.nombre_completo_socio ??
+    fichaSocio?.nombre_completo ??
+    sesion?.nombre_completo_socio ??
+    sesion?.username_usuario ??
+    "Socio";
+
+  const idSedeSocio =
+    fichaSocio?.id_sede_registro_socio ?? fichaSocio?.id_sede_registro ?? 1;
+  const nombreSedeSocio = sedesMap[idSedeSocio] || `Sede #${idSedeSocio}`;
+
+  const sincronizarSocioGlobal = useCallback(() => {
+    if (!idSocioActivo) return;
+    const basePrueba = SOCIOS_PRUEBA.find((s) => s.id_socio === idSocioActivo);
+    const idSede =
+      fichaSocio?.id_sede_registro_socio ??
+      fichaSocio?.id_sede_registro ??
+      basePrueba?.id_sede_registro_socio;
+    const nombreSede =
+      (idSede ? sedesMap[idSede] : undefined) ||
+      basePrueba?.nombre_sede_registro ||
+      (idSede ? `Sede #${idSede}` : undefined);
+
+    const payload: SocioActual = {
+      id_socio: idSocioActivo,
+      nombre_completo_socio:
+        fichaSocio?.nombre_completo_socio ??
+        fichaSocio?.nombre_completo ??
+        sesion?.nombre_completo_socio ??
+        basePrueba?.nombre_completo_socio ??
+        sesion?.username_usuario ??
+        `Socio #${idSocioActivo}`,
+      correo_socio:
+        fichaSocio?.correo_socio ??
+        fichaSocio?.correo ??
+        basePrueba?.correo_socio ??
+        "—",
+      rut_socio:
+        fichaSocio?.rut_socio ??
+        fichaSocio?.rut ??
+        basePrueba?.rut_socio ??
+        "—",
+      id_sede_registro_socio: idSede,
+      nombre_sede_registro: nombreSede,
+    };
+
+    setStoredSocioActual(payload);
+  }, [idSocioActivo, fichaSocio, sesion, sedesMap]);
+
+  useEffect(() => {
+    if (sesion && idSocioActivo) {
+      sincronizarSocioGlobal();
+    }
+  }, [sesion, idSocioActivo, sincronizarSocioGlobal]);
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="rounded-3xl bg-gradient-to-r from-blue-950/70 via-slate-900/90 to-purple-950/60 border border-blue-900/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-300 border border-blue-500/20 mb-3">
-            <span>🔐</span>
-            <span>POST /socios/login &bull; Autenticación SHA2_512</span>
+      {/* Editorial Section Heading — DESIGN.md: Ghost Card 5px, weight 300 48px -0.030em, 2px #ff6105 rule */}
+      <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 text-[12px] text-[#7a7b7b] font-medium">
+            <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
+            <span>Portal del Socio · Cuenta Personal</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Autenticación & Mi Perfil
+          <h1 className="text-[34px] sm:text-[48px] font-light leading-[1.15] tracking-[-0.03em] text-[#0a0a0a]">
+            Acceso y Perfil
           </h1>
-          <p className="text-sm text-slate-300 mt-1 max-w-2xl">
-            Inicio de sesión multi-rol contra SQL Server. Compara la contraseña cifrada con la función criptográfica
-            <code className="text-blue-300 ml-1">HASHBYTES(&apos;SHA2_512&apos;, @password)</code>.
+          <div className="w-[112px] h-[2px] bg-[#ff6105]" />
+          <p className="text-[15px] sm:text-[16px] font-normal leading-[1.56] tracking-[-0.01em] text-[#292b2a] max-w-xl pt-1">
+            Inicia sesión con tu cuenta de afiliado para consultar tu ficha personal,
+            sede base registrada y accesos directos a los servicios del gimnasio.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/socios"
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold border border-slate-700 transition-all"
+        {sesion && (
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="btn-secondary-pill inline-flex items-center gap-2 px-5 py-3 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#202120] text-[#292b2a] hover:text-[#ffffff] border border-[#e5e5e5] self-start lg:self-auto shrink-0 cursor-pointer"
           >
-            ← Volver a Directorio
-          </Link>
-        </div>
+            <LogOut className="w-4 h-4" />
+            <span>Cerrar Sesión</span>
+          </button>
+        )}
       </div>
 
-      <div className="max-w-4xl mx-auto">
-        {!sessionUser ? (
-          /* ===== LOGIN FORM ===== */
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-            {/* Form */}
-            <div className="md:col-span-7 p-6 sm:p-8 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-2xl space-y-6">
+      {!sesion ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Formulario de Inicio de Sesión — DESIGN.md Ghost Card 5px + 50px inputs + Primary Pill CTA */}
+          <div className="lg:col-span-6 bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 space-y-6">
+            <div className="space-y-1">
+              <h2 className="text-[24px] font-medium leading-[1.33] tracking-[-0.02em] text-[#0a0a0a]">
+                Iniciar Sesión
+              </h2>
+              <p className="text-[14px] text-[#7a7b7b]">
+                Ingresa tu usuario o correo electrónico junto con tu contraseña.
+              </p>
+            </div>
+
+            {errorMsg && (
+              <div className="p-4 rounded-[5px] bg-[#202120] border border-[#3c3e3d] text-[#ffffff] text-[13px] flex items-center gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-[#ff6105] shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <h2 className="text-xl font-bold text-white">Iniciar Sesión</h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Ingrese su nombre de usuario o su correo electrónico registrado.
-                </p>
-              </div>
-
-              {errorMsg && (
-                <div className="p-3.5 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-200 text-xs flex items-center gap-2 animate-fade-in">
-                  <span>⚠️</span>
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Usuario o Correo Electrónico
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
-                      👤
-                    </span>
-                    <input
-                      type="text"
-                      required
-                      placeholder="admin o socio@correo.cl"
-                      value={identificador}
-                      onChange={(e) => setIdentificador(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Contraseña
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
-                      🔒
-                    </span>
-                    <input
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || !identificador.trim() || !password}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-sm shadow-lg shadow-blue-900/40 border border-blue-400/40 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <span className="animate-spin text-sm">🌀</span>
-                      <span>Verificando HASH en SQL Server...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Ingresar a la Plataforma</span>
-                      <span>→</span>
-                    </>
-                  )}
-                </button>
-              </form>
-            </div>
-
-            {/* Test Credentials & Architecture Info */}
-            <div className="md:col-span-5 space-y-4">
-              <div className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4 shadow-xl">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <span>⚡</span>
-                  <span>Cuentas de Demostración</span>
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Haga clic en cualquiera de las siguientes cuentas preconfiguradas para probar la autenticación:
-                </p>
-
-                <div className="space-y-2.5">
-                  {demoAccounts.map((acc, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => {
-                        setIdentificador(acc.user);
-                        setPassword(acc.pass);
-                      }}
-                      className="w-full p-3 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/50 text-left transition-all group"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white group-hover:text-blue-300">
-                          {acc.label}
-                        </span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20">
-                          {acc.rol}
-                        </span>
-                      </div>
-                      <div className="text-[11px] font-mono text-slate-400 mt-1">
-                        Usuario: <strong className="text-slate-300">{acc.user}</strong> &bull; Clave: <span className="text-slate-500">{acc.pass}</span>
-                      </div>
-                    </button>
-                  ))}
+                <label className="block text-[12px] text-[#292b2a] font-medium mb-1.5">
+                  Usuario o Correo
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-[#7a7b7b] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Ej: socio1 o daniel.matus@alumnos.cl"
+                    className="input-pill w-full pl-10 pr-4 py-3 text-[15px] placeholder-[#a2a3a2]"
+                  />
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-blue-950/30 border border-blue-900/30 text-xs text-slate-400 space-y-1.5">
-                <strong className="text-blue-300 block">Seguridad Criptográfica Nativa</strong>
-                <p>
-                  El backend nunca almacena contraseñas en texto plano. La validación se ejecuta en el motor SQL Server
-                  mediante la instrucción SQL:
-                </p>
-                <code className="block font-mono text-[10px] bg-slate-950 p-2 rounded text-cyan-300">
-                  WHERE password_hash_usuario = HASHBYTES(&apos;SHA2_512&apos;, ?)
-                </code>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* ===== AUTHENTICATED: MI PERFIL ===== */
-          <div className="p-6 sm:p-10 rounded-3xl bg-slate-900/90 border border-blue-500/40 shadow-2xl space-y-8 animate-fade-in">
-            {/* User Banner */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-slate-800">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-3xl shadow-xl shadow-blue-600/30">
-                  👤
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-2xl font-black text-white">
-                      {sessionUser.nombre_completo_socio || sessionUser.username_usuario}
-                    </h2>
-                    <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                      Rol: {sessionUser.rol || "Usuario"}
-                    </span>
-                  </div>
-                  <p className="text-xs font-mono text-slate-400 mt-1">
-                    Usuario: @{sessionUser.username_usuario} &bull; ID Usuario #{sessionUser.id_usuario}
-                    {sessionUser.id_socio && ` • Socio #${sessionUser.id_socio}`}
-                  </p>
+              <div>
+                <label className="block text-[12px] text-[#292b2a] font-medium mb-1.5">
+                  Contraseña
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#7a7b7b] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="input-pill w-full pl-10 pr-4 py-3 text-[15px] placeholder-[#a2a3a2]"
+                  />
                 </div>
               </div>
 
               <button
-                onClick={handleLogout}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-rose-950 hover:text-rose-300 text-slate-300 text-xs font-semibold border border-slate-700 hover:border-rose-800 transition-all self-start sm:self-center"
+                type="submit"
+                disabled={loading}
+                className="btn-primary-pill w-full py-3.5 px-8 text-[15px] font-medium tracking-[-0.01em] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                Cerrar Sesión ✕
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Verificando credenciales...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Ingresar a Mi Perfil</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
-            </div>
+            </form>
+          </div>
 
-            {/* Profile Data Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-                <span className="text-xs text-slate-500 font-semibold uppercase block">
-                  Información de la Cuenta
-                </span>
-                <div className="text-xs space-y-1.5 text-slate-300">
-                  <div>
-                    <span className="text-slate-500">Nombre de Usuario:</span>{" "}
-                    <strong className="text-white">{sessionUser.username_usuario}</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Nivel de Acceso / Rol:</span>{" "}
-                    <strong className="text-cyan-300">{sessionUser.rol}</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Estado de Cuenta:</span>{" "}
-                    <span className="text-emerald-400 font-bold">Activo</span>
-                  </div>
-                </div>
+          {/* Cuentas de Acceso Rápido — DESIGN.md Featured Peach Card (#ffdfcd) */}
+          <div className="lg:col-span-6 bg-[#ffdfcd] border border-[#ffa069]/40 rounded-[5px] p-6 sm:p-8 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-[8px] bg-[#ffffff] border border-[#e5e5e5] text-[#ff6105] flex items-center justify-center shrink-0">
+                <KeyRound className="w-4 h-4" />
               </div>
-
-              {socioData ? (
-                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-                  <span className="text-xs text-slate-500 font-semibold uppercase block">
-                    Ficha del Socio (SQL Server)
-                  </span>
-                  <div className="text-xs space-y-1.5 text-slate-300">
-                    <div>
-                      <span className="text-slate-500">RUT:</span>{" "}
-                      <strong className="text-white font-mono">{socioData.rut_socio}</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-500">Correo Registrado:</span>{" "}
-                      <strong className="text-white">{socioData.correo_socio}</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-500">Teléfono:</span>{" "}
-                      <span className="text-slate-300">{socioData.telefono_socio}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500">Fecha Nacimiento:</span>{" "}
-                      <span className="text-slate-300">{socioData.fecha_nacimiento_socio}</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-center text-xs text-slate-500">
-                  {loadingProfile
-                    ? "Cargando datos adicionales del socio..."
-                    : "Usuario administrativo del sistema (sin ficha de socio asociada)."}
-                </div>
-              )}
+              <div>
+                <h3 className="text-[18px] font-medium tracking-[-0.01em] text-[#0a0a0a]">
+                  Cuentas de Acceso Rápido
+                </h3>
+                <p className="text-[13px] text-[#292b2a]">
+                  Selecciona una cuenta activa de demostración para ingresar con un clic
+                </p>
+              </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="pt-4 border-t border-slate-800 flex flex-wrap items-center gap-3">
-              {socioData && (
-                <Link
-                  href={`/socios/torniquete?rut=${encodeURIComponent(socioData.rut_socio)}`}
-                  className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs shadow-md transition-all"
+            <div className="space-y-2.5">
+              {cuentasDemo.map((cta) => (
+                <button
+                  key={cta.user}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => {
+                    setUsername(cta.user);
+                    setPassword(cta.pass);
+                    ejecutarLogin(cta.user, cta.pass);
+                  }}
+                  className="w-full flex items-center justify-between gap-3 p-4 rounded-[5px] bg-[#ffffff] hover:bg-[#f3f4f3] border border-[#e5e5e5] transition-colors text-left cursor-pointer group disabled:opacity-60"
                 >
-                  🚪 Probar Mi Acceso en Torniquete →
-                </Link>
-              )}
-              <Link
-                href="/clases"
-                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs shadow-md transition-all"
-              >
-                🏋️ Ver Catálogo de Clases & Reservas →
-              </Link>
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[13px] font-medium text-[#0a0a0a]">
+                        @{cta.user}
+                      </span>
+                      <span className="text-[11px] px-2 py-0.5 rounded-[8px] bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5]">
+                        {cta.rol}
+                      </span>
+                    </div>
+                    <p className="text-[12px] text-[#7a7b7b] truncate">
+                      {cta.nombre} · {cta.sede}
+                    </p>
+                  </div>
+                  <span className="text-[13px] font-medium text-[#ff6105] inline-flex items-center gap-1 shrink-0 group-hover:translate-x-0.5 transition-transform">
+                    <span>Entrar</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="pt-3 border-t border-[#ffa069]/30 flex items-center justify-between text-[13px] text-[#292b2a]">
+              <span>¿Necesitas habilitar la clave de otro socio?</span>
               <Link
                 href="/socios"
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition-all"
+                className="text-[#0a0a0a] font-medium hover:text-[#ff6105] transition-colors"
               >
-                👥 Directorio General de Socios
+                Ir al Directorio →
               </Link>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        /* Vista Autenticada: Mi Perfil — DESIGN.md Ghost Card 5px + Primary 50px + Secondary 24px */
+        <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 space-y-6 animate-fade-in-scale">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#e5e5e5]">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-[24px] bg-[#ffdfcd] text-[#ff6105] border border-[#ffa069]/40 flex items-center justify-center text-[20px] font-medium shrink-0">
+                {nombreMostrar.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="badge-step">
+                    Sesión Activa · {sesion.rol || "Socio"}
+                  </span>
+                  {sesion.username_usuario && (
+                    <span className="font-mono text-[13px] text-[#7a7b7b]">
+                      @{sesion.username_usuario}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-[24px] font-medium leading-[1.33] tracking-[-0.02em] text-[#0a0a0a] mt-1.5">
+                  {nombreMostrar}
+                </h2>
+              </div>
+            </div>
+
+            {fichaSocio?.rut_socio && (
+              <span className="whitespace-nowrap font-mono text-[12px] px-3.5 py-1.5 rounded-[8px] bg-[#f3f4f3] border border-[#e5e5e5] text-[#292b2a] self-start sm:self-auto">
+                RUT {fichaSocio.rut_socio}
+              </span>
+            )}
+          </div>
+
+          {loadingFicha ? (
+            <div className="py-8 text-center text-[14px] text-[#7a7b7b] flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-[#ff6105]" />
+              <span>Cargando datos del perfil...</span>
+            </div>
+          ) : fichaSocio ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-4">
+                <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
+                  <span className="text-[12px] font-normal">Correo Electrónico</span>
+                  <Mail className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
+                </div>
+                <p className="text-[14px] font-medium text-[#0a0a0a] break-all">
+                  {fichaSocio.correo_socio ?? fichaSocio.correo ?? "—"}
+                </p>
+              </div>
+
+              <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-4">
+                <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
+                  <span className="text-[12px] font-normal">Teléfono</span>
+                  <Phone className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
+                </div>
+                <p className="text-[14px] font-medium text-[#0a0a0a]">
+                  {fichaSocio.telefono_socio ?? fichaSocio.telefono ?? "No registrado"}
+                </p>
+              </div>
+
+              <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-4">
+                <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
+                  <span className="text-[12px] font-normal">Fecha de Nacimiento</span>
+                  <Calendar className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
+                </div>
+                <p className="text-[14px] font-medium text-[#0a0a0a]">
+                  {fichaSocio.fecha_nacimiento_socio
+                    ? String(fichaSocio.fecha_nacimiento_socio).slice(0, 10)
+                    : "No registrada"}
+                </p>
+              </div>
+
+              <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-4">
+                <div className="flex items-center justify-between text-[#7a7b7b] mb-1">
+                  <span className="text-[12px] font-normal">Sede Asignada</span>
+                  <MapPin className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
+                </div>
+                <p className="text-[14px] font-medium text-[#0a0a0a] leading-snug">
+                  {nombreSedeSocio}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Acciones desde el perfil — DESIGN.md: 1 Primary 50px Pill + Secondary 24px Pills */}
+          <div className="pt-4 border-t border-[#e5e5e5] flex flex-wrap items-center gap-3">
+            {fichaSocio?.rut_socio && (
+              <Link
+                href={`/socios/torniquete?identificador=${encodeURIComponent(
+                  fichaSocio.rut_socio
+                )}`}
+                className="btn-primary-pill inline-flex items-center gap-2 px-7 py-3 text-[14px] font-medium"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Validar Mi Pase en Torniquete</span>
+              </Link>
+            )}
+
+            <Link
+              href={idSocioActivo ? `/clases?id_socio=${idSocioActivo}` : "/clases"}
+              onClick={sincronizarSocioGlobal}
+              className="btn-secondary-pill inline-flex items-center gap-2 px-5 py-3 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5]"
+            >
+              <span>Ir a Reserva de Clases</span>
+              <ArrowRight className="w-3.5 h-3.5 text-[#ff6105]" />
+            </Link>
+
+            <Link
+              href={
+                idSocioActivo
+                  ? `/contratos/estado-cuenta?id_socio=${idSocioActivo}`
+                  : "/contratos/estado-cuenta"
+              }
+              onClick={sincronizarSocioGlobal}
+              className="btn-secondary-pill inline-flex items-center gap-2 px-5 py-3 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5]"
+            >
+              <span>Ver Estado de Cuenta</span>
+              <ArrowRight className="w-3.5 h-3.5 text-[#ff6105]" />
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

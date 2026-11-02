@@ -8,6 +8,22 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        amp: {
+          orange: "#ff6105",
+          glow: "#ffa069",
+          peach: "#ffdfcd",
+          ink: "#0a0a0a",
+          carbon: "#292b2a",
+          slate: "#7a7b7b",
+          ash: "#a2a3a2",
+          hairline: "#e5e5e5",
+          fog: "#dfe0df",
+          bone: "#e5e7eb",
+          white: "#ffffff",
+          linen: "#f3f4f3",
+          charcoal: "#202120",
+          smoke: "#3c3e3d",
+        },
         gym: {
           dark: "#0b0f19",
           card: "#111827",

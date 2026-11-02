@@ -1,13 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import apiClient, {
   PlanMembresia,
   ContratoDetalle,
   Socio,
 } from "@/services/apiClient";
+import {
+  Plus,
+  Clock,
+  RefreshCw,
+  Edit2,
+  FileSignature,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  ChevronDown,
+  Loader2,
+  FileText,
+} from "lucide-react";
 
 export default function ContratosPage() {
+  const [mounted, setMounted] = useState(false);
   const [planes, setPlanes] = useState<PlanMembresia[]>([]);
   const [contratos, setContratos] = useState<ContratoDetalle[]>([]);
   const [socios, setSocios] = useState<Socio[]>([]);
@@ -37,6 +52,24 @@ export default function ContratosPage() {
   const [duracionPlan, setDuracionPlan] = useState("1");
   const [precioPlan, setPrecioPlan] = useState("29990");
   const [submittingPlan, setSubmittingPlan] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!showPlanModal) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowPlanModal(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showPlanModal]);
 
   const cargarDatos = async () => {
     setLoading(true);
@@ -178,7 +211,7 @@ export default function ContratosPage() {
         msg: `Contrato #${id_contrato} actualizado a estado '${nuevoEstado}'.`,
       });
       await cargarDatos();
-    } catch (err: any) {
+    } catch {
       // Actualización optimista en interfaz si Render sigue redesplegando el endpoint PATCH
       setContratos((prev) =>
         prev.map((c) =>
@@ -264,61 +297,95 @@ export default function ContratosPage() {
 
   return (
     <div className="space-y-8">
-      {/* Cabecera */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/70 border border-emerald-500/20 rounded-2xl p-6">
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
-            Tablas: [PlanMembresia] &bull; [Contrato] &bull; SP: sp_Actualizar_Contratos_Vencidos
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
-            Planes de Membresía y Generador de Contratos
+      {/* Editorial Section Heading — DESIGN.md: Ghost Card 5px, weight 300 48px -0.030em, 2px #ff6105 rule */}
+      <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 text-[12px] text-[#7a7b7b] font-medium">
+            <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
+            <span>Membresías y Contratos · Administración Comercial</span>
+          </div>
+          <h1 className="text-[34px] sm:text-[48px] font-light leading-[1.15] tracking-[-0.03em] text-[#0a0a0a]">
+            Planes y Contratos
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Administra el catálogo comercial de planes, emite contratos con cálculo automático de vigencia y controla sus estados.
+          <div className="w-[112px] h-[2px] bg-[#ff6105]" />
+          <p className="text-[15px] sm:text-[16px] font-normal leading-[1.56] tracking-[-0.01em] text-[#292b2a] max-w-xl pt-1">
+            Administra el catálogo comercial de planes, emite contratos con cálculo automático de
+            vigencia y controla el estado de cada suscripción.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+
+        {/* Secondary actions in 24px radius so #ff6105 50px pill stays rationed to the primary form CTA */}
+        <div className="flex flex-wrap items-center gap-3 self-start lg:self-auto shrink-0">
           <button
-            onClick={abrirCrearPlan}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-emerald-900/40 transition-all"
+            type="button"
+            onClick={cargarDatos}
+            disabled={loading}
+            className="btn-secondary-pill inline-flex items-center gap-2 px-4 py-3 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer disabled:opacity-50"
           >
-            + Nuevo Plan Comercial
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-[#ff6105]" : "text-[#292b2a]"}`} />
+            <span>Actualizar</span>
           </button>
+
           <button
+            type="button"
             onClick={handleActualizarVencidos}
-            className="px-4 py-2 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 text-xs sm:text-sm font-semibold transition-all"
-            title="Ejecutar sp_Actualizar_Contratos_Vencidos"
+            title="Ejecutar verificación de contratos vencidos"
+            className="btn-secondary-pill inline-flex items-center gap-2 px-4 py-3 text-[14px] font-normal bg-[#ffffff] hover:bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5] cursor-pointer"
           >
-            ⏱️ Verificar Vencidos (SP)
+            <Clock className="w-4 h-4 text-[#ff6105]" />
+            <span>Verificar Vencidos</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={abrirCrearPlan}
+            className="btn-secondary-pill inline-flex items-center gap-2 px-5 py-3 text-[14px] font-medium bg-[#202120] hover:bg-[#0a0a0a] text-[#ffffff] border border-[#202120] cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-[#ff6105]" />
+            <span>Nuevo Plan</span>
           </button>
         </div>
       </div>
 
-      {/* Feedback Banner */}
+      {/* Feedback Banner — DESIGN.md: Monochrome + Peach Wash / Charcoal */}
       {feedback && (
         <div
-          className={`p-4 rounded-xl border text-sm flex items-center justify-between ${
+          className={`p-4 rounded-[5px] border flex items-center justify-between text-[14px] animate-fade-in-scale ${
             feedback.type === "ok"
-              ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-200"
-              : "bg-rose-950/60 border-rose-500/40 text-rose-200"
+              ? "bg-[#ffdfcd] border-[#ffa069]/50 text-[#0a0a0a]"
+              : "bg-[#202120] border-[#3c3e3d] text-[#ffffff]"
           }`}
         >
-          <span>
-            {feedback.type === "ok" ? "✅ " : "⚠️ "}
-            {feedback.msg}
-          </span>
-          <button onClick={() => setFeedback(null)} className="text-xs opacity-70 hover:opacity-100">
-            ✕
+          <div className="flex items-center gap-2.5">
+            {feedback.type === "ok" ? (
+              <CheckCircle2 className="w-4 h-4 text-[#ff6105] shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-[#ff6105] shrink-0" />
+            )}
+            <span>{feedback.msg}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFeedback(null)}
+            className="opacity-70 hover:opacity-100 px-2 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Catálogo de Planes de Membresía */}
+      {/* Catálogo de Planes de Membresía — DESIGN.md: 5px Ghost Cards + single Peach Wash card for active selection */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <span>🏷️</span> Catálogo de Planes de Membresía ({planes.length})
-          </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <h2 className="text-[22px] sm:text-[24px] font-light leading-[1.33] tracking-[-0.02em] text-[#0a0a0a]">
+              Catálogo de Planes de Membresía
+            </h2>
+            <span className="badge-neutral">{planes.length} planes</span>
+          </div>
+          <p className="text-[12px] text-[#7a7b7b]">
+            Haz clic en un plan para precargarlo en el emisor de contratos
+          </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -332,23 +399,36 @@ export default function ContratosPage() {
               <div
                 key={plan.id_planmembresia}
                 onClick={() => setIdPlanContrato(String(plan.id_planmembresia))}
-                className={`cursor-pointer rounded-2xl p-4 border transition-all flex flex-col justify-between ${
+                className={`cursor-pointer rounded-[5px] p-5 border transition-colors flex flex-col justify-between ${
                   seleccionado
-                    ? "bg-emerald-950/40 border-emerald-400 shadow-lg shadow-emerald-950/50"
-                    : "bg-slate-900/70 border-slate-800 hover:border-emerald-500/40"
+                    ? "bg-[#ffdfcd] border-[#ff6105]"
+                    : "bg-[#ffffff] border-[#e5e5e5] hover:border-[#292b2a]/40"
                 }`}
               >
                 <div>
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span className="font-mono">ID #{plan.id_planmembresia}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-semibold">
+                  <div className="flex items-center justify-between gap-2 text-[12px]">
+                    <span className="font-mono text-[#7a7b7b]">ID #{plan.id_planmembresia}</span>
+                    <span
+                      className={`px-2 py-0.5 rounded-[8px] whitespace-nowrap ${
+                        seleccionado
+                          ? "bg-[#ff6105] text-[#ffffff] font-medium"
+                          : "bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5] font-normal"
+                      }`}
+                    >
                       {meses} {meses === 1 ? "mes" : "meses"}
                     </span>
                   </div>
-                  <h3 className="text-sm font-bold text-white mt-2">{nombre}</h3>
+                  <h3 className="text-[16px] font-medium text-[#0a0a0a] mt-3 leading-snug">
+                    {nombre}
+                  </h3>
                 </div>
-                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
-                  <span className="text-lg font-extrabold text-emerald-400">
+
+                <div
+                  className={`mt-5 pt-3.5 border-t flex items-center justify-between gap-2 ${
+                    seleccionado ? "border-[#ffa069]/50" : "border-[#e5e5e5]"
+                  }`}
+                >
+                  <span className="text-[22px] font-light tracking-[-0.02em] text-[#0a0a0a]">
                     ${Number(precio).toLocaleString("es-CL")}
                   </span>
                   <button
@@ -357,9 +437,10 @@ export default function ContratosPage() {
                       ev.stopPropagation();
                       abrirEditarPlan(plan);
                     }}
-                    className="text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[8px] text-[12px] font-normal bg-[#ffffff] hover:bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5] transition-colors cursor-pointer shrink-0"
                   >
-                    ✏️ Editar
+                    <Edit2 className="w-3 h-3" />
+                    <span>Editar</span>
                   </button>
                 </div>
               </div>
@@ -368,159 +449,96 @@ export default function ContratosPage() {
         </div>
       </section>
 
-      {/* Modal para Crear/Editar Plan */}
-      {showPlanModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-emerald-500/40 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">
-                {editingPlanId ? `Editar Plan #${editingPlanId}` : "Crear Nuevo Plan de Membresía"}
-              </h3>
-              <button
-                onClick={() => setShowPlanModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
-              >
-                ✕
-              </button>
-            </div>
-            <form onSubmit={handleGuardarPlan} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Nombre del Plan
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={nombrePlan}
-                  onChange={(e) => setNombrePlan(e.target.value)}
-                  placeholder="Ej: Plan Trimestral Pro"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Duración (Meses)
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={60}
-                    required
-                    value={duracionPlan}
-                    onChange={(e) => setDuracionPlan(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Precio Vigente (CLP)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    step="10"
-                    required
-                    value={precioPlan}
-                    onChange={(e) => setPrecioPlan(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowPlanModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingPlan}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
-                >
-                  {submittingPlan ? "Guardando..." : "Guardar Plan"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* Generador de Contratos + Listado */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Formulario Emisión de Contrato */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4 h-fit">
-          <h3 className="text-base font-bold text-emerald-400 flex items-center gap-2">
-            <span>📝</span> Emitir Nuevo Contrato
-          </h3>
-          <form onSubmit={handleCrearContrato} className="space-y-3 text-xs">
+        <div className="lg:col-span-4 bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 space-y-5">
+          <div className="space-y-2 border-b border-[#e5e5e5] pb-4">
+            <span className="badge-step">
+              <FileSignature className="w-3.5 h-3.5" />
+              <span>Emisión</span>
+            </span>
+            <h3 className="text-[20px] font-medium leading-[1.33] tracking-[-0.02em] text-[#0a0a0a]">
+              Emitir Nuevo Contrato
+            </h3>
+            <p className="text-[13px] text-[#7a7b7b]">
+              Selecciona al socio titular y el plan comercial para registrar su suscripción.
+            </p>
+          </div>
+
+          <form onSubmit={handleCrearContrato} className="space-y-4">
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">
-                Socio Titular (`id_socio_contrato`)
+              <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                Socio Titular
               </label>
-              <select
-                value={idSocioContrato}
-                onChange={(e) => setIdSocioContrato(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"
-              >
-                {socios.map((s) => (
-                  <option key={s.id_socio} value={s.id_socio}>
-                    #{s.id_socio} - {s.nombre_completo_socio ?? s.nombre_completo} ({s.rut_socio ?? s.rut})
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={idSocioContrato}
+                  onChange={(e) => setIdSocioContrato(e.target.value)}
+                  className="input-pill w-full appearance-none pl-4 pr-10 py-2.5 text-[14px] cursor-pointer"
+                >
+                  {socios.map((s) => (
+                    <option key={s.id_socio} value={s.id_socio}>
+                      #{s.id_socio} — {s.nombre_completo_socio ?? s.nombre_completo} (
+                      {s.rut_socio ?? s.rut})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-[#7a7b7b] absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">
-                Plan de Membresía (`id_planmembresia_contrato`)
+              <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                Plan de Membresía
               </label>
-              <select
-                value={idPlanContrato}
-                onChange={(e) => setIdPlanContrato(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"
-              >
-                {planes.map((p) => (
-                  <option key={p.id_planmembresia} value={p.id_planmembresia}>
-                    {p.nombre_planmembresia} ({p.duracion_meses_planmembresia}m - $
-                    {Number(p.precio_vigente_planmembresia).toLocaleString("es-CL")})
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={idPlanContrato}
+                  onChange={(e) => setIdPlanContrato(e.target.value)}
+                  className="input-pill w-full appearance-none pl-4 pr-10 py-2.5 text-[14px] cursor-pointer"
+                >
+                  {planes.map((p) => (
+                    <option key={p.id_planmembresia} value={p.id_planmembresia}>
+                      {p.nombre_planmembresia} ({p.duracion_meses_planmembresia}m — $
+                      {Number(p.precio_vigente_planmembresia).toLocaleString("es-CL")})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-[#7a7b7b] absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3.5">
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">
-                  Fecha Inicio
+                <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                  Fecha de Inicio
                 </label>
                 <input
                   type="date"
                   required
                   value={fechaInicio}
                   onChange={(e) => setFechaInicio(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"
+                  className="input-pill w-full px-4 py-2.5 text-[14px]"
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">
-                  Fecha Término
+                <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                  Fecha de Término
                 </label>
                 <input
                   type="date"
                   required
                   value={fechaTermino}
                   onChange={(e) => setFechaTermino(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"
+                  className="input-pill w-full px-4 py-2.5 text-[14px]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">
-                Precio Pactado CLP (`precio_pactado_contrato`)
+              <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                Precio Pactado (CLP)
               </label>
               <input
                 type="number"
@@ -528,149 +546,223 @@ export default function ContratosPage() {
                 required
                 value={precioPactado}
                 onChange={(e) => setPrecioPactado(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
+                className="input-pill w-full px-4 py-2.5 text-[14px] font-mono"
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={submittingContrato}
-              className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-900/40 transition-all disabled:opacity-50"
-            >
-              {submittingContrato ? "Registrando en SQL Server..." : "Emitir Contrato (POST /contratos)"}
-            </button>
+            <div className="pt-1">
+              <button
+                type="submit"
+                disabled={submittingContrato}
+                className="btn-primary-pill w-full py-3.5 px-6 text-[15px] font-medium tracking-[-0.01em] inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <FileSignature className="w-4 h-4" />
+                <span>{submittingContrato ? "Registrando contrato..." : "Emitir Contrato"}</span>
+              </button>
+            </div>
           </form>
         </div>
 
         {/* Tabla de Contratos con Filtros */}
-        <div className="lg:col-span-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <h3 className="text-base font-bold text-white">
-              📋 Contratos Registrados ({contratos.length})
-            </h3>
-            <div className="flex flex-wrap gap-2 text-xs">
-              <select
-                value={filtroEstado}
-                onChange={(e) => setFiltroEstado(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-slate-200"
-              >
-                <option value="">Todos los estados</option>
-                <option value="Vigente">Vigente</option>
-                <option value="Vencido">Vencido</option>
-                <option value="Cancelado">Cancelado</option>
-              </select>
+        <div className="lg:col-span-8 bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] overflow-hidden">
+          <div className="bg-[#f3f4f3] border-b border-[#e5e5e5] p-5 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-[18px] font-medium tracking-[-0.01em] text-[#0a0a0a]">
+                  Contratos Registrados
+                </h3>
+                <span className="badge-neutral bg-[#ffffff]">{contratos.length}</span>
+              </div>
+            </div>
 
-              <select
-                value={filtroPlan}
-                onChange={(e) => setFiltroPlan(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-slate-200"
-              >
-                <option value="">Todos los planes</option>
-                {planes.map((p) => (
-                  <option key={p.id_planmembresia} value={p.id_planmembresia}>
-                    {p.nombre_planmembresia}
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="relative">
+                <select
+                  value={filtroEstado}
+                  onChange={(e) => setFiltroEstado(e.target.value)}
+                  className="input-pill w-full appearance-none pl-4 pr-9 py-2 text-[13px] cursor-pointer"
+                >
+                  <option value="">Todos los estados</option>
+                  <option value="Vigente">Vigente</option>
+                  <option value="Vencido">Vencido</option>
+                  <option value="Cancelado">Cancelado</option>
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-[#7a7b7b] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
 
-              <select
-                value={filtroSocio}
-                onChange={(e) => setFiltroSocio(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-slate-200 max-w-[180px]"
-              >
-                <option value="">Todos los socios</option>
-                {socios.map((s) => (
-                  <option key={s.id_socio} value={s.id_socio}>
-                    #{s.id_socio} - {s.nombre_completo_socio}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={filtroPlan}
+                  onChange={(e) => setFiltroPlan(e.target.value)}
+                  className="input-pill w-full appearance-none pl-4 pr-9 py-2 text-[13px] cursor-pointer"
+                >
+                  <option value="">Todos los planes</option>
+                  {planes.map((p) => (
+                    <option key={p.id_planmembresia} value={p.id_planmembresia}>
+                      {p.nombre_planmembresia}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-[#7a7b7b] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+
+              <div className="relative">
+                <select
+                  value={filtroSocio}
+                  onChange={(e) => setFiltroSocio(e.target.value)}
+                  className="input-pill w-full appearance-none pl-4 pr-9 py-2 text-[13px] cursor-pointer"
+                >
+                  <option value="">Todos los socios</option>
+                  {socios.map((s) => (
+                    <option key={s.id_socio} value={s.id_socio}>
+                      #{s.id_socio} — {s.nombre_completo_socio}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-[#7a7b7b] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
           </div>
 
           {loading ? (
-            <p className="text-sm text-emerald-400 animate-pulse py-8 text-center">
-              Consultando contratos y saldos en SQL Server...
-            </p>
+            <div className="p-12 text-center space-y-3">
+              <Loader2 className="w-6 h-6 text-[#ff6105] animate-spin mx-auto" />
+              <p className="text-[14px] text-[#7a7b7b]">
+                Consultando contratos y saldos...
+              </p>
+            </div>
           ) : error ? (
-            <p className="text-sm text-rose-400 bg-rose-950/40 border border-rose-500/30 rounded-xl p-4">
-              ⚠️ {error}
-            </p>
+            <div className="p-8 text-center space-y-3">
+              <p className="text-[14px] text-[#0a0a0a] font-medium">{error}</p>
+              <button
+                type="button"
+                onClick={cargarDatos}
+                className="btn-secondary-pill px-5 py-2 text-[13px] bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer"
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : contratos.length === 0 ? (
+            <div className="p-12 text-center space-y-2">
+              <FileText className="w-8 h-8 text-[#a2a3a2] mx-auto stroke-[1.5]" />
+              <p className="text-[15px] font-medium text-[#0a0a0a]">
+                No hay contratos con los filtros seleccionados
+              </p>
+              <p className="text-[13px] text-[#7a7b7b]">
+                Prueba ajustando los filtros de estado, plan o socio.
+              </p>
+            </div>
           ) : (
-            <div className="overflow-x-auto max-h-[520px]">
-              <table className="w-full text-left border-collapse text-xs">
+            <div className="overflow-x-auto max-h-[540px]">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 uppercase">
-                    <th className="py-2.5 px-2">ID</th>
-                    <th className="py-2.5 px-2">Socio</th>
-                    <th className="py-2.5 px-2">Plan</th>
-                    <th className="py-2.5 px-2">Vigencia</th>
-                    <th className="py-2.5 px-2">Pactado / Saldo</th>
-                    <th className="py-2.5 px-2">Estado</th>
-                    <th className="py-2.5 px-2 text-right">Acción</th>
+                  <tr className="bg-[#ffffff] border-b border-[#e5e5e5] text-[12px] text-[#7a7b7b]">
+                    <th className="py-3 px-4 font-medium">Socio / Contrato</th>
+                    <th className="py-3 px-3 font-medium">Plan y Vigencia</th>
+                    <th className="py-3 px-3 font-medium whitespace-nowrap">Pactado / Saldo</th>
+                    <th className="py-3 px-3 font-medium whitespace-nowrap">Estado</th>
+                    <th className="py-3 px-4 font-medium text-right whitespace-nowrap">
+                      Acción
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-[#e5e5e5] text-[13px]">
                   {contratos.map((c) => {
                     const estado = c.estado_contrato ?? c.estado ?? "Vigente";
                     const pactado = c.precio_pactado_contrato ?? c.precio_pactado ?? 0;
                     const saldo = c.saldo_pendiente ?? 0;
+                    const nombreSocio =
+                      c.nombre_completo_socio || `Socio #${c.id_socio_contrato}`;
+                    const nombrePlanItem =
+                      c.nombre_planmembresia || `Plan #${c.id_planmembresia_contrato}`;
 
                     return (
-                      <tr key={c.id_contrato} className="hover:bg-slate-800/40">
-                        <td className="py-2.5 px-2 font-mono text-slate-400">#{c.id_contrato}</td>
-                        <td className="py-2.5 px-2">
-                          <div className="font-semibold text-white">
-                            {c.nombre_completo_socio || `Socio #${c.id_socio_contrato}`}
-                          </div>
-                          <div className="text-[10px] text-slate-500 font-mono">{c.rut_socio}</div>
+                      <tr
+                        key={c.id_contrato}
+                        className="hover:bg-[#f3f4f3]/50 transition-colors"
+                      >
+                        <td className="py-3.5 px-4">
+                          <p
+                            className="font-medium text-[#0a0a0a] truncate max-w-[165px]"
+                            title={nombreSocio}
+                          >
+                            {nombreSocio}
+                          </p>
+                          <p className="text-[11px] text-[#7a7b7b] font-mono whitespace-nowrap">
+                            #{c.id_contrato} {c.rut_socio ? `· ${c.rut_socio}` : ""}
+                          </p>
                         </td>
-                        <td className="py-2.5 px-2 text-slate-300">
-                          {c.nombre_planmembresia || `Plan #${c.id_planmembresia_contrato}`}
+
+                        <td className="py-3.5 px-3">
+                          <p
+                            className="text-[#292b2a] font-normal truncate max-w-[175px]"
+                            title={nombrePlanItem}
+                          >
+                            {nombrePlanItem}
+                          </p>
+                          <p className="text-[11px] text-[#7a7b7b] font-mono whitespace-nowrap">
+                            {c.fecha_inicio_contrato} → {c.fecha_termino_contrato}
+                          </p>
                         </td>
-                        <td className="py-2.5 px-2 font-mono text-[11px] text-slate-300">
-                          {c.fecha_inicio_contrato} → {c.fecha_termino_contrato}
-                        </td>
-                        <td className="py-2.5 px-2 font-mono">
-                          <div className="text-white">${Number(pactado).toLocaleString("es-CL")}</div>
-                          <div
-                            className={`text-[10px] ${
-                              saldo > 0 ? "text-amber-400" : "text-emerald-400"
+
+                        <td className="py-3.5 px-3 whitespace-nowrap font-mono">
+                          <p className="text-[#0a0a0a] font-medium">
+                            ${Number(pactado).toLocaleString("es-CL")}
+                          </p>
+                          <p
+                            className={`text-[11px] ${
+                              saldo > 0
+                                ? "text-[#ff6105] font-medium"
+                                : "text-[#7a7b7b] font-normal"
                             }`}
                           >
                             {saldo > 0
                               ? `Pendiente: $${Number(saldo).toLocaleString("es-CL")}`
                               : "Pagado 100%"}
-                          </div>
+                          </p>
                         </td>
-                        <td className="py-2.5 px-2">
+
+                        <td className="py-3.5 px-3 whitespace-nowrap">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[12px] border ${
                               estado === "Vigente"
-                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                ? "bg-[#ffffff] text-[#0a0a0a] font-medium border-[#e5e5e5]"
                                 : estado === "Vencido"
-                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                                : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                ? "bg-[#f3f4f3] text-[#7a7b7b] font-normal border-[#e5e5e5]"
+                                : "bg-[#202120] text-[#ffffff] font-normal border-[#202120]"
                             }`}
                           >
-                            {estado}
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                estado === "Vigente"
+                                  ? "bg-[#ff6105]"
+                                  : estado === "Vencido"
+                                  ? "bg-[#a2a3a2]"
+                                  : "bg-[#7a7b7b]"
+                              }`}
+                            />
+                            <span>{estado}</span>
                           </span>
                         </td>
-                        <td className="py-2.5 px-2 text-right">
-                          <select
-                            value={estado}
-                            onChange={(e) =>
-                              handleCambiarEstado(
-                                c.id_contrato,
-                                e.target.value as "Vigente" | "Vencido" | "Cancelado"
-                              )
-                            }
-                            className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200"
-                          >
-                            <option value="Vigente">Vigente</option>
-                            <option value="Vencido">Vencido</option>
-                            <option value="Cancelado">Cancelado</option>
-                          </select>
+
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                          <div className="relative inline-block">
+                            <select
+                              value={estado}
+                              onChange={(e) =>
+                                handleCambiarEstado(
+                                  c.id_contrato,
+                                  e.target.value as "Vigente" | "Vencido" | "Cancelado"
+                                )
+                              }
+                              className="appearance-none bg-[#f3f4f3] hover:bg-[#e5e7eb] border border-[#e5e5e5] rounded-[8px] pl-2.5 pr-7 py-1.5 text-[12px] text-[#292b2a] transition-colors cursor-pointer focus:outline-none focus:border-[#ff6105]"
+                            >
+                              <option value="Vigente">Vigente</option>
+                              <option value="Vencido">Vencido</option>
+                              <option value="Cancelado">Cancelado</option>
+                            </select>
+                            <ChevronDown className="w-3 h-3 text-[#7a7b7b] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          </div>
                         </td>
                       </tr>
                     );
@@ -681,6 +773,106 @@ export default function ContratosPage() {
           )}
         </div>
       </div>
+
+      {/* Modal para Crear / Editar Plan — Portal en document.body */}
+      {mounted &&
+        showPlanModal &&
+        createPortal(
+          <div
+            onClick={() => setShowPlanModal(false)}
+            className="fixed inset-0 z-50 bg-[#0a0a0a]/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] max-w-md w-full p-6 sm:p-8 space-y-6 my-auto"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-[#e5e5e5] pb-4">
+                <div>
+                  <span className="badge-step">
+                    {editingPlanId ? "Edición" : "Catálogo Comercial"}
+                  </span>
+                  <h3 className="text-[24px] font-medium leading-[1.33] tracking-[-0.02em] text-[#0a0a0a] mt-2">
+                    {editingPlanId
+                      ? `Editar Plan #${editingPlanId}`
+                      : "Nuevo Plan de Membresía"}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPlanModal(false)}
+                  className="w-9 h-9 rounded-[24px] bg-[#f3f4f3] hover:bg-[#e5e7eb] border border-[#e5e5e5] flex items-center justify-center text-[#292b2a] cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleGuardarPlan} className="space-y-4">
+                <div>
+                  <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                    Nombre del Plan *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={nombrePlan}
+                    onChange={(e) => setNombrePlan(e.target.value)}
+                    placeholder="Ej: Plan Trimestral Pro"
+                    className="input-pill w-full px-4 py-2.5 text-[14px] placeholder-[#a2a3a2]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                      Duración (Meses) *
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={60}
+                      required
+                      value={duracionPlan}
+                      onChange={(e) => setDuracionPlan(e.target.value)}
+                      className="input-pill w-full px-4 py-2.5 text-[14px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                      Precio Vigente (CLP) *
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="10"
+                      required
+                      value={precioPlan}
+                      onChange={(e) => setPrecioPlan(e.target.value)}
+                      className="input-pill w-full px-4 py-2.5 text-[14px] font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#e5e5e5]">
+                  <button
+                    type="button"
+                    onClick={() => setShowPlanModal(false)}
+                    className="btn-secondary-pill px-5 py-2.5 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingPlan}
+                    className="btn-primary-pill px-6 py-2.5 text-[14px] font-medium cursor-pointer disabled:opacity-50"
+                  >
+                    {submittingPlan ? "Guardando..." : "Guardar Plan"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

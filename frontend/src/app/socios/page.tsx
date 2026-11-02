@@ -1,1062 +1,968 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  Suspense,
+} from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import apiClient, { Socio } from "@/services/apiClient";
 import {
-  sociosApi,
-  SocioDetail,
-  SedeSimpleResponse,
-} from "@/services/apiClient";
+  Users,
+  UserCheck,
+  UserX,
+  Building2,
+  Search,
+  RefreshCw,
+  UserPlus,
+  Mail,
+  Phone,
+  MapPin,
+  Edit2,
+  KeyRound,
+  ShieldCheck,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  ChevronDown,
+  Loader2,
+} from "lucide-react";
 
-interface FeedbackState {
-  type: "success" | "error" | "info";
-  message: string;
+interface SedeCatalogoItem {
+  id_sede: number;
+  nombre_sede: string;
+  direccion_calle_sede?: string;
+  telefono_sede?: string;
+  nombre_ciudad?: string;
 }
 
-export default function SociosDirectorioPage() {
-  // Data states
-  const [socios, setSocios] = useState<SocioDetail[]>([]);
-  const [sedes, setSedes] = useState<SedeSimpleResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState<number | null>(null);
+function SociosGestionContent() {
+  const searchParams = useSearchParams();
+  const initialSede = searchParams.get("id_sede") || "";
 
-  // Filters
-  const [buscar, setBuscar] = useState("");
-  const [filtroActivo, setFiltroActivo] = useState<"todos" | "activos" | "inactivos">("todos");
-  const [filtroSede, setFiltroSede] = useState<string>("");
+  const [mounted, setMounted] = useState(false);
+  const [socios, setSocios] = useState<Socio[]>([]);
+  const [sedes, setSedes] = useState<SedeCatalogoItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Feedback
-  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+  // Filtros
+  const [buscar, setBuscar] = useState<string>("");
+  const [filtroSede, setFiltroSede] = useState<string>(initialSede);
+  const [filtroEstado, setFiltroEstado] = useState<"todos" | "activos" | "inactivos">("todos");
 
-  // Modals
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingSocio, setEditingSocio] = useState<SocioDetail | null>(null);
-  const [credencialesSocio, setCredencialesSocio] = useState<SocioDetail | null>(null);
+  // Modal Crear / Editar Socio
+  const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [editMode, setEditMode] = useState<boolean>(false);
+  const [selectedSocioId, setSelectedSocioId] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "ok" | "error"; text: string } | null>(null);
 
-  // Form states: Create
-  const [newSocio, setNewSocio] = useState({
+  const [formData, setFormData] = useState({
     rut_socio: "",
-    nombre_completo_socio: "",
-    fecha_nacimiento_socio: "",
-    correo_socio: "",
-    telefono_socio: "+56 9 ",
-    id_sede_registro_socio: 1,
-    acepta_promociones_socio: true,
-  });
-  const [creating, setCreating] = useState(false);
-
-  // Form states: Edit
-  const [editForm, setEditForm] = useState({
     nombre_completo_socio: "",
     correo_socio: "",
     telefono_socio: "",
+    fecha_nacimiento_socio: "1998-05-15",
     id_sede_registro_socio: 1,
-    acepta_promociones_socio: false,
+    acepta_promociones_socio: true,
+    activo_socio: true,
   });
-  const [updating, setUpdating] = useState(false);
 
-  // Form states: Credenciales
-  const [credForm, setCredForm] = useState({
-    username_usuario: "",
-    password: "",
-  });
-  const [savingCred, setSavingCred] = useState(false);
+  // Modal Asignar Credenciales
+  const [credModalOpen, setCredModalOpen] = useState<boolean>(false);
+  const [credSocio, setCredSocio] = useState<Socio | null>(null);
+  const [credUsername, setCredUsername] = useState<string>("");
+  const [credPassword, setCredPassword] = useState<string>("");
+  const [credSubmitting, setCredSubmitting] = useState<boolean>(false);
+  const [credError, setCredError] = useState<string | null>(null);
 
-  // Quick lookup state
-  const [quickLookupQuery, setQuickLookupQuery] = useState("");
-  const [quickLookupResult, setQuickLookupResult] = useState<SocioDetail | null>(null);
-  const [quickLookupLoading, setQuickLookupLoading] = useState(false);
-  const [quickLookupError, setQuickLookupError] = useState<string | null>(null);
-
-  // Load Sedes
-  const loadSedes = useCallback(async () => {
-    try {
-      const data = await sociosApi.getSedesCatalogo();
-      setSedes(data);
-      if (data.length > 0) {
-        setNewSocio((prev) => ({ ...prev, id_sede_registro_socio: data[0].id_sede }));
-      }
-    } catch (err: any) {
-      console.error("Error al cargar sedes:", err);
-    }
+  useEffect(() => {
+    setMounted(true);
   }, []);
 
-  // Load Socios
-  const loadSocios = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params: any = {};
-      if (filtroActivo === "activos") params.activo = true;
-      if (filtroActivo === "inactivos") params.activo = false;
-      if (filtroSede) params.id_sede = Number(filtroSede);
-      if (buscar.trim()) params.buscar = buscar.trim();
+  useEffect(() => {
+    if (initialSede) {
+      setFiltroSede(initialSede);
+    }
+  }, [initialSede]);
 
-      const data = await sociosApi.getAll(params);
-      setSocios(data as unknown as SocioDetail[]);
+  // Bloquear scroll del body y permitir cerrar con Escape cuando hay modal abierto
+  useEffect(() => {
+    const anyModalOpen = modalOpen || credModalOpen;
+    if (!anyModalOpen) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setModalOpen(false);
+        setCredModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [modalOpen, credModalOpen]);
+
+  const cargarDatos = useCallback(async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const [sociosData, sedesData] = await Promise.all([
+        apiClient.socios.getAll({
+          buscar: buscar.trim() || undefined,
+          id_sede: filtroSede ? Number(filtroSede) : undefined,
+          activo:
+            filtroEstado === "activos"
+              ? true
+              : filtroEstado === "inactivos"
+              ? false
+              : undefined,
+          limite: 200,
+        }),
+        apiClient.socios.getSedesCatalogo().catch(() => []),
+      ]);
+      setSocios(Array.isArray(sociosData) ? sociosData : []);
+      if (Array.isArray(sedesData) && sedesData.length > 0) {
+        setSedes(sedesData);
+      }
     } catch (err: any) {
-      console.error("Error al cargar socios:", err);
-      setFeedback({
-        type: "error",
-        message: err.message || "Error al conectar con el servidor para obtener socios.",
-      });
+      setErrorMsg(err.message || "Error al conectar con el servidor.");
     } finally {
       setLoading(false);
     }
-  }, [filtroActivo, filtroSede, buscar]);
+  }, [buscar, filtroSede, filtroEstado]);
 
   useEffect(() => {
-    loadSedes();
-  }, [loadSedes]);
+    cargarDatos();
+  }, [cargarDatos]);
 
-  useEffect(() => {
-    loadSocios();
-  }, [loadSocios]);
+  // Mapa rápido de sedes por ID
+  const sedesMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    sedes.forEach((s) => {
+      map[s.id_sede] = s.nombre_sede;
+    });
+    return map;
+  }, [sedes]);
 
-  // Quick lookup by ID or RUT
-  const handleQuickLookup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = quickLookupQuery.trim();
-    if (!query) return;
+  // Estadísticas rápidas
+  const stats = useMemo(() => {
+    const total = socios.length;
+    const activos = socios.filter((s) => (s.activo_socio ?? s.activo) !== false).length;
+    const inactivos = total - activos;
+    return { total, activos, inactivos };
+  }, [socios]);
 
-    setQuickLookupLoading(true);
-    setQuickLookupError(null);
-    setQuickLookupResult(null);
-
-    try {
-      let res: SocioDetail;
-      if (/^\d+$/.test(query)) {
-        // Numeric ID lookup
-        res = (await sociosApi.getById(Number(query))) as unknown as SocioDetail;
-      } else {
-        // RUT lookup
-        res = (await sociosApi.getByRut(query)) as unknown as SocioDetail;
-      }
-      setQuickLookupResult(res);
-    } catch (err: any) {
-      setQuickLookupError(
-        err.status === 404
-          ? `No se encontró ningún socio con el identificador "${query}".`
-          : err.message || "Error al buscar socio."
-      );
-    } finally {
-      setQuickLookupLoading(false);
-    }
+  // Abrir modal para Nuevo Socio
+  const handleOpenCrear = () => {
+    setEditMode(false);
+    setSelectedSocioId(null);
+    setModalError(null);
+    setFormData({
+      rut_socio: "",
+      nombre_completo_socio: "",
+      correo_socio: "",
+      telefono_socio: "+56 9 ",
+      fecha_nacimiento_socio: "1998-05-15",
+      id_sede_registro_socio: filtroSede ? Number(filtroSede) : sedes[0]?.id_sede || 1,
+      acepta_promociones_socio: true,
+      activo_socio: true,
+    });
+    setModalOpen(true);
   };
 
-  // Toggle Estado
-  const handleToggleEstado = async (socio: SocioDetail) => {
-    const nuevoEstado = !socio.activo_socio;
-    setUpdatingId(socio.id_socio);
-    try {
-      await sociosApi.cambiarEstado(socio.id_socio, nuevoEstado);
-      setSocios((prev) =>
-        prev.map((s) =>
-          s.id_socio === socio.id_socio ? { ...s, activo_socio: nuevoEstado } : s
-        )
-      );
-      if (quickLookupResult && quickLookupResult.id_socio === socio.id_socio) {
-        setQuickLookupResult({ ...quickLookupResult, activo_socio: nuevoEstado });
-      }
-      setFeedback({
-        type: "success",
-        message: `Estado de ${socio.nombre_completo_socio} cambiado a ${
-          nuevoEstado ? "ACTIVO" : "INACTIVO"
-        }.`,
-      });
-    } catch (err: any) {
-      setFeedback({
-        type: "error",
-        message: `Error al cambiar estado: ${err.message}`,
-      });
-    } finally {
-      setUpdatingId(null);
-    }
+  // Abrir modal para Editar Socio
+  const handleOpenEditar = (socio: Socio) => {
+    setEditMode(true);
+    setSelectedSocioId(socio.id_socio);
+    setModalError(null);
+    setFormData({
+      rut_socio: socio.rut_socio ?? socio.rut ?? "",
+      nombre_completo_socio: socio.nombre_completo_socio ?? socio.nombre_completo ?? "",
+      correo_socio: socio.correo_socio ?? socio.correo ?? "",
+      telefono_socio: socio.telefono_socio ?? socio.telefono ?? "",
+      fecha_nacimiento_socio: socio.fecha_nacimiento_socio
+        ? String(socio.fecha_nacimiento_socio).slice(0, 10)
+        : "1998-05-15",
+      id_sede_registro_socio:
+        socio.id_sede_registro_socio ?? socio.id_sede_registro ?? sedes[0]?.id_sede ?? 1,
+      acepta_promociones_socio:
+        (socio.acepta_promociones_socio ?? socio.acepta_promociones) !== false,
+      activo_socio: (socio.activo_socio ?? socio.activo) !== false,
+    });
+    setModalOpen(true);
   };
 
-  // Create Socio
-  const handleCreateSocio = async (e: React.FormEvent) => {
+  // Guardar Crear / Actualizar Socio
+  const handleSubmitSocio = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCreating(true);
+    setSubmitting(true);
+    setModalError(null);
     setFeedback(null);
     try {
-      const created = await sociosApi.create({
-        rut_socio: newSocio.rut_socio.trim(),
-        nombre_completo_socio: newSocio.nombre_completo_socio.trim(),
-        fecha_nacimiento_socio: newSocio.fecha_nacimiento_socio,
-        correo_socio: newSocio.correo_socio.trim(),
-        telefono_socio: newSocio.telefono_socio.trim(),
-        id_sede_registro_socio: Number(newSocio.id_sede_registro_socio),
-        acepta_promociones_socio: newSocio.acepta_promociones_socio,
-      });
-
-      setShowCreateModal(false);
-      setNewSocio({
-        rut_socio: "",
-        nombre_completo_socio: "",
-        fecha_nacimiento_socio: "",
-        correo_socio: "",
-        telefono_socio: "+56 9 ",
-        id_sede_registro_socio: sedes[0]?.id_sede || 1,
-        acepta_promociones_socio: true,
-      });
-      setFeedback({
-        type: "success",
-        message: `¡Socio ${created.nombre_completo_socio || created.nombre_completo} registrado exitosamente con ID #${created.id_socio}!`,
-      });
-      loadSocios();
+      if (editMode && selectedSocioId) {
+        const res = await apiClient.socios.update(selectedSocioId, {
+          nombre_completo_socio: formData.nombre_completo_socio.trim(),
+          correo_socio: formData.correo_socio.trim(),
+          telefono_socio: formData.telefono_socio.trim(),
+          id_sede_registro_socio: Number(formData.id_sede_registro_socio),
+          acepta_promociones_socio: formData.acepta_promociones_socio,
+        });
+        const socioOriginal = socios.find((s) => s.id_socio === selectedSocioId);
+        const activoOriginal = (socioOriginal?.activo_socio ?? socioOriginal?.activo) !== false;
+        if (socioOriginal && activoOriginal !== formData.activo_socio) {
+          await apiClient.socios.cambiarEstado(selectedSocioId, formData.activo_socio);
+        }
+        setFeedback({
+          type: "ok",
+          text: `Socio #${res.id_socio || selectedSocioId} actualizado correctamente.`,
+        });
+      } else {
+        const res = await apiClient.socios.create({
+          rut_socio: formData.rut_socio.trim(),
+          nombre_completo_socio: formData.nombre_completo_socio.trim(),
+          fecha_nacimiento_socio: formData.fecha_nacimiento_socio,
+          correo_socio: formData.correo_socio.trim(),
+          telefono_socio: formData.telefono_socio.trim(),
+          id_sede_registro_socio: Number(formData.id_sede_registro_socio),
+          acepta_promociones_socio: formData.acepta_promociones_socio,
+          activo_socio: true,
+        });
+        setFeedback({
+          type: "ok",
+          text: `Socio registrado exitosamente (ID #${res.id_socio}).`,
+        });
+      }
+      setModalOpen(false);
+      await cargarDatos();
     } catch (err: any) {
-      setFeedback({
-        type: "error",
-        message: `Error al registrar socio: ${err.message}`,
-      });
+      setModalError(err.message || "Error al guardar los datos del socio.");
     } finally {
-      setCreating(false);
+      setSubmitting(false);
     }
   };
 
-  // Open Edit Modal
-  const handleOpenEdit = (s: SocioDetail) => {
-    setEditingSocio(s);
-    setEditForm({
-      nombre_completo_socio: s.nombre_completo_socio || "",
-      correo_socio: s.correo_socio || "",
-      telefono_socio: s.telefono_socio || "",
-      id_sede_registro_socio: s.id_sede_registro_socio || 1,
-      acepta_promociones_socio: Boolean(s.acepta_promociones_socio),
-    });
-  };
-
-  // Submit Edit
-  const handleUpdateSocio = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingSocio) return;
-    setUpdating(true);
+  // Alternar estado activo/inactivo directamente
+  const handleToggleEstado = async (socio: Socio) => {
+    const id = socio.id_socio;
+    if (!id) return;
+    const estadoActual = (socio.activo_socio ?? socio.activo) !== false;
     try {
-      const updated = await sociosApi.update(editingSocio.id_socio, {
-        nombre_completo_socio: editForm.nombre_completo_socio.trim(),
-        correo_socio: editForm.correo_socio.trim(),
-        telefono_socio: editForm.telefono_socio.trim(),
-        id_sede_registro_socio: Number(editForm.id_sede_registro_socio),
-        acepta_promociones_socio: editForm.acepta_promociones_socio,
-      });
-
-      setSocios((prev) =>
-        prev.map((s) => (s.id_socio === editingSocio.id_socio ? { ...s, ...updated } : s))
-      );
-      setEditingSocio(null);
+      await apiClient.socios.cambiarEstado(id, !estadoActual);
       setFeedback({
-        type: "success",
-        message: `Datos de ${updated.nombre_completo_socio || "socio"} actualizados con éxito.`,
+        type: "ok",
+        text: `Socio #${id} marcado como ${!estadoActual ? "Activo" : "Inactivo"}.`,
       });
+      await cargarDatos();
     } catch (err: any) {
       setFeedback({
         type: "error",
-        message: `Error al actualizar: ${err.message}`,
+        text: err.message || "No se pudo cambiar el estado del socio.",
       });
-    } finally {
-      setUpdating(false);
     }
   };
 
-  // Open Credenciales Modal
-  const handleOpenCredenciales = (s: SocioDetail) => {
-    setCredencialesSocio(s);
-    // Suggest a default username based on email or rut
-    const suggestedUser = s.correo_socio ? s.correo_socio.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "") : `socio${s.id_socio}`;
-    setCredForm({
-      username_usuario: suggestedUser,
-      password: "",
-    });
+  // Abrir modal para Asignar Credenciales
+  const handleOpenCredenciales = (socio: Socio) => {
+    setCredSocio(socio);
+    setCredUsername(`socio${socio.id_socio}`);
+    setCredPassword("");
+    setCredError(null);
+    setCredModalOpen(true);
   };
 
-  // Submit Credenciales
-  const handleSaveCredenciales = async (e: React.FormEvent) => {
+  const handleSubmitCredenciales = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!credencialesSocio) return;
-    setSavingCred(true);
+    if (!credSocio?.id_socio) return;
+    setCredSubmitting(true);
+    setCredError(null);
+    setFeedback(null);
     try {
-      const res = await sociosApi.asignarCredenciales(credencialesSocio.id_socio, {
-        username_usuario: credForm.username_usuario.trim(),
-        password: credForm.password,
+      const res = await apiClient.socios.asignarCredenciales(credSocio.id_socio, {
+        username_usuario: credUsername.trim(),
+        password: credPassword,
       });
-      setCredencialesSocio(null);
       setFeedback({
-        type: "success",
-        message: `Credenciales configuradas con éxito para ${credencialesSocio.nombre_completo_socio}. Usuario: "${res.username_usuario}". Hasheado con SHA2_512.`,
+        type: "ok",
+        text:
+          res.mensaje ||
+          `Credenciales configuradas para @${res.username_usuario || credUsername}.`,
       });
+      setCredModalOpen(false);
     } catch (err: any) {
-      setFeedback({
-        type: "error",
-        message: `Error al asignar credenciales: ${err.message}`,
-      });
+      setCredError(err.message || "Error al asignar credenciales al socio.");
     } finally {
-      setSavingCred(false);
+      setCredSubmitting(false);
     }
   };
-
-  // Map sede id to name
-  const getNombreSede = useCallback(
-    (idSede: number) => {
-      const sede = sedes.find((s) => s.id_sede === idSede);
-      return sede ? `${sede.nombre_sede} (${sede.nombre_ciudad})` : `Sede #${idSede}`;
-    },
-    [sedes]
-  );
-
-  // Stats
-  const totalSocios = socios.length;
-  const sociosActivos = useMemo(() => socios.filter((s) => s.activo_socio).length, [socios]);
-  const sociosInactivos = totalSocios - sociosActivos;
 
   return (
     <div className="space-y-8">
-      {/* ===== Hero & Stats Section ===== */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-950/70 via-slate-900/90 to-cyan-950/60 border border-blue-900/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-300 border border-blue-500/20 mb-3">
-              <span>👥</span>
-              <span>Persona 1 (Carlos) &bull; Módulo de Socios & Acceso</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Directorio de Socios
-            </h1>
-            <p className="text-sm text-slate-300 mt-1 max-w-2xl">
-              Administración completa de socios, control de estados activo/inactivo, asignación de
-              credenciales de acceso con SHA2_512 y enlace directo al torniquete de portería.
-            </p>
+      {/* Editorial Section Heading — DESIGN.md: Ghost Card 5px, weight 300 48px -0.030em, 2px #ff6105 rule */}
+      <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 text-[12px] text-[#7a7b7b] font-medium">
+            <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
+            <span>Padrón de Socios · Administración</span>
           </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-sm shadow-lg shadow-blue-900/40 border border-blue-400/40 transition-all active:scale-95"
-            >
-              <span>➕</span>
-              <span>Nuevo Socio</span>
-            </button>
-
-            <Link
-              href="/socios/torniquete"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-semibold text-sm border border-slate-700 transition-all active:scale-95 shadow-md"
-            >
-              <span>🚪</span>
-              <span>Abrir Torniquete</span>
-            </Link>
-
-            <button
-              onClick={loadSocios}
-              disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-sm border border-slate-800 transition-all active:scale-95"
-              title="Recargar listado"
-            >
-              <span className={loading ? "animate-spin" : ""}>🔄</span>
-            </button>
-          </div>
+          <h1 className="text-[34px] sm:text-[48px] font-light leading-[1.15] tracking-[-0.03em] text-[#0a0a0a]">
+            Directorio de Socios
+          </h1>
+          <div className="w-[112px] h-[2px] bg-[#ff6105]" />
+          <p className="text-[15px] sm:text-[16px] font-normal leading-[1.56] tracking-[-0.01em] text-[#292b2a] max-w-xl pt-1">
+            Gestiona la inscripción de nuevos afiliados, actualiza sus datos de contacto,
+            administra el estado de sus cuentas y habilita sus credenciales de acceso.
+          </p>
         </div>
 
-        {/* Counter cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-blue-900/30">
-          <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800/80">
-            <span className="text-xs text-slate-400 block">Total Registrados</span>
-            <span className="text-2xl font-black text-white">{totalSocios}</span>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-emerald-900/30">
-            <span className="text-xs text-emerald-400 block">Socios Activos</span>
-            <span className="text-2xl font-black text-emerald-300">{sociosActivos}</span>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-rose-900/30">
-            <span className="text-xs text-rose-400 block">Socios Inactivos</span>
-            <span className="text-2xl font-black text-rose-300">{sociosInactivos}</span>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-cyan-900/30">
-            <span className="text-xs text-cyan-400 block">Sedes Conectadas</span>
-            <span className="text-2xl font-black text-cyan-300">{sedes.length}</span>
-          </div>
+        {/* Actions — DESIGN.md: Secondary 24px radius (no shadow) + Primary 50px pill with orange glow */}
+        <div className="flex flex-wrap items-center gap-3 self-start lg:self-auto shrink-0">
+          <button
+            type="button"
+            onClick={cargarDatos}
+            disabled={loading}
+            className="btn-secondary-pill inline-flex items-center gap-2 px-5 py-3 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-[#ff6105]" : "text-[#292b2a]"}`} />
+            <span>Actualizar</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenCrear}
+            className="btn-primary-pill inline-flex items-center gap-2 px-7 py-3.5 text-[15px] font-medium tracking-[-0.01em] cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Registrar Socio</span>
+          </button>
         </div>
       </div>
 
-      {/* ===== Feedback Notification Toast ===== */}
+      {/* Feedback Banner — DESIGN.md: Monochrome + Peach Wash / Charcoal (no secondary hues) */}
       {feedback && (
         <div
-          className={`flex items-center justify-between p-4 rounded-2xl text-sm border transition-all ${
-            feedback.type === "success"
-              ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-200"
-              : feedback.type === "error"
-              ? "bg-rose-950/80 border-rose-500/40 text-rose-200"
-              : "bg-blue-950/80 border-blue-500/40 text-blue-200"
+          className={`p-4 rounded-[5px] border flex items-center justify-between text-[14px] animate-fade-in-scale ${
+            feedback.type === "ok"
+              ? "bg-[#ffdfcd] border-[#ffa069]/50 text-[#0a0a0a]"
+              : "bg-[#202120] border-[#3c3e3d] text-[#ffffff]"
           }`}
         >
           <div className="flex items-center gap-2.5">
-            <span className="text-lg">
-              {feedback.type === "success" ? "✅" : feedback.type === "error" ? "⚠️" : "ℹ️"}
-            </span>
-            <span>{feedback.message}</span>
+            {feedback.type === "ok" ? (
+              <CheckCircle2 className="w-4 h-4 text-[#ff6105] shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-[#ff6105] shrink-0" />
+            )}
+            <span>{feedback.text}</span>
           </div>
           <button
+            type="button"
             onClick={() => setFeedback(null)}
-            className="text-xs px-2 py-1 rounded-lg bg-black/30 hover:bg-black/50 text-slate-300"
+            className="opacity-70 hover:opacity-100 px-2 cursor-pointer"
           >
-            ✕ Cerrar
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* ===== Quick Lookup Card (Búsqueda Unitaria por RUT o ID) ===== */}
-      <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-base">🔍</span>
-          <h2 className="text-sm font-bold text-white">Consulta Rápida Unitaria (GET /socios/{`{id}`} o /socios/rut/{`{rut}`})</h2>
-        </div>
-        <form onSubmit={handleQuickLookup} className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            placeholder="Ingrese ID (ej: 1) o RUT exacto (ej: 18.765.432-K)..."
-            value={quickLookupQuery}
-            onChange={(e) => setQuickLookupQuery(e.target.value)}
-            className="flex-1 px-4 py-2 rounded-xl bg-slate-950/80 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-          />
-          <button
-            type="submit"
-            disabled={quickLookupLoading || !quickLookupQuery.trim()}
-            className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-          >
-            {quickLookupLoading ? (
-              <>
-                <span className="animate-spin text-xs">🌀</span>
-                <span>Buscando...</span>
-              </>
-            ) : (
-              <span>Consultar en BD</span>
-            )}
-          </button>
-        </form>
-
-        {quickLookupError && (
-          <p className="text-xs text-rose-400 mt-2 bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
-            {quickLookupError}
-          </p>
-        )}
-
-        {quickLookupResult && (
-          <div className="mt-4 p-4 rounded-xl bg-slate-950/90 border border-blue-500/40 text-xs sm:text-sm text-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-base text-white">
-                  {quickLookupResult.nombre_completo_socio}
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  ID #{quickLookupResult.id_socio}
-                </span>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                    quickLookupResult.activo_socio
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                      : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                  }`}
-                >
-                  {quickLookupResult.activo_socio ? "Activo" : "Inactivo"}
-                </span>
-              </div>
-              <p className="text-slate-400">
-                RUT: <strong className="text-slate-200">{quickLookupResult.rut_socio}</strong> &bull; Correo: <strong className="text-slate-200">{quickLookupResult.correo_socio}</strong> &bull; Teléfono: {quickLookupResult.telefono_socio}
-              </p>
-              <p className="text-slate-400">
-                Sede de Registro: <span className="text-cyan-300">{getNombreSede(quickLookupResult.id_sede_registro_socio)}</span> &bull; Promociones: {quickLookupResult.acepta_promociones_socio ? "Sí" : "No"}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={() => handleToggleEstado(quickLookupResult)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700"
-              >
-                {quickLookupResult.activo_socio ? "Desactivar" : "Activar"}
-              </button>
-              <button
-                onClick={() => handleOpenEdit(quickLookupResult)}
-                className="px-3 py-1.5 rounded-lg bg-blue-600/80 hover:bg-blue-600 text-white text-xs font-medium"
-              >
-                Editar
-              </button>
-              <Link
-                href={`/socios/torniquete?rut=${encodeURIComponent(quickLookupResult.rut_socio)}`}
-                className="px-3 py-1.5 rounded-lg bg-cyan-600/80 hover:bg-cyan-600 text-white text-xs font-medium"
-              >
-                Probar en Torniquete →
-              </Link>
-            </div>
+      {/* KPI Ghost Cards — DESIGN.md: #ffffff, 1px #e5e5e5, 5px radius, no shadow, monochrome + orange */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-5">
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] text-[#7a7b7b] font-normal">Socios Listados</p>
+            <Users className="w-4 h-4 text-[#292b2a]" />
           </div>
-        )}
+          <p className="text-[32px] font-light leading-[1.22] tracking-[-0.02em] text-[#0a0a0a] mt-2">
+            {stats.total}
+          </p>
+          <p className="text-[12px] text-[#7a7b7b] mt-1">Registros según filtros</p>
+        </div>
+
+        <div className="bg-[#ffdfcd] border border-[#ffa069]/40 rounded-[5px] p-5">
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] text-[#292b2a] font-medium">Socios Activos</p>
+            <UserCheck className="w-4 h-4 text-[#ff6105]" />
+          </div>
+          <p className="text-[32px] font-light leading-[1.22] tracking-[-0.02em] text-[#0a0a0a] mt-2">
+            {stats.activos}
+          </p>
+          <p className="text-[12px] text-[#292b2a] mt-1">Habilitados en el sistema</p>
+        </div>
+
+        <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-5">
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] text-[#7a7b7b] font-normal">Socios Inactivos</p>
+            <UserX className="w-4 h-4 text-[#7a7b7b]" />
+          </div>
+          <p className="text-[32px] font-light leading-[1.22] tracking-[-0.02em] text-[#0a0a0a] mt-2">
+            {stats.inactivos}
+          </p>
+          <p className="text-[12px] text-[#7a7b7b] mt-1">Cuentas en pausa o baja</p>
+        </div>
+
+        <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] p-5">
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] text-[#7a7b7b] font-normal">Sedes Operativas</p>
+            <Building2 className="w-4 h-4 text-[#ff6105]" />
+          </div>
+          <p className="text-[32px] font-light leading-[1.22] tracking-[-0.02em] text-[#0a0a0a] mt-2">
+            {sedes.length || "—"}
+          </p>
+          <p className="text-[12px] text-[#7a7b7b] mt-1">Sucursales disponibles</p>
+        </div>
       </div>
 
-      {/* ===== Main Filter & Search Bar ===== */}
-      <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        {/* Search input */}
-        <div className="flex-1 relative">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm">
-            🔍
-          </span>
-          <input
-            type="text"
-            placeholder="Filtrar por Nombre, RUT o Correo (GET /socios/?buscar=...)"
-            value={buscar}
-            onChange={(e) => setBuscar(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
-          />
-          {buscar && (
-            <button
-              onClick={() => setBuscar("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-white"
-            >
-              ✕
-            </button>
-          )}
+      {/* Filter Bar — DESIGN.md: Linen #f3f4f3 surface, 50px pill inputs, 24px secondary filter toggles */}
+      <div className="bg-[#f3f4f3] border border-[#dfe0df] rounded-[5px] p-5 flex flex-col lg:flex-row items-stretch lg:items-end justify-between gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+          <div>
+            <label className="block text-[12px] text-[#292b2a] font-medium mb-1.5">
+              Buscar por nombre, RUT o correo
+            </label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-[#7a7b7b] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={buscar}
+                onChange={(e) => setBuscar(e.target.value)}
+                placeholder="Ej: 18.765.432-K, Daniel Matus o correo..."
+                className="input-pill w-full pl-10 pr-4 py-2.5 text-[14px] placeholder-[#a2a3a2]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[12px] text-[#292b2a] font-medium mb-1.5">
+              Filtrar por sede
+            </label>
+            <div className="relative">
+              <select
+                value={filtroSede}
+                onChange={(e) => setFiltroSede(e.target.value)}
+                className="input-pill w-full appearance-none pl-4 pr-10 py-2.5 text-[14px] cursor-pointer"
+              >
+                <option value="">Todas las sedes</option>
+                {sedes.map((s) => (
+                  <option key={s.id_sede} value={s.id_sede}>
+                    {s.nombre_sede} {s.nombre_ciudad ? `(${s.nombre_ciudad})` : ""}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-[#7a7b7b] absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
         </div>
 
-        {/* Status Tab buttons */}
-        <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
-          {(["todos", "activos", "inactivos"] as const).map((tab) => (
+        {/* Estado (24px Secondary Radius) */}
+        <div className="flex items-center gap-1 bg-[#ffffff] p-1 rounded-[24px] border border-[#e5e5e5] self-start lg:self-auto shrink-0">
+          {(["todos", "activos", "inactivos"] as const).map((est) => (
             <button
-              key={tab}
-              onClick={() => setFiltroActivo(tab)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
-                filtroActivo === tab
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "text-slate-400 hover:text-slate-200"
+              key={est}
+              type="button"
+              onClick={() => setFiltroEstado(est)}
+              className={`px-3.5 py-1.5 rounded-[24px] text-[13px] capitalize transition-colors cursor-pointer ${
+                filtroEstado === est
+                  ? "bg-[#202120] text-[#ffffff] font-medium"
+                  : "text-[#7a7b7b] font-normal hover:text-[#0a0a0a]"
               }`}
             >
-              {tab}
+              {est}
             </button>
           ))}
         </div>
-
-        {/* Sede selector filter */}
-        <div className="w-full md:w-56">
-          <select
-            value={filtroSede}
-            onChange={(e) => setFiltroSede(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer"
-          >
-            <option value="">Todas las Sedes</option>
-            {sedes.map((s) => (
-              <option key={s.id_sede} value={s.id_sede}>
-                {s.nombre_sede} ({s.nombre_ciudad})
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
-      {/* ===== Socios Table / Card Grid ===== */}
-      <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 overflow-hidden shadow-xl">
+      {/* Socios Table — Compact balanced columns so 100% fits within 1200px without right-side clipping */}
+      <div className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] overflow-hidden">
         {loading ? (
-          <div className="p-16 text-center text-slate-400 space-y-3">
-            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="text-sm font-medium">Cargando lista de socios desde SQL Server...</p>
+          <div className="p-12 text-center space-y-3">
+            <Loader2 className="w-6 h-6 text-[#ff6105] animate-spin mx-auto" />
+            <p className="text-[14px] text-[#7a7b7b]">Cargando directorio de socios...</p>
+          </div>
+        ) : errorMsg ? (
+          <div className="p-10 text-center space-y-4">
+            <p className="text-[14px] text-[#0a0a0a] font-medium">{errorMsg}</p>
+            <button
+              type="button"
+              onClick={cargarDatos}
+              className="btn-primary-pill px-6 py-2.5 text-[14px] font-medium cursor-pointer"
+            >
+              Reintentar
+            </button>
           </div>
         ) : socios.length === 0 ? (
-          <div className="p-16 text-center text-slate-400 space-y-3">
-            <span className="text-4xl">📭</span>
-            <p className="text-base font-semibold text-slate-300">
-              No se encontraron socios con los filtros actuales.
+          <div className="p-12 text-center space-y-2">
+            <Users className="w-8 h-8 text-[#a2a3a2] mx-auto stroke-[1.5]" />
+            <p className="text-[16px] font-medium text-[#0a0a0a]">
+              No se encontraron socios con los filtros seleccionados
             </p>
-            <p className="text-xs text-slate-500">
-              Pruebe cambiando el término de búsqueda o registre un nuevo socio.
+            <p className="text-[14px] text-[#7a7b7b]">
+              Intenta limpiar la búsqueda o registra un nuevo socio.
             </p>
-            <button
-              onClick={() => {
-                setBuscar("");
-                setFiltroActivo("todos");
-                setFiltroSede("");
-              }}
-              className="mt-2 text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-blue-300 hover:bg-slate-700"
-            >
-              Limpiar Filtros
-            </button>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-900/90 text-slate-400 font-semibold uppercase text-[11px] tracking-wider border-b border-slate-800">
-                <tr>
-                  <th className="px-4 py-3.5">ID</th>
-                  <th className="px-4 py-3.5">Socio</th>
-                  <th className="px-4 py-3.5">Contacto</th>
-                  <th className="px-4 py-3.5">Sede Registro</th>
-                  <th className="px-4 py-3.5 text-center">Estado</th>
-                  <th className="px-4 py-3.5 text-right">Acciones</th>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#f3f4f3] border-b border-[#e5e5e5] text-[12px] text-[#7a7b7b]">
+                  <th className="py-3 px-4 font-medium">Socio</th>
+                  <th className="py-3 px-3 font-medium whitespace-nowrap">RUT</th>
+                  <th className="py-3 px-3 font-medium">Contacto</th>
+                  <th className="py-3 px-3 font-medium">Sede</th>
+                  <th className="py-3 px-3 font-medium whitespace-nowrap">Estado</th>
+                  <th className="py-3 px-4 font-medium text-right whitespace-nowrap">
+                    Acciones
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {socios.map((s) => (
-                  <tr
-                    key={s.id_socio}
-                    className="hover:bg-slate-900/40 transition-colors group"
-                  >
-                    {/* ID */}
-                    <td className="px-4 py-3.5 font-mono text-slate-400 text-xs">
-                      #{s.id_socio}
-                    </td>
+              <tbody className="divide-y divide-[#e5e5e5] text-[14px]">
+                {socios.map((s) => {
+                  const id = s.id_socio;
+                  const rut = s.rut_socio ?? s.rut ?? "—";
+                  const nombreCompleto =
+                    s.nombre_completo_socio ?? s.nombre_completo ?? `Socio #${id}`;
+                  const correo = s.correo_socio ?? s.correo ?? "—";
+                  const telefono = s.telefono_socio ?? s.telefono ?? "—";
+                  const idSede = s.id_sede_registro_socio ?? s.id_sede_registro ?? 1;
+                  const nombreSede = sedesMap[idSede] || `Sede #${idSede}`;
+                  const activo = (s.activo_socio ?? s.activo) !== false;
 
-                    {/* Socio Name + RUT */}
-                    <td className="px-4 py-3.5">
-                      <div className="font-bold text-white group-hover:text-blue-300 transition-colors">
-                        {s.nombre_completo_socio}
-                      </div>
-                      <div className="text-xs font-mono text-slate-400 mt-0.5">
-                        {s.rut_socio}
-                      </div>
-                    </td>
+                  return (
+                    <tr
+                      key={id}
+                      className="hover:bg-[#f3f4f3]/50 transition-colors"
+                    >
+                      {/* Socio */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-[8px] bg-[#f3f4f3] border border-[#e5e5e5] text-[#0a0a0a] flex items-center justify-center text-[12px] font-medium shrink-0">
+                            {nombreCompleto.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-[#0a0a0a] leading-snug truncate max-w-[180px]" title={nombreCompleto}>
+                              {nombreCompleto}
+                            </p>
+                            <p className="text-[12px] text-[#7a7b7b]">ID #{id}</p>
+                          </div>
+                        </div>
+                      </td>
 
-                    {/* Email & Phone */}
-                    <td className="px-4 py-3.5 text-xs">
-                      <div className="text-slate-300 flex items-center gap-1.5">
-                        <span>✉️</span>
-                        <span className="truncate max-w-[180px]">{s.correo_socio}</span>
-                      </div>
-                      <div className="text-slate-400 mt-1 flex items-center gap-1.5">
-                        <span>📞</span>
-                        <span>{s.telefono_socio}</span>
-                      </div>
-                    </td>
+                      {/* RUT — una sola línea garantizada, sin desborde */}
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span className="inline-block whitespace-nowrap font-mono text-[12px] px-2 py-0.5 rounded-[8px] bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5]">
+                          {rut}
+                        </span>
+                      </td>
 
-                    {/* Sede */}
-                    <td className="px-4 py-3.5 text-xs text-slate-300">
-                      <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300">
-                        {getNombreSede(s.id_sede_registro_socio)}
-                      </span>
-                    </td>
+                      {/* Contacto */}
+                      <td className="py-3.5 px-3 text-[12px] text-[#292b2a] space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-[#7a7b7b] shrink-0" />
+                          <span className="truncate max-w-[175px]" title={correo}>
+                            {correo}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[#7a7b7b] whitespace-nowrap">
+                          <Phone className="w-3.5 h-3.5 shrink-0" />
+                          <span>{telefono}</span>
+                        </div>
+                      </td>
 
-                    {/* State Toggle (PATCH /socios/{id}/estado) */}
-                    <td className="px-4 py-3.5 text-center">
-                      <button
-                        onClick={() => handleToggleEstado(s)}
-                        disabled={updatingId === s.id_socio}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border transition-all active:scale-95 ${
-                          s.activo_socio
-                            ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25"
-                            : "bg-rose-500/15 text-rose-300 border-rose-500/30 hover:bg-rose-500/25"
-                        }`}
-                        title="Clic para cambiar estado del socio"
-                      >
-                        {updatingId === s.id_socio ? (
-                          <span className="animate-spin text-[10px]">🌀</span>
-                        ) : (
+                      {/* Sede */}
+                      <td className="py-3.5 px-3">
+                        <div
+                          className="inline-flex items-center gap-1.5 text-[12px] text-[#292b2a] max-w-[165px]"
+                          title={nombreSede}
+                        >
+                          <MapPin className="w-3.5 h-3.5 text-[#ff6105] shrink-0" />
+                          <span className="truncate">{nombreSede}</span>
+                        </div>
+                      </td>
+
+                      {/* Estado — DESIGN.md: Monochrome + Orange dot (8px small-button radius) */}
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleEstado(s)}
+                          title="Clic para cambiar estado"
+                          className={`inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-[8px] text-[12px] border transition-colors cursor-pointer ${
+                            activo
+                              ? "bg-[#ffffff] text-[#0a0a0a] font-medium border-[#e5e5e5] hover:border-[#ff6105]"
+                              : "bg-[#f3f4f3] text-[#7a7b7b] font-normal border-[#e5e5e5] hover:border-[#292b2a]"
+                          }`}
+                        >
                           <span
-                            className={`w-2 h-2 rounded-full ${
-                              s.activo_socio ? "bg-emerald-400" : "bg-rose-400"
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              activo ? "bg-[#ff6105]" : "bg-[#a2a3a2]"
                             }`}
-                          ></span>
-                        )}
-                        <span>{s.activo_socio ? "Activo" : "Inactivo"}</span>
-                      </button>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* Edit Button */}
-                        <button
-                          onClick={() => handleOpenEdit(s)}
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-blue-600 text-slate-200 hover:text-white text-xs font-semibold transition-all border border-slate-700 hover:border-blue-500"
-                          title="Editar datos del socio (PUT /socios/{id})"
-                        >
-                          ✏️ Editar
+                          />
+                          <span>{activo ? "Activo" : "Inactivo"}</span>
                         </button>
+                      </td>
 
-                        {/* Assign Credentials */}
-                        <button
-                          onClick={() => handleOpenCredenciales(s)}
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-amber-600 text-slate-200 hover:text-white text-xs font-semibold transition-all border border-slate-700 hover:border-amber-500"
-                          title="Crear o resetear credenciales de acceso (POST /socios/{id}/credenciales)"
-                        >
-                          🔑 Credenciales
-                        </button>
+                      {/* Acciones — DESIGN.md: buttons-small 8px radius, compact fit */}
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditar(s)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[12px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] transition-colors cursor-pointer"
+                            title="Editar datos del socio"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                            <span>Editar</span>
+                          </button>
 
-                        {/* Test Turnstile Access */}
-                        <Link
-                          href={`/socios/torniquete?rut=${encodeURIComponent(s.rut_socio)}`}
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-cyan-600 text-slate-200 hover:text-white text-xs font-semibold transition-all border border-slate-700 hover:border-cyan-500"
-                          title="Validar acceso en torniquete (GET /socios/acceso/validar/...)"
-                        >
-                          🚪 Torniquete
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCredenciales(s)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[12px] font-normal bg-[#ffffff] hover:bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5] transition-colors cursor-pointer"
+                            title="Asignar usuario y contraseña"
+                          >
+                            <KeyRound className="w-3 h-3 text-[#ff6105]" />
+                            <span>Clave</span>
+                          </button>
+
+                          <Link
+                            href={`/socios/torniquete?identificador=${encodeURIComponent(rut)}`}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[12px] font-medium bg-[#202120] hover:bg-[#0a0a0a] text-[#ffffff] transition-colors"
+                            title="Validar acceso en torniquete"
+                          >
+                            <ShieldCheck className="w-3 h-3 text-[#ff6105]" />
+                            <span>Acceso</span>
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* ===== MODAL: REGISTRAR NUEVO SOCIO (POST /socios/) ===== */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-900 border border-blue-500/40 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <span className="text-xs font-semibold text-blue-400">POST /socios/</span>
-                <h3 className="text-xl font-extrabold text-white">Registrar Nuevo Socio</h3>
-              </div>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-white text-lg p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateSocio} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Modal Crear / Editar Socio — Portal en document.body, DESIGN.md 5px card + 50px inputs + 24px/50px buttons */}
+      {mounted &&
+        modalOpen &&
+        createPortal(
+          <div
+            onClick={() => setModalOpen(false)}
+            className="fixed inset-0 z-50 bg-[#0a0a0a]/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] max-w-lg w-full p-6 sm:p-8 space-y-6 my-auto"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-[#e5e5e5] pb-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    RUT del Socio *
+                  <span className="badge-step">
+                    {editMode ? "Edición" : "Registro"}
+                  </span>
+                  <h3 className="text-[24px] font-medium leading-[1.33] tracking-[-0.02em] text-[#0a0a0a] mt-2">
+                    {editMode ? `Editar Socio #${selectedSocioId}` : "Registrar Nuevo Socio"}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="w-9 h-9 rounded-[24px] bg-[#f3f4f3] hover:bg-[#e5e7eb] border border-[#e5e5e5] flex items-center justify-center text-[#292b2a] cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {modalError && (
+                <div className="p-3.5 rounded-[5px] bg-[#202120] text-[#ffffff] text-[13px] flex items-center gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-[#ff6105] shrink-0" />
+                  <span>{modalError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmitSocio} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                      RUT del Socio *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      disabled={editMode}
+                      value={formData.rut_socio}
+                      onChange={(e) =>
+                        setFormData({ ...formData, rut_socio: e.target.value })
+                      }
+                      placeholder="Ej: 19.456.789-0"
+                      className="input-pill w-full px-4 py-2.5 text-[14px] placeholder-[#a2a3a2] disabled:bg-[#f3f4f3] disabled:text-[#7a7b7b]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                      Sede Asignada *
+                    </label>
+                    <div className="relative">
+                      <select
+                        required
+                        value={formData.id_sede_registro_socio}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            id_sede_registro_socio: Number(e.target.value),
+                          })
+                        }
+                        className="input-pill w-full appearance-none pl-4 pr-9 py-2.5 text-[14px]"
+                      >
+                        {sedes.map((s) => (
+                          <option key={s.id_sede} value={s.id_sede}>
+                            {s.nombre_sede}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-[#7a7b7b] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                      Nombre Completo *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.nombre_completo_socio}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          nombre_completo_socio: e.target.value,
+                        })
+                      }
+                      placeholder="Ej: Valentina Soto Muñoz"
+                      className="input-pill w-full px-4 py-2.5 text-[14px] placeholder-[#a2a3a2]"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                      Correo Electrónico *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.correo_socio}
+                      onChange={(e) =>
+                        setFormData({ ...formData, correo_socio: e.target.value })
+                      }
+                      placeholder="socio@gimnasiodb.cl"
+                      className="input-pill w-full px-4 py-2.5 text-[14px] placeholder-[#a2a3a2]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                      Teléfono *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.telefono_socio}
+                      onChange={(e) =>
+                        setFormData({ ...formData, telefono_socio: e.target.value })
+                      }
+                      placeholder="+56 9 8765 4321"
+                      className="input-pill w-full px-4 py-2.5 text-[14px] placeholder-[#a2a3a2]"
+                    />
+                  </div>
+
+                  {!editMode ? (
+                    <div>
+                      <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                        Fecha de Nacimiento *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={formData.fecha_nacimiento_socio}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            fecha_nacimiento_socio: e.target.value,
+                          })
+                        }
+                        className="input-pill w-full px-4 py-2.5 text-[14px]"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                        Estado del Socio
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={formData.activo_socio ? "true" : "false"}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              activo_socio: e.target.value === "true",
+                            })
+                          }
+                          className="input-pill w-full appearance-none pl-4 pr-9 py-2.5 text-[14px]"
+                        >
+                          <option value="true">Activo</option>
+                          <option value="false">Inactivo</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-[#7a7b7b] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#e5e5e5]">
+                  <button
+                    type="button"
+                    onClick={() => setModalOpen(false)}
+                    className="btn-secondary-pill px-5 py-2.5 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="btn-primary-pill px-6 py-2.5 text-[14px] font-medium cursor-pointer disabled:opacity-50"
+                  >
+                    {submitting
+                      ? "Guardando..."
+                      : editMode
+                      ? "Guardar Cambios"
+                      : "Registrar Socio"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Modal Asignar Credenciales — Portal en document.body, DESIGN.md compliant */}
+      {mounted &&
+        credModalOpen &&
+        credSocio &&
+        createPortal(
+          <div
+            onClick={() => setCredModalOpen(false)}
+            className="fixed inset-0 z-50 bg-[#0a0a0a]/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#ffffff] border border-[#e5e5e5] rounded-[5px] max-w-md w-full p-6 sm:p-8 space-y-5 my-auto"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-[#e5e5e5] pb-4">
+                <div>
+                  <span className="badge-step">Credenciales</span>
+                  <h3 className="text-[24px] font-medium leading-[1.33] tracking-[-0.02em] text-[#0a0a0a] mt-2">
+                    Configurar Cuenta
+                  </h3>
+                  <p className="text-[13px] text-[#7a7b7b] mt-0.5">
+                    {credSocio.nombre_completo_socio ?? credSocio.nombre_completo} (
+                    {credSocio.rut_socio ?? credSocio.rut})
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCredModalOpen(false)}
+                  className="w-9 h-9 rounded-[24px] bg-[#f3f4f3] hover:bg-[#e5e7eb] border border-[#e5e5e5] flex items-center justify-center text-[#292b2a] cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {credError && (
+                <div className="p-3.5 rounded-[5px] bg-[#202120] text-[#ffffff] text-[13px] flex items-center gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-[#ff6105] shrink-0" />
+                  <span>{credError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmitCredenciales} className="space-y-4">
+                <div>
+                  <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                    Nombre de Usuario (Login) *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="18.765.432-K"
-                    value={newSocio.rut_socio}
-                    onChange={(e) =>
-                      setNewSocio({ ...newSocio, rut_socio: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-blue-500"
+                    minLength={3}
+                    value={credUsername}
+                    onChange={(e) => setCredUsername(e.target.value)}
+                    placeholder="Ej: socio1"
+                    className="input-pill w-full px-4 py-2.5 text-[14px] placeholder-[#a2a3a2]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Fecha de Nacimiento *
+                  <label className="block text-[12px] font-medium text-[#292b2a] mb-1.5">
+                    Contraseña *
                   </label>
                   <input
-                    type="date"
+                    type="password"
                     required
-                    value={newSocio.fecha_nacimiento_socio}
-                    onChange={(e) =>
-                      setNewSocio({ ...newSocio, fecha_nacimiento_socio: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-blue-500"
+                    minLength={6}
+                    value={credPassword}
+                    onChange={(e) => setCredPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    className="input-pill w-full px-4 py-2.5 text-[14px] placeholder-[#a2a3a2]"
                   />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Nombre Completo *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Carlos Andrés Silva"
-                  value={newSocio.nombre_completo_socio}
-                  onChange={(e) =>
-                    setNewSocio({ ...newSocio, nombre_completo_socio: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Correo Electrónico *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="socio@correo.cl"
-                    value={newSocio.correo_socio}
-                    onChange={(e) =>
-                      setNewSocio({ ...newSocio, correo_socio: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-blue-500"
-                  />
+                  <p className="text-[12px] text-[#7a7b7b] mt-1.5">
+                    La contraseña se almacena cifrada de forma segura en la base de datos.
+                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Teléfono Celular *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="+56 9 1234 5678"
-                    value={newSocio.telefono_socio}
-                    onChange={(e) =>
-                      setNewSocio({ ...newSocio, telefono_socio: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-blue-500"
-                  />
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#e5e5e5]">
+                  <button
+                    type="button"
+                    onClick={() => setCredModalOpen(false)}
+                    className="btn-secondary-pill px-5 py-2.5 text-[14px] font-normal bg-[#f3f4f3] hover:bg-[#e5e7eb] text-[#292b2a] border border-[#e5e5e5] cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={credSubmitting}
+                    className="btn-primary-pill px-6 py-2.5 text-[14px] font-medium cursor-pointer disabled:opacity-50"
+                  >
+                    {credSubmitting ? "Guardando..." : "Guardar Credenciales"}
+                  </button>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Sede de Registro *
-                </label>
-                <select
-                  value={newSocio.id_sede_registro_socio}
-                  onChange={(e) =>
-                    setNewSocio({ ...newSocio, id_sede_registro_socio: Number(e.target.value) })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-blue-500"
-                >
-                  {sedes.map((s) => (
-                    <option key={s.id_sede} value={s.id_sede}>
-                      {s.nombre_sede} — {s.nombre_ciudad}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <input
-                  type="checkbox"
-                  id="promo_check"
-                  checked={newSocio.acepta_promociones_socio}
-                  onChange={(e) =>
-                    setNewSocio({ ...newSocio, acepta_promociones_socio: e.target.checked })
-                  }
-                  className="rounded border-slate-700 bg-slate-950 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
-                />
-                <label htmlFor="promo_check" className="text-xs text-slate-300 cursor-pointer">
-                  Acepta recibir promociones y notificaciones del gimnasio
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-sm shadow-md disabled:opacity-50 flex items-center gap-2"
-                >
-                  {creating && <span className="animate-spin text-xs">🌀</span>}
-                  <span>Guardar Socio</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ===== MODAL: EDITAR SOCIO (PUT /socios/{id}) ===== */}
-      {editingSocio && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-900 border border-blue-500/40 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <span className="text-xs font-semibold text-amber-400">
-                  PUT /socios/{editingSocio.id_socio}
-                </span>
-                <h3 className="text-xl font-extrabold text-white">Editar Datos del Socio</h3>
-                <p className="text-xs text-slate-400">RUT: {editingSocio.rut_socio}</p>
-              </div>
-              <button
-                onClick={() => setEditingSocio(null)}
-                className="text-slate-400 hover:text-white text-lg p-1"
-              >
-                ✕
-              </button>
+              </form>
             </div>
-
-            <form onSubmit={handleUpdateSocio} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Nombre Completo
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.nombre_completo_socio}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, nombre_completo_socio: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Correo Electrónico
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={editForm.correo_socio}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, correo_socio: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Teléfono
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editForm.telefono_socio}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, telefono_socio: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Sede de Registro
-                </label>
-                <select
-                  value={editForm.id_sede_registro_socio}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, id_sede_registro_socio: Number(e.target.value) })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-blue-500"
-                >
-                  {sedes.map((s) => (
-                    <option key={s.id_sede} value={s.id_sede}>
-                      {s.nombre_sede} — {s.nombre_ciudad}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <input
-                  type="checkbox"
-                  id="promo_edit_check"
-                  checked={editForm.acepta_promociones_socio}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, acepta_promociones_socio: e.target.checked })
-                  }
-                  className="rounded border-slate-700 bg-slate-950 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
-                />
-                <label htmlFor="promo_edit_check" className="text-xs text-slate-300 cursor-pointer">
-                  Acepta recibir promociones y novedades
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setEditingSocio(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={updating}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-md disabled:opacity-50 flex items-center gap-2"
-                >
-                  {updating && <span className="animate-spin text-xs">🌀</span>}
-                  <span>Guardar Cambios</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ===== MODAL: ASIGNAR CREDENCIALES (POST /socios/{id}/credenciales) ===== */}
-      {credencialesSocio && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-900 border border-amber-500/40 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <span className="text-xs font-semibold text-emerald-400">
-                  POST /socios/{credencialesSocio.id_socio}/credenciales
-                </span>
-                <h3 className="text-xl font-extrabold text-white">Credenciales de Acceso</h3>
-                <p className="text-xs text-slate-400">{credencialesSocio.nombre_completo_socio}</p>
-              </div>
-              <button
-                onClick={() => setCredencialesSocio(null)}
-                className="text-slate-400 hover:text-white text-lg p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">
-              💡 La contraseña se almacenará protegida mediante el estándar criptográfico nativo de SQL Server:
-              <code className="block mt-1 font-mono text-[11px] bg-slate-950/80 p-1.5 rounded">
-                HASHBYTES(&apos;SHA2_512&apos;, @password)
-              </code>
-            </div>
-
-            <form onSubmit={handleSaveCredenciales} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Nombre de Usuario (username_usuario) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  min={3}
-                  value={credForm.username_usuario}
-                  onChange={(e) =>
-                    setCredForm({ ...credForm, username_usuario: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Nueva Contraseña (mínimo 6 caracteres) *
-                </label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  placeholder="••••••••"
-                  value={credForm.password}
-                  onChange={(e) =>
-                    setCredForm({ ...credForm, password: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setCredencialesSocio(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingCred}
-                  className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm shadow-md disabled:opacity-50 flex items-center gap-2"
-                >
-                  {savingCred && <span className="animate-spin text-xs">🌀</span>}
-                  <span>Guardar Credenciales</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
+  );
+}
+
+export default function SociosGestionPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-12 text-center text-[14px] text-[#7a7b7b]">
+          Cargando directorio de socios...
+        </div>
+      }
+    >
+      <SociosGestionContent />
+    </Suspense>
   );
 }
