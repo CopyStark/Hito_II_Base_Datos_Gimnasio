@@ -68,6 +68,19 @@ BEGIN
     DECLARE @contador_ocasional     INT = 0;
     DECLARE @contador_sin_actividad INT = 0;
 
+    -- Tabla variable para recolectar resultados procesados fila a fila por el cursor
+    -- Permite consumo relacional directo desde APIs (FastAPI / pyodbc) sin romper la estructura del cursor
+    DECLARE @ResultadosFidelidad TABLE (
+        [id_socio]                  INT           NOT NULL,
+        [rut_socio]                 VARCHAR(12)   NOT NULL,
+        [nombre_completo_socio]     NVARCHAR(150) NOT NULL,
+        [nombre_sede]               NVARCHAR(100) NOT NULL,
+        [total_asistencias]         INT           NOT NULL,
+        [total_inasistencias]       INT           NOT NULL,
+        [dias_vencimiento_contrato] INT           NOT NULL,
+        [clasificacion_fidelidad]   VARCHAR(30)   NOT NULL
+    );
+
     DECLARE @fecha_reporte_str      VARCHAR(10) = CONVERT(VARCHAR(10), GETDATE(), 120);
 
     -- ---------------------------------------------------------------------------------
@@ -174,6 +187,28 @@ BEGIN
             @clasificacion, ']'
         );
 
+        -- Inserción en tabla variable para consumo desde la API (FastAPI / pyodbc)
+        INSERT INTO @ResultadosFidelidad (
+            [id_socio],
+            [rut_socio],
+            [nombre_completo_socio],
+            [nombre_sede],
+            [total_asistencias],
+            [total_inasistencias],
+            [dias_vencimiento_contrato],
+            [clasificacion_fidelidad]
+        )
+        VALUES (
+            @id_socio,
+            @rut_socio,
+            @nombre_socio,
+            @nombre_sede,
+            @total_asistencias,
+            @total_inasistencias,
+            @dias_vencimiento,
+            @clasificacion
+        );
+
         -- Paso 5: Segundo FETCH NEXT para avanzar al siguiente socio del cursor
         FETCH NEXT FROM cur_socios_fidelidad 
         INTO @id_socio, @rut_socio, @nombre_socio, @nombre_sede, @total_asistencias, @total_inasistencias, @dias_vencimiento;
@@ -197,6 +232,21 @@ BEGIN
     PRINT CONCAT('  - Socios SIN ACTIVIDAD REGISTRADA    : ', @contador_sin_actividad);
     PRINT '========================================================================================================';
     PRINT 'Procedimiento sp_Reporte_Fidelidad_Socios_Cursor ejecutado con éxito.';
+
+    -- ---------------------------------------------------------------------------------
+    -- I) Retorno de Result Set explícito (sin SELECT *) para consumo desde la API
+    -- ---------------------------------------------------------------------------------
+    SELECT 
+        [id_socio],
+        [rut_socio],
+        [nombre_completo_socio],
+        [nombre_sede],
+        [total_asistencias],
+        [total_inasistencias],
+        [dias_vencimiento_contrato],
+        [clasificacion_fidelidad]
+    FROM @ResultadosFidelidad
+    ORDER BY [id_socio] ASC;
 END;
 GO
 

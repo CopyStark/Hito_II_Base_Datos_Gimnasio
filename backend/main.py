@@ -20,10 +20,10 @@ load_dotenv()
 
 # Importar routers y utilidades de base de datos
 try:
-    from backend.routers import auth_router, auth_socios_router, clases_router, contratos_router
+    from backend.routers import auth_router, auth_socios_router, clases_router, contratos_router, auditoria_router
     from backend.db.connection import test_connection
 except ImportError:
-    from routers import auth_router, auth_socios_router, clases_router, contratos_router
+    from routers import auth_router, auth_socios_router, clases_router, contratos_router, auditoria_router
     from db.connection import test_connection
 
 # Configurar logging
@@ -94,6 +94,7 @@ app.include_router(auth_router)
 app.include_router(auth_socios_router)
 app.include_router(clases_router)
 app.include_router(contratos_router)
+app.include_router(auditoria_router)
 
 # -------------------------------------------------------------------------
 # Rutas Base y Diagnóstico (Health Check)
@@ -114,7 +115,8 @@ def read_root():
             "auth": "/auth",
             "persona_1": "/socios",
             "persona_2": "/clases",
-            "persona_3": "/contratos"
+            "persona_3": "/contratos",
+            "auditoria": "/auditoria"
         }
     }
 

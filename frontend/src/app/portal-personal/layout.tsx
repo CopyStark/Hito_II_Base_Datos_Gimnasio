@@ -13,6 +13,7 @@ import {
   Wrench,
   Briefcase,
   BarChart3,
+  History,
   LogOut,
   User,
   ArrowLeft,
@@ -70,6 +71,12 @@ const TABS: NavTab[] = [
     name: "Reportes y Estadísticas",
     href: "/portal-personal/reportes",
     icon: BarChart3,
+    exact: false,
+  },
+  {
+    name: "Auditoría & Fidelidad",
+    href: "/portal-personal/auditoria",
+    icon: History,
     exact: false,
   },
 ];

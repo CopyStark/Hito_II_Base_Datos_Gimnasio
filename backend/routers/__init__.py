@@ -2,5 +2,7 @@ from .auth import router as auth_router
 from .auth_socios import router as auth_socios_router
 from .clases import router as clases_router
 from .contratos import router as contratos_router
+from .auditoria import router as auditoria_router
 
-__all__ = ["auth_router", "auth_socios_router", "clases_router", "contratos_router"]
+__all__ = ["auth_router", "auth_socios_router", "clases_router", "contratos_router", "auditoria_router"]
+

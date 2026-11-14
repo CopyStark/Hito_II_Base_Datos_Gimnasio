@@ -471,6 +471,16 @@ export const apiClient = {
     getReporteIngresos: (params?: { nombre_sede?: string; anio?: number; mes?: number }) =>
       apiClient.get<ReporteIngresosItem[]>("/contratos/reportes/ingresos-por-sede", params),
   },
+
+  // Módulo Auditoría y Procedimientos Especiales (Triggers y Cursores)
+  auditoria: {
+    getLogsContratos: () =>
+      apiClient.get<LogContratoItem[]>("/auditoria/logs-contratos"),
+    getLogsInscripciones: () =>
+      apiClient.get<LogInscripcionItem[]>("/auditoria/logs-inscripciones"),
+    getFidelidadCursor: () =>
+      apiClient.get<SocioFidelidadCursorItem[]>("/auditoria/fidelidad-cursor"),
+  },
 };
 
 /* =========================================================================
@@ -820,10 +830,56 @@ export interface ReporteIngresosItem {
 
 export const contratosApi = apiClient.contratos;
 
+// =========================================================================
+// Módulo Auditoría & Procedimientos Especiales (Triggers y Cursores)
+// =========================================================================
+
+export interface LogContratoItem {
+  id_log: number;
+  id_contrato: number;
+  tipo_operacion: "INSERT" | "UPDATE" | "DELETE" | string;
+  fecha_cambio: string;
+  usuario_sql?: string | null;
+  equipo_origen?: string | null;
+  aplicacion_origen?: string | null;
+  estado_anterior?: string | null;
+  estado_nuevo?: string | null;
+  fecha_fin_anterior?: string | null;
+  fecha_fin_nueva?: string | null;
+}
+
+export interface LogInscripcionItem {
+  id_log: number;
+  id_inscripcion: number;
+  tipo_operacion: "INSERT" | "UPDATE" | "DELETE" | string;
+  fecha_cambio: string;
+  usuario_sql?: string | null;
+  equipo_origen?: string | null;
+  aplicacion_origen?: string | null;
+  estado_anterior?: string | null;
+  estado_nuevo?: string | null;
+  asistio_anterior?: boolean | null;
+  asistio_nuevo?: boolean | null;
+}
+
+export interface SocioFidelidadCursorItem {
+  id_socio: number;
+  rut_socio: string;
+  nombre_completo_socio: string;
+  nombre_sede: string;
+  total_asistencias: number;
+  total_inasistencias: number;
+  dias_vencimiento_contrato: number;
+  clasificacion_fidelidad: "RIESGO DE DESERCION" | "FRECUENTE" | "OCASIONAL" | "SIN ACTIVIDAD" | string;
+}
+
+export const auditoriaApi = apiClient.auditoria;
+
 // Extender el objeto principal apiClient con módulos para retrocompatibilidad
 (apiClient as any).clasesModulo = clasesApi;
 (apiClient as any).sociosModulo = sociosApi;
 (apiClient as any).contratosModulo = contratosApi;
+(apiClient as any).auditoriaModulo = auditoriaApi;
 
 export default apiClient;
 
