@@ -14,7 +14,12 @@ REGLAS DE DESARROLLO (ESTRICTAS):
 
 from datetime import date, datetime
 from typing import List, Optional, Literal
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status, Depends
+
+try:
+    from backend.core.security import get_optional_current_user, ROLES_PERSONAL
+except ImportError:
+    from core.security import get_optional_current_user, ROLES_PERSONAL
 from pydantic import BaseModel, EmailStr, Field, AliasChoices, ConfigDict, computed_field
 import pyodbc
 
@@ -500,11 +505,21 @@ def listar_pagos(
     id_socio: Optional[int] = Query(None, gt=0, description="Filtrar por ID de socio"),
     medio_pago: Optional[Literal["Transferencia", "Tarjeta", "Efectivo"]] = Query(None, description="Filtrar por medio de pago"),
     limite: int = Query(100, ge=1, le=500, description="Cantidad máxima de registros"),
-    offset: int = Query(0, ge=0, description="Desplazamiento para paginación")
+    offset: int = Query(0, ge=0, description="Desplazamiento para paginación"),
+    current_user: Optional[dict] = Depends(get_optional_current_user),
 ):
     """
     Lista los pagos registrados en la tabla [Pago] junto con la información del socio y plan asociado.
+    Si viene token de Socio, se filtra automáticamente por su id_socio.
     """
+    if current_user:
+        rol = str(current_user.get("rol", "")).strip().lower()
+        token_socio = current_user.get("id_socio")
+        if rol == "socio" and token_socio:
+            id_socio = token_socio
+        elif token_socio and rol not in ROLES_PERSONAL:
+            id_socio = token_socio
+
     pagos = []
     where_clauses = []
     params = []
@@ -988,14 +1003,27 @@ def reporte_ingresos_por_sede(
 # =========================================================================
 
 @router.get("/socio/{id_socio}/estado-cuenta", response_model=EstadoCuentaSocioResponse, summary="Estado de cuenta financiero completo de un socio")
-def obtener_estado_cuenta_socio(id_socio: int):
+def obtener_estado_cuenta_socio(
+    id_socio: int,
+    current_user: Optional[dict] = Depends(get_optional_current_user),
+):
     """
     Retorna el estado de cuenta integral de un socio:
     - Información personal y sede de registro.
     - Contratos emitidos con monto pactado, monto abonado y saldo individual.
     - Historial detallado de recibos/pagos efectuados.
     - Saldo pendiente total y estado financiero ('Al día' o 'Con saldo pendiente').
+    Si viene token Bearer de un Socio, se usa automáticamente su id_socio.
     """
+    target_socio = id_socio
+    if current_user:
+        rol = str(current_user.get("rol", "")).strip().lower()
+        token_socio = current_user.get("id_socio")
+        if rol == "socio" and token_socio:
+            target_socio = token_socio
+        elif token_socio and rol not in ROLES_PERSONAL:
+            target_socio = token_socio
+
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
@@ -1007,7 +1035,7 @@ def obtener_estado_cuenta_socio(id_socio: int):
                     INNER JOIN Sede sed ON s.id_sede_registro_socio = sed.id_sede
                     WHERE s.id_socio = ?
                     """,
-                    (id_socio,)
+                    (target_socio,)
                 )
                 socio_row = cursor.fetchone()
                 if not socio_row:
@@ -1048,7 +1076,7 @@ def obtener_estado_cuenta_socio(id_socio: int):
                         pm.duracion_meses_planmembresia
                     ORDER BY c.fecha_inicio_contrato DESC, c.id_contrato DESC
                     """,
-                    (id_socio,)
+                    (target_socio,)
                 )
                 contratos_cols = [col[0] for col in cursor.description]
                 contratos_list = []
@@ -1097,7 +1125,7 @@ def obtener_estado_cuenta_socio(id_socio: int):
                     WHERE c.id_socio_contrato = ?
                     ORDER BY p.fecha_pago DESC, p.id_pago DESC
                     """,
-                    (id_socio,)
+                    (target_socio,)
                 )
                 pagos_cols = [col[0] for col in cursor.description]
                 pagos_list = []
@@ -1112,7 +1140,7 @@ def obtener_estado_cuenta_socio(id_socio: int):
                 estado_financiero = "Al día" if saldo_pendiente_global <= 0 else "Con saldo pendiente"
 
                 return {
-                    "id_socio": id_socio,
+                    "id_socio": target_socio,
                     "rut_socio": rut_socio,
                     "nombre_completo_socio": nombre_socio,
                     "correo_socio": correo_socio,
@@ -1147,12 +1175,22 @@ def listar_contratos(
     id_plan: Optional[int] = Query(None, gt=0, description="Filtrar por ID de plan de membresía"),
     estado: Optional[Literal["Vigente", "Vencido", "Cancelado"]] = Query(None, description="Filtrar por estado del contrato"),
     limite: int = Query(100, ge=1, le=500, description="Cantidad máxima de registros"),
-    offset: int = Query(0, ge=0, description="Desplazamiento para paginación")
+    offset: int = Query(0, ge=0, description="Desplazamiento para paginación"),
+    current_user: Optional[dict] = Depends(get_optional_current_user),
 ):
     """
     Lista los contratos registrados en [Contrato] incluyendo datos del socio, plan,
     monto total abonado y saldo pendiente.
+    Si viene token de Socio, se filtra automáticamente por su id_socio.
     """
+    if current_user:
+        rol = str(current_user.get("rol", "")).strip().lower()
+        token_socio = current_user.get("id_socio")
+        if rol == "socio" and token_socio:
+            id_socio = token_socio
+        elif token_socio and rol not in ROLES_PERSONAL:
+            id_socio = token_socio
+
     contratos = []
     where_clauses = []
     params = []
@@ -1230,10 +1268,21 @@ def listar_contratos(
 
 @router.post("", response_model=ContratoResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", response_model=ContratoResponse, status_code=status.HTTP_201_CREATED, summary="Crear nuevo contrato de membresía")
-def crear_contrato(contrato: ContratoCreate):
+def crear_contrato(
+    contrato: ContratoCreate,
+    current_user: Optional[dict] = Depends(get_optional_current_user),
+):
     """
     Registra un contrato para un socio validando la existencia del socio, del plan y coherencia de fechas.
+    Si viene token de Socio, se usa su id_socio automáticamente.
     """
+    if current_user:
+        rol = str(current_user.get("rol", "")).strip().lower()
+        token_socio = current_user.get("id_socio")
+        if rol == "socio" and token_socio:
+            contrato.id_socio_contrato = token_socio
+        elif token_socio and rol not in ROLES_PERSONAL:
+            contrato.id_socio_contrato = token_socio
     if contrato.fecha_termino_contrato < contrato.fecha_inicio_contrato:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1301,14 +1350,25 @@ def crear_contrato(contrato: ContratoCreate):
 
 
 @router.post("/emitir-con-pago", status_code=status.HTTP_201_CREATED, summary="Emitir contrato y registrar pago inicial de forma atómica (SP)")
-def emitir_contrato_con_pago(payload: EmisionContratoConPagoRequest):
+def emitir_contrato_con_pago(
+    payload: EmisionContratoConPagoRequest,
+    current_user: Optional[dict] = Depends(get_optional_current_user),
+):
     """
     Operación transaccional de Caja mediante el procedimiento almacenado [dbo].[sp_Emitir_Contrato_Con_Pago]:
     1. Valida socio (existencia y estado activo) y plan de membresía.
     2. Calcula automáticamente fecha_termino_contrato según duracion_meses_planmembresia del plan.
     3. Inserta el nuevo Contrato en estado 'Vigente'.
     4. Inserta el Pago en la misma transacción atómica (si falla el pago, se revierte el contrato).
+    Si viene token de Socio, se utiliza su id_socio automáticamente. Si opera Personal, se respeta el payload.
     """
+    if current_user:
+        rol = str(current_user.get("rol", "")).strip().lower()
+        token_socio = current_user.get("id_socio")
+        if rol == "socio" and token_socio:
+            payload.id_socio_contrato = token_socio
+        elif token_socio and rol not in ROLES_PERSONAL:
+            payload.id_socio_contrato = token_socio
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:

@@ -16,6 +16,7 @@ import pyodbc
 
 try:
     from backend.db.connection import get_db_connection
+    from backend.core.security import create_access_token, get_optional_current_user
     from backend.schemas import (
         SocioCreate,
         SocioResponse,
@@ -30,6 +31,7 @@ try:
     )
 except ImportError:
     from db.connection import get_db_connection
+    from core.security import create_access_token, get_optional_current_user
     from schemas import (
         SocioCreate,
         SocioResponse,
@@ -545,6 +547,19 @@ def autenticar_usuario(credentials: LoginRequest):
                         detail="La cuenta de este socio se encuentra inactiva. Comuníquese con administración."
                     )
 
+                # Generar JWT para el socio autenticado
+                token_payload = {
+                    "sub": str(id_usuario),
+                    "id_usuario": id_usuario,
+                    "username": username,
+                    "rol": rol,
+                    "id_socio": id_socio,
+                    "id_instructor": None,
+                    "id_personal": None,
+                    "nombre_completo": nombre_socio or username,
+                }
+                token = create_access_token(token_payload)
+
                 return {
                     "autenticado": True,
                     "mensaje": "Autenticación exitosa.",
@@ -553,7 +568,9 @@ def autenticar_usuario(credentials: LoginRequest):
                     "rol": rol,
                     "id_socio": id_socio,
                     "nombre_completo_socio": nombre_socio,
-                    "activo_socio": bool(activo_socio) if activo_socio is not None else True
+                    "activo_socio": bool(activo_socio) if activo_socio is not None else True,
+                    "access_token": token,
+                    "token_type": "bearer"
                 }
     except HTTPException:
         raise

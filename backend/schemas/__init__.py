@@ -171,6 +171,8 @@ class LoginResponse(BaseModel):
     id_socio: Optional[int] = None
     nombre_completo_socio: Optional[str] = None
     activo_socio: Optional[bool] = None
+    access_token: Optional[str] = None
+    token_type: Optional[str] = "bearer"
 
     @computed_field
     def username(self) -> Optional[str]:

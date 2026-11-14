@@ -30,7 +30,12 @@ import logging
 from datetime import date
 from typing import List, Optional
 import pyodbc
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status, Depends
+
+try:
+    from backend.core.security import get_optional_current_user, ROLES_PERSONAL
+except ImportError:
+    from core.security import get_optional_current_user, ROLES_PERSONAL
 
 # ── Importaciones con fallback para ejecución directa vs. desde uvicorn ──────
 try:
@@ -507,22 +512,35 @@ def listar_sesiones_disponibles(
         "Devuelve el id_inscripcion generado."
     ),
 )
-def inscribir_socio(body: InscribirSocioRequest):
+def inscribir_socio(
+    body: InscribirSocioRequest,
+    current_user: Optional[dict] = Depends(get_optional_current_user),
+):
     """
     EXEC sp_Inscribir_Socio @id_socio = ?, @id_sesion = ?
 
     El SP usa UPDLOCK + HOLDLOCK para evitar overbooking concurrente.
     Los errores 50010/50020/50030 se traducen a 404/409/400 respectivamente.
 
-    TODO: cuando exista autenticación, extraer id_socio_inscripcion del token JWT.
+    Si viene token Bearer de un Socio, se utiliza automáticamente su id_socio.
+    Si opera un usuario con rol Personal/Administrador o no hay token, se respeta id_socio_inscripcion.
     """
+    id_socio_efectivo = body.id_socio_inscripcion
+    if current_user:
+        rol = str(current_user.get("rol", "")).strip().lower()
+        token_socio = current_user.get("id_socio")
+        if rol == "socio" and token_socio:
+            id_socio_efectivo = token_socio
+        elif token_socio and rol not in ROLES_PERSONAL:
+            id_socio_efectivo = token_socio
+
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 # Llamada parametrizada al SP; nunca se interpolan datos del body
                 cursor.execute(
                     "EXEC sp_Inscribir_Socio ?, ?",
-                    (body.id_socio_inscripcion, body.id_sesion_inscripcion),
+                    (id_socio_efectivo, body.id_sesion_inscripcion),
                 )
                 # El SP devuelve un SELECT con id_inscripcion
                 row = cursor.fetchone()
@@ -552,21 +570,33 @@ def inscribir_socio(body: InscribirSocioRequest):
         "Cambia estado_inscripcion a 'Cancelado'."
     ),
 )
-def cancelar_inscripcion(id_inscripcion: int, body: CancelarInscripcionRequest):
+def cancelar_inscripcion(
+    id_inscripcion: int,
+    body: CancelarInscripcionRequest,
+    current_user: Optional[dict] = Depends(get_optional_current_user),
+):
     """
     EXEC sp_Cancelar_Inscripcion @id_inscripcion = ?, @id_socio = ?
 
     id_inscripcion viene de la URL (path param).
-    id_socio viene del body.
-
-    TODO: cuando exista autenticación, extraer id_socio del token JWT.
+    Si viene token de Socio, se extrae id_socio automáticamente del token JWT.
+    Si opera un usuario con rol Personal/Administrador o no hay token, se respeta body.id_socio.
     """
+    id_socio_efectivo = body.id_socio
+    if current_user:
+        rol = str(current_user.get("rol", "")).strip().lower()
+        token_socio = current_user.get("id_socio")
+        if rol == "socio" and token_socio:
+            id_socio_efectivo = token_socio
+        elif token_socio and rol not in ROLES_PERSONAL:
+            id_socio_efectivo = token_socio
+
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
                     "EXEC sp_Cancelar_Inscripcion ?, ?",
-                    (id_inscripcion, body.id_socio),
+                    (id_inscripcion, id_socio_efectivo),
                 )
                 row = cursor.fetchone()
                 if row is None:
@@ -931,20 +961,28 @@ def listar_sesiones_instructor(
         default=None,
         description="Fecha máxima del filtro (YYYY-MM-DD).",
     ),
+    current_user: Optional[dict] = Depends(get_optional_current_user),
 ):
     """
     EXEC sp_Sesiones_Por_Instructor @id_instructor = ?, @desde = ?, @hasta = ?
 
-    Llama al procedimiento parametrizado con pyodbc.
-    Captura y traduce códigos de error THROW (50010 -> 404, 50030 -> 400).
+    Si viene token Bearer de un Instructor, se usa automáticamente su id_instructor.
+    Si opera un usuario con rol Personal/Administrador o sin token, se respeta id_instructor de la URL.
     """
+    target_instructor = id_instructor
+    if current_user:
+        rol = str(current_user.get("rol", "")).strip().lower()
+        token_instructor = current_user.get("id_instructor")
+        if rol == "instructor" and token_instructor:
+            target_instructor = token_instructor
+
     resultado = []
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
                     "EXEC sp_Sesiones_Por_Instructor ?, ?, ?",
-                    (id_instructor, desde, hasta),
+                    (target_instructor, desde, hasta),
                 )
                 for row in cursor.fetchall():
                     resultado.append(_row_to_dict(cursor, row))
@@ -1152,17 +1190,30 @@ def eliminar_equipamiento(id_equipamiento: int):
         "Inscripcion, Sesion, Clase y Sede, incluyendo el estado_inscripcion."
     ),
 )
-def listar_inscripciones_socio(id_socio: int):
+def listar_inscripciones_socio(
+    id_socio: int,
+    current_user: Optional[dict] = Depends(get_optional_current_user),
+):
     """
     JOIN Inscripcion x Sesion x Clase x Sede filtrado por id_socio_inscripcion.
     Valida previamente que el socio exista (404 si no existe).
+    Si viene token Bearer de un Socio, se usa automáticamente su id_socio.
     """
+    target_socio = id_socio
+    if current_user:
+        rol = str(current_user.get("rol", "")).strip().lower()
+        token_socio = current_user.get("id_socio")
+        if rol == "socio" and token_socio:
+            target_socio = token_socio
+        elif token_socio and rol not in ROLES_PERSONAL:
+            target_socio = token_socio
+
     resultado = []
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 # Validar existencia del socio
-                cursor.execute("SELECT id_socio FROM Socio WHERE id_socio = ?", (id_socio,))
+                cursor.execute("SELECT id_socio FROM Socio WHERE id_socio = ?", (target_socio,))
                 if cursor.fetchone() is None:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
@@ -1194,7 +1245,7 @@ def listar_inscripciones_socio(id_socio: int):
                     WHERE  i.id_socio_inscripcion = ?
                     ORDER  BY se.fecha_sesion DESC, se.hora_sesion DESC
                     """,
-                    (id_socio,),
+                    (target_socio,),
                 )
                 for row in cursor.fetchall():
                     resultado.append(_row_to_dict(cursor, row))
