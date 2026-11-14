@@ -4,12 +4,17 @@ import React, { useEffect, useState, useCallback, useMemo, Suspense } from "reac
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
+  apiClient,
   clasesApi,
   ClaseResponse,
   SedeSimpleResponse,
   SesionDisponibleResponse,
   InscripcionSocioDetalleResponse,
 } from "@/services/apiClient";
+import {
+  getStoredSocioActual,
+  SOCIOS_PRUEBA,
+} from "@/components/clases/socioActual";
 import {
   Calendar,
   Clock,
@@ -61,14 +66,62 @@ function PortalSocioContent() {
     return `${year}-${month}-${day}`;
   };
 
+  // Determinar la sede inicial asociada al socio autenticado
+  const getSedeInicialSocio = (): string => {
+    if (querySede) return querySede;
+    if ((user as any)?.id_sede) return String((user as any).id_sede);
+    if ((user as any)?.id_sede_socio) return String((user as any).id_sede_socio);
+    const socioLocal = getStoredSocioActual();
+    if (
+      socioLocal &&
+      socioLocal.id_socio === socioId &&
+      socioLocal.id_sede_registro_socio
+    ) {
+      return String(socioLocal.id_sede_registro_socio);
+    }
+    const matchPrueba = SOCIOS_PRUEBA.find((s) => s.id_socio === socioId);
+    if (matchPrueba?.id_sede_registro_socio) {
+      return String(matchPrueba.id_sede_registro_socio);
+    }
+    return "";
+  };
+
+  const sedeInicial = getSedeInicialSocio();
   const [filtroFecha, setFiltroFecha] = useState<string>(getFechaHoy());
-  const [filtroSede, setFiltroSede] = useState<string>(querySede || "");
+  const [filtroSede, setFiltroSede] = useState<string>(sedeInicial);
   const [filtroClase, setFiltroClase] = useState<string>(queryClase || "");
+  const [sedeInicialResuelta, setSedeInicialResuelta] = useState<boolean>(
+    Boolean(sedeInicial)
+  );
+
+  // Resolver sede desde el backend si no estaba en caché local y no vino en la URL
+  useEffect(() => {
+    if (querySede || sedeInicialResuelta || !socioId) return;
+    let cancelado = false;
+    apiClient.socios
+      .getById(socioId)
+      .then((ficha) => {
+        if (cancelado) return;
+        const idSede =
+          ficha.id_sede_registro_socio ??
+          (ficha as any).id_sede_registro ??
+          (ficha as any).id_sede;
+        if (idSede) {
+          setFiltroSede(String(idSede));
+          setSedeInicialResuelta(true);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelado = true;
+    };
+  }, [socioId, querySede, sedeInicialResuelta]);
 
   // Si cambian los searchParams en la URL, reflejarlos
   useEffect(() => {
     if (querySede) {
       setFiltroSede(querySede);
+      setSedeInicialResuelta(true);
       setTabPrincipal("sesiones-disponibles");
     }
     if (queryClase) {
@@ -228,7 +281,7 @@ function PortalSocioContent() {
     <div className="space-y-8 animate-fade-in-scale">
       {/* Toast Flotante */}
       {feedback && (
-        <div className="fixed top-6 right-6 z-50 max-w-md animate-slide-down shadow-xl">
+        <div className="fixed bottom-5 right-5 z-50 max-w-md animate-fade-in-scale shadow-xl">
           <div
             className={`p-4 rounded-[5px] border flex items-start gap-3 ${
               feedback.type === "success"
@@ -540,7 +593,10 @@ function PortalSocioContent() {
                 <label className="block text-[#7a7b7b] mb-1 font-medium">Sede:</label>
                 <select
                   value={filtroSede}
-                  onChange={(e) => setFiltroSede(e.target.value)}
+                  onChange={(e) => {
+                    setFiltroSede(e.target.value);
+                    setSedeInicialResuelta(true);
+                  }}
                   className="w-full p-2.5 bg-[#f8f9f8] border border-[#e5e5e5] rounded-[5px] text-[#0a0a0a] focus:bg-white focus:outline-none focus:border-[#ff6105]"
                 >
                   <option value="">Todas las Sedes</option>

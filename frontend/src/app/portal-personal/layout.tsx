@@ -249,18 +249,18 @@ export default function PortalPersonalLayout({
         ========================================================================= */}
         <aside className="hidden md:flex md:w-64 lg:w-72 h-screen sticky top-0 shrink-0 flex-col justify-between bg-white border-r border-[#e5e5e5] p-5 lg:p-6 overflow-y-auto">
           <div className="space-y-6">
-            {/* Cabecera del Sidebar */}
-            <div className="space-y-2 pb-4 border-b border-[#e5e5e5]">
+            {/* Cabecera del Sidebar (Centrado Horizontal) */}
+            <div className="flex flex-col items-center justify-center text-center space-y-2 pb-4 border-b border-[#e5e5e5]">
               <Link
                 href="/"
-                className="group flex items-center gap-2 text-[22px] tracking-[-0.03em] font-medium text-[#0a0a0a]"
+                className="group flex items-center justify-center gap-2 text-[22px] tracking-[-0.03em] font-medium text-[#0a0a0a]"
                 title="Ir a la página de inicio"
               >
                 <span>gimnasio</span>
                 <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#ff6105] transition-transform duration-200 group-hover:scale-125" />
                 <span className="font-light text-[#7a7b7b]">db</span>
               </Link>
-              <span className="inline-block text-[11px] font-medium uppercase tracking-[0.06em] text-[#ff6105] bg-[#ffdfcd]/50 px-2.5 py-0.5 rounded-full border border-[#ff6105]/20">
+              <span className="inline-block text-[11px] font-medium uppercase tracking-[0.06em] text-[#ff6105] bg-[#ffdfcd]/50 px-3 py-0.5 rounded-full border border-[#ff6105]/20">
                 Portal Administrativo
               </span>
             </div>
@@ -346,7 +346,7 @@ export default function PortalPersonalLayout({
             ÁREA PRINCIPAL AMPLIA A LA DERECHA
         ========================================================================= */}
         <main className="flex-1 min-w-0 flex flex-col">
-          <div className="flex-1 max-w-[1360px] w-full mx-auto p-4 sm:p-6 lg:p-8">
+          <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 xl:p-10">
             <div key={pathname} className="animate-fade-in-scale">
               {children}
             </div>

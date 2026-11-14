@@ -42,6 +42,33 @@ interface ToastFeedback {
 }
 
 /**
+ * Extrae el apellido o segmento clave para ordenamiento alfabético.
+ */
+function extraerApellido(nombreCompleto?: string | null): string {
+  if (!nombreCompleto) return "";
+  const partes = nombreCompleto.trim().split(/\s+/);
+  if (partes.length <= 1) return partes[0] || "";
+  return partes.slice(1).join(" ");
+}
+
+function compararAlumnosPorApellido(
+  a: InscritoEnSesionResponse,
+  b: InscritoEnSesionResponse
+): number {
+  const apellidoA = extraerApellido(
+    (a as any).apellido_socio || a.nombre_completo_socio
+  ).toLowerCase();
+  const apellidoB = extraerApellido(
+    (b as any).apellido_socio || b.nombre_completo_socio
+  ).toLowerCase();
+  const comp = apellidoA.localeCompare(apellidoB, "es", { sensitivity: "base" });
+  if (comp !== 0) return comp;
+  return a.nombre_completo_socio.localeCompare(b.nombre_completo_socio, "es", {
+    sensitivity: "base",
+  });
+}
+
+/**
  * Formatea una cadena de hora (ej. "20:30:00") a "20:30 hrs" sin segundos.
  */
 function formatearHora(hora?: string | null): string {
@@ -175,16 +202,25 @@ export default function InstructorPage() {
     }
   };
 
-  // 3. Cargar socios inscritos de la sesión seleccionada
+  // 3. Cargar socios inscritos de la sesión seleccionada (excluyendo canceladas y ordenando por apellido)
   const cargarInscritos = useCallback(async (idSesion: number) => {
     setLoadingInscritos(true);
     setErrorInscritos(null);
     try {
       const data = await clasesApi.getInscritosSesion(idSesion);
-      setInscritos(data);
+      const list = Array.isArray(data) ? data : [];
+      // Filtrar inscripciones canceladas
+      const activas = list.filter((item) => {
+        const est = (item.estado_inscripcion || "").trim().toLowerCase();
+        return est !== "cancelada" && est !== "cancelado";
+      });
+      // Ordenar por apellido alfabéticamente
+      activas.sort(compararAlumnosPorApellido);
+
+      setInscritos(activas);
 
       const drafts: Record<number, AsistenciaDraft> = {};
-      data.forEach((item) => {
+      activas.forEach((item) => {
         drafts[item.id_inscripcion] = {
           asistio: item.asistio_inscripcion ?? true,
           observaciones: item.observaciones_inscripcion ?? "",
@@ -624,31 +660,6 @@ export default function InstructorPage() {
 
             {/* Modal Body */}
             <div className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
-              {toastFeedback && (
-                <div
-                  className={`sticky top-0 z-30 p-3.5 rounded-[5px] border text-xs sm:text-sm font-medium flex items-center justify-between gap-3 transition-all animate-fade-in-scale shadow-lg ${
-                    toastFeedback.type === "success"
-                      ? "bg-[#ffdfcd] border-[#ffa069]/60 text-[#0a0a0a]"
-                      : "bg-[#202120] border-[#ef4444] text-[#ffffff] ring-1 ring-[#ef4444]/40 shadow-red-950/30"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    {toastFeedback.type === "success" ? (
-                      <CheckCircle2 className="w-4 h-4 text-[#ff6105] shrink-0" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-[#ef4444] shrink-0" />
-                    )}
-                    <span>{toastFeedback.message}</span>
-                  </div>
-                  <button
-                    onClick={() => setToastFeedback(null)}
-                    className="text-[#a2a3a2] hover:text-white p-1 rounded-full hover:bg-white/10"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-
               {loadingInscritos ? (
                 <div className="py-16 text-center text-[#7a7b7b] text-sm">
                   <span className="animate-pulse">

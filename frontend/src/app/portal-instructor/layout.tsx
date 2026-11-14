@@ -63,7 +63,7 @@ export default function PortalInstructorLayout({
               : "bg-white"
             }`}
         >
-          <div className="max-w-[1200px] mx-auto px-4 sm:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-8">
             <div className="flex items-center justify-between h-16 gap-3">
               {/* Brand & Badge */}
               <div className="flex items-center gap-3 sm:gap-4">
@@ -120,10 +120,10 @@ export default function PortalInstructorLayout({
               </div>
             </div>
 
-            {/* Pestañas de Navegación del Portal Instructor */}
+            {/* Pestañas de Navegación del Portal Instructor (Centradas) */}
             <nav
               aria-label="Navegación del portal instructor"
-              className="flex items-center gap-2 overflow-x-auto py-2.5 scrollbar-none border-t border-[#e5e5e5]/70"
+              className="flex items-center justify-center gap-2 overflow-x-auto py-2.5 scrollbar-none border-t border-[#e5e5e5]/70"
             >
               {TABS.map((tab) => {
                 const Icon = tab.icon;
@@ -158,7 +158,7 @@ export default function PortalInstructorLayout({
         </header>
 
         {/* Contenido Dinámico */}
-        <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-8 py-8 sm:py-10">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-8 sm:py-10">
           <div key={pathname} className="animate-fade-in-scale">
             {children}
           </div>

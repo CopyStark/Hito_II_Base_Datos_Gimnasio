@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import apiClient, {
   PersonalItem,
@@ -56,9 +56,11 @@ export default function PersonalYFinanzasPage() {
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
 
-  // Filtros de Vista de Ingresos
-  const [filtroSedeIngreso, setFiltroSedeIngreso] = useState("");
-  const [filtroAnio, setFiltroAnio] = useState("");
+  // Filtros interactivos de Vista de Ingresos
+  const [filtroSedeSelect, setFiltroSedeSelect] = useState("");
+  const [filtroAnioSelect, setFiltroAnioSelect] = useState("");
+  const [filtroMesSelect, setFiltroMesSelect] = useState("");
+  const [busquedaIngreso, setBusquedaIngreso] = useState("");
 
   // Filtros de Personal
   const [filtroCargo, setFiltroCargo] = useState("");
@@ -103,12 +105,9 @@ export default function PersonalYFinanzasPage() {
         setIdSedePersonal(String(sedesData[0].id_sede));
       }
 
-      // 1. Consultar Vista vw_Reporte_Ingresos_Por_Sede
+      // 1. Consultar Vista vw_Reporte_Ingresos_Por_Sede (cargar todo para filtrado reactivo)
       try {
-        const ingresosData = await apiClient.contratos.getReporteIngresos({
-          nombre_sede: filtroSedeIngreso || undefined,
-          anio: filtroAnio ? Number(filtroAnio) : undefined,
-        });
+        const ingresosData = await apiClient.contratos.getReporteIngresos({});
         setIngresos(ingresosData);
       } catch {
         // Respaldo calculando exactamente la vista vw_Reporte_Ingresos_Por_Sede desde [Contrato], [Socio] y [Sede] en SQL Server
@@ -131,16 +130,6 @@ export default function PersonalYFinanzasPage() {
           const [anioStr, mesStr] = fechaStr.split("-");
           const anio = Number(anioStr) || 2026;
           const mes = Number(mesStr) || 10;
-
-          if (
-            filtroSedeIngreso &&
-            !nombreSede.toLowerCase().includes(filtroSedeIngreso.toLowerCase())
-          ) {
-            return;
-          }
-          if (filtroAnio && anio !== Number(filtroAnio)) {
-            return;
-          }
 
           const key = `${nombreSede}|${anio}|${mes}`;
           const actual = agrupado.get(key) || {
@@ -223,7 +212,7 @@ export default function PersonalYFinanzasPage() {
 
   useEffect(() => {
     cargarTodo();
-  }, [filtroSedeIngreso, filtroAnio, filtroCargo, filtroSedePersonal]);
+  }, [filtroCargo, filtroSedePersonal]);
 
   const abrirNuevoPersonal = () => {
     setEditingId(null);
@@ -303,14 +292,63 @@ export default function PersonalYFinanzasPage() {
     }
   };
 
-  const totalIngresosGlobal = ingresos.reduce(
-    (acc, item) => acc + Number(item.total_ingresos ?? 0),
-    0
-  );
-  const maxIngresoItem = Math.max(
-    ...ingresos.map((i) => Number(i.total_ingresos ?? 0)),
-    1
-  );
+  // Lista única de sedes disponibles para el filtro
+  const sedesIngresos = useMemo(() => {
+    const set = new Set<string>();
+    ingresos.forEach((i) => {
+      if (i.nombre_sede) set.add(i.nombre_sede);
+    });
+    sedes.forEach((s) => {
+      if (s.nombre_sede) set.add(s.nombre_sede);
+    });
+    return Array.from(set).sort();
+  }, [ingresos, sedes]);
+
+  // Lista única de años para el filtro
+  const aniosIngresos = useMemo(() => {
+    const set = new Set<number>();
+    ingresos.forEach((i) => {
+      if (i.anio_pago) set.add(i.anio_pago);
+    });
+    if (set.size === 0) set.add(2026);
+    return Array.from(set).sort((a, b) => b - a);
+  }, [ingresos]);
+
+  // Filtrado reactivo de ingresos por Sede, Año, Mes y Búsqueda de texto
+  const ingresosFiltrados = useMemo(() => {
+    return ingresos.filter((item) => {
+      if (filtroSedeSelect && item.nombre_sede !== filtroSedeSelect) return false;
+      if (filtroAnioSelect && String(item.anio_pago) !== filtroAnioSelect) return false;
+      if (filtroMesSelect && String(item.mes_pago) !== filtroMesSelect) return false;
+      if (busquedaIngreso) {
+        const q = busquedaIngreso.toLowerCase();
+        const mesNombre = MESES_NOMBRES[item.mes_pago]?.toLowerCase() || "";
+        const sedeNombre = item.nombre_sede?.toLowerCase() || "";
+        if (
+          !sedeNombre.includes(q) &&
+          !mesNombre.includes(q) &&
+          !String(item.anio_pago).includes(q)
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [ingresos, filtroSedeSelect, filtroAnioSelect, filtroMesSelect, busquedaIngreso]);
+
+  const totalIngresosGlobal = useMemo(() => {
+    return ingresosFiltrados.reduce(
+      (acc, item) => acc + Number(item.total_ingresos ?? 0),
+      0
+    );
+  }, [ingresosFiltrados]);
+
+  const maxIngresoItem = useMemo(() => {
+    return Math.max(
+      ...ingresosFiltrados.map((i) => Number(i.total_ingresos ?? 0)),
+      1
+    );
+  }, [ingresosFiltrados]);
 
   return (
     <div className="space-y-8">
@@ -393,36 +431,86 @@ export default function PersonalYFinanzasPage() {
             <h2 className="text-[22px] sm:text-[24px] font-light leading-[1.33] tracking-[-0.02em] text-[#0a0a0a] pt-1">
               Reporte Analítico de Ingresos por Sede y Período
             </h2>
+            <p className="text-[13px] text-[#7a7b7b]">
+              Filtrado reactivo por sucursal, año y mes fiscal con recalculo instantáneo de recaudación.
+            </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          {/* Single Peach Wash Featured Box */}
+          <div className="bg-[#ffdfcd] border border-[#ffa069]/50 rounded-[5px] px-5 py-3 text-left sm:text-right shrink-0">
+            <span className="text-[11px] font-medium text-[#292b2a] block">
+              Recaudación Filtrada ({ingresosFiltrados.length} {ingresosFiltrados.length === 1 ? "registro" : "registros"})
+            </span>
+            <span className="text-[22px] font-light tracking-[-0.02em] text-[#0a0a0a] font-mono">
+              ${totalIngresosGlobal.toLocaleString("es-CL")}
+            </span>
+          </div>
+        </div>
+
+        {/* Filtros Interactivos: Buscador + Sede + Año + Mes */}
+        <div className="bg-[#f8f9f8] border-b border-[#e5e5e5] p-4 sm:p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Buscador de texto */}
             <div className="relative">
-              <Search className="w-4 h-4 text-[#7a7b7b] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-[#7a7b7b] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Filtrar sede..."
-                value={filtroSedeIngreso}
-                onChange={(e) => setFiltroSedeIngreso(e.target.value)}
-                className="input-pill pl-10 pr-4 py-2 text-[13px] w-48 placeholder-[#a2a3a2]"
+                placeholder="Buscar sede o mes..."
+                value={busquedaIngreso}
+                onChange={(e) => setBusquedaIngreso(e.target.value)}
+                className="w-full bg-white border border-[#e5e5e5] rounded-full pl-9 pr-4 py-2 text-xs sm:text-sm text-[#0a0a0a] placeholder-[#a2a3a2] focus:outline-none focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] transition-colors"
               />
             </div>
 
-            <input
-              type="number"
-              placeholder="Año (ej: 2026)"
-              value={filtroAnio}
-              onChange={(e) => setFiltroAnio(e.target.value)}
-              className="input-pill px-4 py-2 text-[13px] w-36 placeholder-[#a2a3a2]"
-            />
+            {/* Selector Desplegable Sede */}
+            <div className="relative">
+              <select
+                value={filtroSedeSelect}
+                onChange={(e) => setFiltroSedeSelect(e.target.value)}
+                className="w-full appearance-none bg-white border border-[#e5e5e5] rounded-full pl-3.5 pr-9 py-2 text-xs sm:text-sm text-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] cursor-pointer transition-colors"
+              >
+                <option value="">Todas las sedes</option>
+                {sedesIngresos.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-[#7a7b7b] pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+            </div>
 
-            {/* Single Peach Wash Featured Box */}
-            <div className="bg-[#ffdfcd] border border-[#ffa069]/50 rounded-[5px] px-4 py-2 text-left sm:text-right">
-              <span className="text-[11px] font-medium text-[#292b2a] block">
-                Recaudación Total Consolidada
-              </span>
-              <span className="text-[20px] font-light tracking-[-0.02em] text-[#0a0a0a] font-mono">
-                ${totalIngresosGlobal.toLocaleString("es-CL")}
-              </span>
+            {/* Selector Desplegable Año */}
+            <div className="relative">
+              <select
+                value={filtroAnioSelect}
+                onChange={(e) => setFiltroAnioSelect(e.target.value)}
+                className="w-full appearance-none bg-white border border-[#e5e5e5] rounded-full pl-3.5 pr-9 py-2 text-xs sm:text-sm text-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] cursor-pointer transition-colors"
+              >
+                <option value="">Todos los años</option>
+                {aniosIngresos.map((a) => (
+                  <option key={a} value={String(a)}>
+                    Año {a}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-[#7a7b7b] pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+            </div>
+
+            {/* Selector Desplegable Mes */}
+            <div className="relative">
+              <select
+                value={filtroMesSelect}
+                onChange={(e) => setFiltroMesSelect(e.target.value)}
+                className="w-full appearance-none bg-white border border-[#e5e5e5] rounded-full pl-3.5 pr-9 py-2 text-xs sm:text-sm text-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] cursor-pointer transition-colors"
+              >
+                <option value="">Todos los meses</option>
+                {Object.entries(MESES_NOMBRES).map(([num, nombre]) => (
+                  <option key={num} value={num}>
+                    {nombre}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-[#7a7b7b] pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
             </div>
           </div>
         </div>
@@ -435,19 +523,19 @@ export default function PersonalYFinanzasPage() {
                 Calculando consolidado de ingresos por sede...
               </p>
             </div>
-          ) : ingresos.length === 0 ? (
+          ) : ingresosFiltrados.length === 0 ? (
             <div className="py-10 text-center space-y-2">
               <BarChart3 className="w-8 h-8 text-[#a2a3a2] mx-auto stroke-[1.5]" />
               <p className="text-[15px] font-medium text-[#0a0a0a]">
-                Sin registros de recaudación para este filtro
+                Sin registros de recaudación para los filtros seleccionados
               </p>
               <p className="text-[13px] text-[#7a7b7b]">
-                Prueba limpiando el nombre de sede o el año consultado.
+                Prueba restableciendo la sede, año o mes consultado.
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {ingresos.map((item, idx) => {
+              {ingresosFiltrados.map((item, idx) => {
                 const pct = Math.round((Number(item.total_ingresos) / maxIngresoItem) * 100);
                 return (
                   <div

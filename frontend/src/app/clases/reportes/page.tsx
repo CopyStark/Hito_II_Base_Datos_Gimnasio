@@ -11,6 +11,9 @@ import {
   Clock,
   Search,
   ChevronDown,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import {
   clasesApi,
@@ -44,6 +47,14 @@ export default function ReportesClasesPage() {
   const [filtroEstadoOcupacion, setFiltroEstadoOcupacion] = useState<
     "todas" | "llenas" | "disponibles"
   >("todas");
+  const [ordenOcupacion, setOrdenOcupacion] = useState<
+    | "fecha_desc"
+    | "fecha_asc"
+    | "ocupacion_desc"
+    | "ocupacion_asc"
+    | "cupos_desc"
+    | "cupos_asc"
+  >("fecha_desc");
 
   // Pestaña activa dentro de la vista de reportes
   const [vistaActiva, setVistaActiva] = useState<
@@ -94,9 +105,9 @@ export default function ReportesClasesPage() {
     return Array.from(setSedes).sort();
   }, [ocupacion]);
 
-  // Filtrado de sesiones de ocupación
+  // Filtrado y ordenamiento de sesiones de ocupación
   const ocupacionFiltrada = useMemo(() => {
-    return ocupacion.filter((item) => {
+    const filtradas = ocupacion.filter((item) => {
       if (filtroSede && item.nombre_sede !== filtroSede) return false;
       if (
         busquedaClase &&
@@ -115,7 +126,55 @@ export default function ReportesClasesPage() {
       }
       return true;
     });
-  }, [ocupacion, filtroSede, busquedaClase, filtroEstadoOcupacion]);
+
+    return filtradas.sort((a, b) => {
+      if (ordenOcupacion === "fecha_desc") {
+        const tA = new Date(`${a.fecha_sesion}T${a.hora_sesion || "00:00:00"}`).getTime();
+        const tB = new Date(`${b.fecha_sesion}T${b.hora_sesion || "00:00:00"}`).getTime();
+        return tB - tA;
+      }
+      if (ordenOcupacion === "fecha_asc") {
+        const tA = new Date(`${a.fecha_sesion}T${a.hora_sesion || "00:00:00"}`).getTime();
+        const tB = new Date(`${b.fecha_sesion}T${b.hora_sesion || "00:00:00"}`).getTime();
+        return tA - tB;
+      }
+      if (ordenOcupacion === "ocupacion_desc") {
+        const pctA =
+          a.cupo_maximo_sesion > 0
+            ? a.total_inscritos / a.cupo_maximo_sesion
+            : 0;
+        const pctB =
+          b.cupo_maximo_sesion > 0
+            ? b.total_inscritos / b.cupo_maximo_sesion
+            : 0;
+        return pctB - pctA;
+      }
+      if (ordenOcupacion === "ocupacion_asc") {
+        const pctA =
+          a.cupo_maximo_sesion > 0
+            ? a.total_inscritos / a.cupo_maximo_sesion
+            : 0;
+        const pctB =
+          b.cupo_maximo_sesion > 0
+            ? b.total_inscritos / b.cupo_maximo_sesion
+            : 0;
+        return pctA - pctB;
+      }
+      if (ordenOcupacion === "cupos_desc") {
+        return b.cupos_disponibles - a.cupos_disponibles;
+      }
+      if (ordenOcupacion === "cupos_asc") {
+        return a.cupos_disponibles - b.cupos_disponibles;
+      }
+      return 0;
+    });
+  }, [
+    ocupacion,
+    filtroSede,
+    busquedaClase,
+    filtroEstadoOcupacion,
+    ordenOcupacion,
+  ]);
 
   // KPIs Generales
   const metricas = useMemo(() => {
@@ -465,8 +524,8 @@ export default function ReportesClasesPage() {
             </span>
           </div>
 
-          {/* Filtros Interactivos */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 bg-[#f3f4f3]/70 p-4 rounded-[5px] border border-[#e5e5e5]">
+          {/* Filtros Interactivos & Ordenamiento */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 bg-[#f3f4f3]/70 p-4 rounded-[5px] border border-[#e5e5e5]">
             <div>
               <label className="block text-[11px] font-medium uppercase tracking-wider text-[#7a7b7b] mb-1.5">
                 Filtrar por Sede
@@ -520,6 +579,27 @@ export default function ReportesClasesPage() {
                 <ChevronDown className="w-3.5 h-3.5 text-[#7a7b7b] pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
               </div>
             </div>
+
+            <div>
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-[#7a7b7b] mb-1.5">
+                Ordenar por
+              </label>
+              <div className="relative">
+                <select
+                  value={ordenOcupacion}
+                  onChange={(e) => setOrdenOcupacion(e.target.value as any)}
+                  className="w-full appearance-none bg-white border border-[#e5e5e5] rounded-full pl-3.5 pr-9 py-2 text-xs sm:text-sm text-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] cursor-pointer transition-colors"
+                >
+                  <option value="fecha_desc">Fecha (Más reciente primero)</option>
+                  <option value="fecha_asc">Fecha (Más antigua primero)</option>
+                  <option value="ocupacion_desc">Ocupación (Mayor % primero)</option>
+                  <option value="ocupacion_asc">Ocupación (Menor % primero)</option>
+                  <option value="cupos_desc">Cupos libres (Mayor primero)</option>
+                  <option value="cupos_asc">Cupos libres (Menor primero)</option>
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-[#7a7b7b] pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+              </div>
+            </div>
           </div>
 
           {errorOcupacion && (
@@ -563,15 +643,77 @@ export default function ReportesClasesPage() {
                   <tr>
                     <th className="py-3.5 px-4 font-medium">Sesión / Clase</th>
                     <th className="py-3.5 px-4 font-medium">Sede</th>
-                    <th className="py-3.5 px-4 font-medium">Fecha &amp; Hora</th>
+                    <th className="py-3.5 px-4 font-medium">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOrdenOcupacion(
+                            ordenOcupacion === "fecha_desc"
+                              ? "fecha_asc"
+                              : "fecha_desc"
+                          )
+                        }
+                        className="inline-flex items-center gap-1.5 hover:text-[#0a0a0a] transition-colors cursor-pointer"
+                        title="Hacer clic para ordenar por fecha"
+                      >
+                        <span>Fecha &amp; Hora</span>
+                        {ordenOcupacion === "fecha_desc" ? (
+                          <ArrowDown className="w-3.5 h-3.5 text-[#ff6105]" />
+                        ) : ordenOcupacion === "fecha_asc" ? (
+                          <ArrowUp className="w-3.5 h-3.5 text-[#ff6105]" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 text-[#a2a3a2]" />
+                        )}
+                      </button>
+                    </th>
                     <th className="py-3.5 px-4 text-center font-medium">
                       Inscritos / Cupo
                     </th>
                     <th className="py-3.5 px-4 text-center font-medium">
-                      Disponibles
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOrdenOcupacion(
+                            ordenOcupacion === "cupos_desc"
+                              ? "cupos_asc"
+                              : "cupos_desc"
+                          )
+                        }
+                        className="inline-flex items-center gap-1.5 hover:text-[#0a0a0a] transition-colors cursor-pointer"
+                        title="Hacer clic para ordenar por cupos disponibles"
+                      >
+                        <span>Disponibles</span>
+                        {ordenOcupacion === "cupos_desc" ? (
+                          <ArrowDown className="w-3.5 h-3.5 text-[#ff6105]" />
+                        ) : ordenOcupacion === "cupos_asc" ? (
+                          <ArrowUp className="w-3.5 h-3.5 text-[#ff6105]" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 text-[#a2a3a2]" />
+                        )}
+                      </button>
                     </th>
                     <th className="py-3.5 px-4 font-medium">
-                      Tasa de Ocupación
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOrdenOcupacion(
+                            ordenOcupacion === "ocupacion_desc"
+                              ? "ocupacion_asc"
+                              : "ocupacion_desc"
+                          )
+                        }
+                        className="inline-flex items-center gap-1.5 hover:text-[#0a0a0a] transition-colors cursor-pointer"
+                        title="Hacer clic para ordenar por tasa de ocupación"
+                      >
+                        <span>Tasa de Ocupación</span>
+                        {ordenOcupacion === "ocupacion_desc" ? (
+                          <ArrowDown className="w-3.5 h-3.5 text-[#ff6105]" />
+                        ) : ordenOcupacion === "ocupacion_asc" ? (
+                          <ArrowUp className="w-3.5 h-3.5 text-[#ff6105]" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 text-[#a2a3a2]" />
+                        )}
+                      </button>
                     </th>
                   </tr>
                 </thead>
