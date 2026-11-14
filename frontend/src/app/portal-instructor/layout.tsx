@@ -58,11 +58,10 @@ export default function PortalInstructorLayout({
       <div className="min-h-screen bg-[#f8f9f8] text-[#0a0a0a] flex flex-col font-sans">
         {/* Header Superior */}
         <header
-          className={`sticky top-0 z-40 transition-all duration-300 border-b border-[#e5e5e5] ${
-            scrolled
+          className={`sticky top-0 z-40 transition-all duration-300 border-b border-[#e5e5e5] ${scrolled
               ? "bg-white/92 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.03)]"
               : "bg-white"
-          }`}
+            }`}
         >
           <div className="max-w-[1200px] mx-auto px-4 sm:px-8">
             <div className="flex items-center justify-between h-16 gap-3">
@@ -81,8 +80,9 @@ export default function PortalInstructorLayout({
 
                 <div className="flex items-center gap-2.5 sm:gap-3">
                   <Link
-                    href="/portal-instructor"
+                    href="/"
                     className="group flex items-center gap-2 text-[20px] sm:text-[22px] tracking-[-0.03em] font-medium shrink-0 text-[#0a0a0a]"
+                    title="Ir a la página de inicio"
                   >
                     <span>gimnasio</span>
                     <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#ff6105] transition-transform duration-200 group-hover:scale-125" />
@@ -135,18 +135,16 @@ export default function PortalInstructorLayout({
                   <Link
                     key={tab.href}
                     href={tab.href}
-                    className={`group relative flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-[13px] whitespace-nowrap transition-all duration-200 ${
-                      isActive
+                    className={`group relative flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-[13px] whitespace-nowrap transition-all duration-200 ${isActive
                         ? "bg-white text-[#0a0a0a] font-medium shadow-sm border border-[#e5e5e5]"
                         : "text-[#7a7b7b] font-normal border border-transparent hover:bg-[#f3f4f3] hover:text-[#0a0a0a]"
-                    }`}
+                      }`}
                   >
                     <Icon
-                      className={`w-3.5 h-3.5 transition-colors ${
-                        isActive
+                      className={`w-3.5 h-3.5 transition-colors ${isActive
                           ? "text-[#ff6105]"
                           : "text-[#7a7b7b] group-hover:text-[#0a0a0a]"
-                      }`}
+                        }`}
                     />
                     <span>{tab.name}</span>
                     {isActive && (

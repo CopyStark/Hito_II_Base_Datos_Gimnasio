@@ -87,8 +87,9 @@ export default function PortalSocioLayout({
 
                 <div className="flex items-center gap-2.5 sm:gap-3">
                   <Link
-                    href="/portal-socio"
+                    href="/"
                     className="group flex items-center gap-2 text-[20px] sm:text-[22px] tracking-[-0.03em] font-medium shrink-0 text-[#0a0a0a]"
+                    title="Ir a la página de inicio"
                   >
                     <span>gimnasio</span>
                     <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#ff6105] transition-transform duration-200 group-hover:scale-125" />

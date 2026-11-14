@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -12,20 +12,32 @@ import {
   Clock,
   MapPin,
   Users,
-  UserCheck,
   RefreshCw,
   Loader2,
   ArrowRight,
   ClipboardCheck,
+  History,
+  CalendarCheck,
 } from "lucide-react";
 
 export default function MisSesionesInstructorPage() {
   const { user } = useAuth();
   const instructorId = user?.id_instructor || 1;
 
+  const getFechaHoy = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const hoyStr = getFechaHoy();
+
   const [sesiones, setSesiones] = useState<SesionInstructorResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [desde, setDesde] = useState<string>("");
+  const [subTab, setSubTab] = useState<"proximas" | "historial">("proximas");
+  const [desde, setDesde] = useState<string>(hoyStr);
   const [hasta, setHasta] = useState<string>("");
 
   const cargarSesiones = useCallback(async () => {
@@ -50,6 +62,21 @@ export default function MisSesionesInstructorPage() {
   useEffect(() => {
     cargarSesiones();
   }, [cargarSesiones]);
+
+  // Clasificación: hoy en adelante vs pasadas
+  const sesionesProximas = useMemo(() => {
+    return sesiones
+      .filter((s) => String(s.fecha) >= hoyStr)
+      .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+  }, [sesiones, hoyStr]);
+
+  const sesionesHistorial = useMemo(() => {
+    return sesiones
+      .filter((s) => String(s.fecha) < hoyStr)
+      .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+  }, [sesiones, hoyStr]);
+
+  const sesionesAMostrar = subTab === "proximas" ? sesionesProximas : sesionesHistorial;
 
   return (
     <div className="space-y-8 animate-fade-in-scale">
@@ -80,10 +107,55 @@ export default function MisSesionesInstructorPage() {
         </button>
       </div>
 
-      {/* Filtro por Fechas */}
+      {/* Pestañas: Próximas vs Historial */}
+      <div className="flex border-b border-[#e5e5e5] gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setSubTab("proximas");
+            if (!desde && !hasta) {
+              setDesde(hoyStr);
+            }
+          }}
+          className={`flex items-center gap-2 px-5 py-3 text-xs sm:text-sm font-medium transition-all relative border-b-2 cursor-pointer ${
+            subTab === "proximas"
+              ? "border-[#ff6105] text-[#0a0a0a]"
+              : "border-transparent text-[#7a7b7b] hover:text-[#0a0a0a]"
+          }`}
+        >
+          <CalendarCheck className={`w-4 h-4 ${subTab === "proximas" ? "text-[#ff6105]" : "text-[#7a7b7b]"}`} />
+          <span>Próximas Sesiones</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#ffdfcd] text-[#ff6105]">
+            {sesionesProximas.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSubTab("historial");
+            if (desde === hoyStr) {
+              setDesde("");
+            }
+          }}
+          className={`flex items-center gap-2 px-5 py-3 text-xs sm:text-sm font-medium transition-all relative border-b-2 cursor-pointer ${
+            subTab === "historial"
+              ? "border-[#ff6105] text-[#0a0a0a]"
+              : "border-transparent text-[#7a7b7b] hover:text-[#0a0a0a]"
+          }`}
+        >
+          <History className={`w-4 h-4 ${subTab === "historial" ? "text-[#ff6105]" : "text-[#7a7b7b]"}`} />
+          <span>Historial Pasado</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#f3f4f3] text-[#7a7b7b]">
+            {sesionesHistorial.length}
+          </span>
+        </button>
+      </div>
+
+      {/* Filtro Opcional por Fechas */}
       <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-[#7a7b7b] font-medium">Filtrar por Fecha:</span>
+          <span className="text-[#7a7b7b] font-medium">Filtrar Rango:</span>
           <div className="flex items-center gap-1.5">
             <span className="text-[#7a7b7b]">Desde:</span>
             <input
@@ -116,7 +188,7 @@ export default function MisSesionesInstructorPage() {
         </div>
 
         <span className="text-[#7a7b7b]">
-          {sesiones.length} sesiones encontradas
+          {sesionesAMostrar.length} sesiones en esta vista
         </span>
       </div>
 
@@ -126,57 +198,78 @@ export default function MisSesionesInstructorPage() {
           <Loader2 className="w-6 h-6 animate-spin text-[#ff6105]" />
           <span className="text-xs text-[#7a7b7b]">Cargando sesiones asignadas...</span>
         </div>
-      ) : sesiones.length === 0 ? (
-        <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-10 text-center space-y-2">
-          <p className="text-sm text-[#7a7b7b]">
-            No tienes sesiones programadas en el periodo consultado.
+      ) : sesionesAMostrar.length === 0 ? (
+        <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-12 text-center space-y-2">
+          <p className="text-sm font-medium text-[#0a0a0a]">
+            {subTab === "proximas"
+              ? "No tienes sesiones programadas desde hoy en adelante."
+              : "No hay sesiones en tu historial pasado para los filtros actuales."}
+          </p>
+          <p className="text-xs text-[#7a7b7b]">
+            Puedes actualizar la agenda o revisar con el personal administrativo las asignaciones de sala.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sesiones.map((s) => (
-            <div
-              key={s.id_sesion}
-              className="bg-white border border-[#e5e5e5] hover:border-[#ff6105]/40 transition-all rounded-[5px] p-5 flex flex-col justify-between space-y-4"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5]">
-                    {s.nombre_sede}
-                  </span>
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#ffdfcd]/50 text-[#ff6105] border border-[#ff6105]/20">
-                    {s.total_inscritos} / {s.cupo_maximo_sesion} alumnos
-                  </span>
-                </div>
+          {sesionesAMostrar.map((s) => {
+            const esHoy = String(s.fecha) === hoyStr;
 
-                <h3 className="text-base font-medium text-[#0a0a0a]">
-                  {s.nombre_clase}
-                </h3>
-
-                <div className="space-y-1 text-xs text-[#7a7b7b]">
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-[#ff6105]" />
-                    <span>{String(s.fecha)}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-[#ff6105]" />
-                    <span>{s.hora}</span>
-                  </div>
-                </div>
-              </div>
-
-              <Link
-                href={`/portal-instructor/asistencia?sesion=${s.id_sesion}`}
-                className="w-full py-2 px-3 rounded-[40px] bg-[#0a0a0a] hover:bg-[#ff6105] text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+            return (
+              <div
+                key={s.id_sesion}
+                className={`bg-white border transition-all rounded-[5px] p-5 flex flex-col justify-between space-y-4 ${
+                  esHoy
+                    ? "border-[#ff6105] shadow-sm"
+                    : "border-[#e5e5e5] hover:border-[#ff6105]/40"
+                }`}
               >
-                <ClipboardCheck className="w-3.5 h-3.5" />
-                <span>Pasar Asistencia ({s.total_inscritos})</span>
-              </Link>
-            </div>
-          ))}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5]">
+                      {s.nombre_sede}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {esHoy && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#ff6105] text-white">
+                          HOY
+                        </span>
+                      )}
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#ffdfcd]/50 text-[#ff6105] border border-[#ff6105]/20">
+                        {s.total_inscritos} / {s.cupo_maximo_sesion} alumnos
+                      </span>
+                    </div>
+                  </div>
+
+                  <h3 className="text-base font-medium text-[#0a0a0a]">
+                    {s.nombre_clase}
+                  </h3>
+
+                  <div className="space-y-1 text-xs text-[#7a7b7b]">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-[#ff6105]" />
+                      <span className={esHoy ? "font-semibold text-[#0a0a0a]" : ""}>
+                        {String(s.fecha)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-[#ff6105]" />
+                      <span>{s.hora}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Link
+                  href={`/portal-instructor/asistencia?sesion=${s.id_sesion}`}
+                  className="w-full py-2.5 px-3 rounded-[40px] bg-[#0a0a0a] hover:bg-[#ff6105] text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <ClipboardCheck className="w-3.5 h-3.5" />
+                  <span>Pasar Asistencia ({s.total_inscritos})</span>
+                </Link>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
-

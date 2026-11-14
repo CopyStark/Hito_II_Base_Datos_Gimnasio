@@ -40,6 +40,14 @@ function AsistenciaContent() {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  // Auto-descartar Toast flotante
+  useEffect(() => {
+    if (feedback) {
+      const timer = setTimeout(() => setFeedback(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [feedback]);
+
   // Estados locales editables por alumno (asistió, observaciones)
   const [borradorAsistencia, setBorradorAsistencia] = useState<
     Record<number, { asistio: boolean; observaciones: string }>
@@ -130,9 +138,9 @@ function AsistenciaContent() {
 
   return (
     <div className="space-y-8 animate-fade-in-scale">
-      {/* Toast Feedback */}
+      {/* Toast Feedback Flotante Superior Derecho */}
       {feedback && (
-        <div className="fixed bottom-6 right-6 z-50 max-w-md animate-slide-up shadow-xl">
+        <div className="fixed top-6 right-6 z-50 max-w-md animate-slide-down shadow-2xl">
           <div
             className={`p-4 rounded-[5px] border flex items-start gap-3 ${
               feedback.type === "success"

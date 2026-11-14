@@ -2,12 +2,34 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
 import apiClient, {
   Socio,
   PlanMembresia,
   SesionOcupacion,
   Clase,
 } from "@/services/apiClient";
+
+const PLANES_DEFAULT: PlanMembresia[] = [
+  {
+    id_planmembresia: 1,
+    nombre_planmembresia: "Plan Mensual",
+    duracion_meses_planmembresia: 1,
+    precio_vigente_planmembresia: 29990,
+  },
+  {
+    id_planmembresia: 2,
+    nombre_planmembresia: "Plan Semestral",
+    duracion_meses_planmembresia: 6,
+    precio_vigente_planmembresia: 149990,
+  },
+  {
+    id_planmembresia: 3,
+    nombre_planmembresia: "Plan Anual",
+    duracion_meses_planmembresia: 12,
+    precio_vigente_planmembresia: 259990,
+  },
+];
 
 const HERO_SLIDES = [
   {
@@ -17,8 +39,8 @@ const HERO_SLIDES = [
       "Zonas de musculación, peso libre y cardio de última generación. Planes flexibles sin permanencia forzosa.",
     image:
       "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1600&q=85",
-    primaryCta: { label: "Inscríbete ya", href: "/contratos" },
-    secondaryCta: { label: "Buscar gimnasio", href: "/socios/sedes" },
+    primaryCta: { label: "Inscríbete ya", href: "#planes" },
+    secondaryCta: { label: "Buscar gimnasio", href: "#sedes" },
     labelShort: "01 · Infraestructura",
   },
   {
@@ -28,8 +50,8 @@ const HERO_SLIDES = [
       "HIIT Funcional, Indoor Cycling, Power & Fuerza y Mobility guiados por instructores certificados en cada sede.",
     image:
       "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1600&q=85",
-    primaryCta: { label: "Reservar clase", href: "/clases" },
-    secondaryCta: { label: "Ver planes", href: "/contratos" },
+    primaryCta: { label: "Reservar clase", href: "#clases" },
+    secondaryCta: { label: "Ver planes", href: "#planes" },
     labelShort: "02 · Clases Exclusivas",
   },
   {
@@ -39,8 +61,8 @@ const HERO_SLIDES = [
       "Valida tu acceso en torniquete con tu RUT, consulta tu estado de cuenta y gestiona tus pagos sin filas.",
     image:
       "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=1600&q=85",
-    primaryCta: { label: "Validar acceso", href: "/socios/torniquete" },
-    secondaryCta: { label: "Estado de cuenta", href: "/contratos/estado-cuenta" },
+    primaryCta: { label: "Validar acceso", href: "#tu-espacio" },
+    secondaryCta: { label: "Estado de cuenta", href: "#planes" },
     labelShort: "03 · Tu Espacio Digital",
   },
 ];
@@ -188,12 +210,52 @@ function useCountUp(target: number, durationMs = 1100) {
 }
 
 export default function Home() {
+  const { user, logout } = useAuth();
   const [healthStatus, setHealthStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isWakingUp, setIsWakingUp] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
+
+  // Scroll suave hacia secciones ancla de la portada
+  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const rolLower = user?.rol?.toLowerCase();
+  const isSocio = rolLower === "socio";
+  const isInstructor = rolLower === "instructor";
+  const isPersonal = rolLower === "personal" || rolLower === "administrador";
+  const isVisitor = !user;
+
+  const getPortalUrl = () => {
+    if (!user) return "/login";
+    const rol = user.rol?.toLowerCase();
+    if (rol === "socio") return "/portal-socio";
+    if (rol === "instructor") return "/portal-instructor";
+    return "/portal-personal";
+  };
+
+  const getTuEspacioUrl = () => {
+    if (!user) return "/login";
+    const rol = user.rol?.toLowerCase();
+    if (rol === "socio") return "/portal-socio";
+    if (rol === "instructor") return "/portal-instructor";
+    return "/portal-personal";
+  };
+
+  const getRecepcionUrl = () => {
+    if (!user) return "/login";
+    const rol = user.rol?.toLowerCase();
+    if (rol === "personal" || rol === "administrador") return "/portal-personal";
+    if (rol === "instructor") return "/portal-instructor";
+    return "/portal-socio/acceso";
+  };
 
   // Datos reales desde SQL Server (resumidos para la portada)
   const [socios, setSocios] = useState<Socio[]>([]);
@@ -316,8 +378,8 @@ export default function Home() {
   const animatedSocios = useCountUp(totalSociosActivos);
   const animatedSesiones = useCountUp(sesiones.length);
 
-  // Mostrar máximo 3 planes destacados en el inicio
-  const planesDestacados = planes.slice(0, 3);
+  // Mostrar planes reales de la base de datos (con fallback a los 3 planes base)
+  const planesDestacados = planes.length > 0 ? planes.slice(0, 3) : PLANES_DEFAULT;
 
   // Mostrar máximo 3 sedes en el inicio
   const sedesDestacadas =
@@ -388,15 +450,16 @@ export default function Home() {
               Matrícula costo $0 en todas nuestras sedes · Entrena desde hoy
             </span>
           </div>
-          <Link
-            href="/contratos"
-            className="group font-medium text-[#0a0a0a] hover:text-[#ff6105] transition-colors whitespace-nowrap shrink-0 ml-4 inline-flex items-center gap-1"
+          <a
+            href="#planes"
+            onClick={(e) => scrollToSection(e, "planes")}
+            className="group font-medium text-[#0a0a0a] hover:text-[#ff6105] transition-colors whitespace-nowrap shrink-0 ml-4 inline-flex items-center gap-1 cursor-pointer"
           >
             <span>Ver planes</span>
             <span className="inline-block transition-transform duration-300 group-hover:translate-x-1">
               →
             </span>
-          </Link>
+          </a>
         </div>
       </div>
 
@@ -423,32 +486,35 @@ export default function Home() {
 
           {/* Links Centrales con subrayado animado desde la izquierda */}
           <nav className="hidden md:flex items-center gap-8 text-[15px] font-normal text-[#292b2a]">
-            <Link
-              href="/socios/sedes"
-              className="nav-link-premium hover:text-[#0a0a0a] whitespace-nowrap"
+            <a
+              href="#sedes"
+              onClick={(e) => scrollToSection(e, "sedes")}
+              className="nav-link-premium hover:text-[#0a0a0a] whitespace-nowrap cursor-pointer"
             >
               Gimnasios
-            </Link>
-            <Link
-              href="/contratos"
-              className="nav-link-premium hover:text-[#0a0a0a] whitespace-nowrap"
+            </a>
+            <a
+              href="#planes"
+              onClick={(e) => scrollToSection(e, "planes")}
+              className="nav-link-premium hover:text-[#0a0a0a] whitespace-nowrap cursor-pointer"
             >
               Planes
-            </Link>
-            <Link
-              href="/clases"
-              className="nav-link-premium hover:text-[#0a0a0a] whitespace-nowrap"
+            </a>
+            <a
+              href="#clases"
+              onClick={(e) => scrollToSection(e, "clases")}
+              className="nav-link-premium hover:text-[#0a0a0a] whitespace-nowrap cursor-pointer"
             >
               Clases
-            </Link>
+            </a>
             <Link
-              href="/contratos/estado-cuenta"
+              href={getTuEspacioUrl()}
               className="nav-link-premium hover:text-[#0a0a0a] whitespace-nowrap"
             >
               Tu Espacio
             </Link>
             <Link
-              href="/socios/torniquete"
+              href={getRecepcionUrl()}
               className="nav-link-premium hover:text-[#0a0a0a] whitespace-nowrap"
             >
               Recepción
@@ -457,18 +523,44 @@ export default function Home() {
 
           {/* Controles Derecha: CTA Pill + Botón Menú Hamburguesa */}
           <div className="flex items-center gap-3 shrink-0">
-            <Link
-              href="/login"
-              className="btn-secondary-pill hidden sm:inline-flex items-center justify-center px-5 py-2.5 border border-[#e5e5e5] bg-[#ffffff] hover:bg-[#f3f4f3] hover:border-[#0a0a0a] text-[14px] font-normal text-[#292b2a] whitespace-nowrap"
-            >
-              Iniciar sesión
-            </Link>
+            {user ? (
+              <div className="hidden sm:flex items-center gap-2">
+                <Link
+                  href={getPortalUrl()}
+                  className="btn-secondary-pill group inline-flex items-center gap-2 px-4 py-2 border border-[#e5e5e5] bg-[#ffffff] hover:bg-[#f3f4f3] hover:border-[#ff6105] text-[13px] font-medium text-[#0a0a0a] whitespace-nowrap transition-colors"
+                  title={`Ir al portal de ${user.rol}`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-[#ff6105] group-hover:scale-125 transition-transform" />
+                  <span className="max-w-[130px] truncate">
+                    {user.nombre_completo || user.username}
+                  </span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5] font-normal">
+                    {user.rol}
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => logout()}
+                  className="btn-secondary-pill px-3 py-2 text-[13px] text-[#7a7b7b] hover:text-[#ff6105] hover:border-[#ff6105] border border-transparent bg-transparent hover:bg-[#f3f4f3] transition-colors whitespace-nowrap"
+                  title="Cerrar sesión actual"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="btn-secondary-pill hidden sm:inline-flex items-center justify-center px-5 py-2.5 border border-[#e5e5e5] bg-[#ffffff] hover:bg-[#f3f4f3] hover:border-[#0a0a0a] text-[14px] font-normal text-[#292b2a] whitespace-nowrap"
+              >
+                Iniciar sesión
+              </Link>
+            )}
 
             <Link
-              href="/contratos"
+              href={user ? getPortalUrl() : "/login"}
               className="btn-primary-pill inline-flex items-center justify-center px-6 py-2.5 text-[14px] font-medium whitespace-nowrap"
             >
-              Inscríbete ya
+              {user ? "Mi Portal" : "Inscríbete ya"}
             </Link>
 
             <button
@@ -519,11 +611,16 @@ export default function Home() {
             menuOpen ? "translate-x-0" : "translate-x-full"
           }`}
         >
-          <div className="space-y-8">
+          <div className="space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-[#e5e5e5]">
-              <span className="text-[20px] font-medium tracking-[-0.02em] text-[#0a0a0a]">
-                Navegación GimnasioDB
-              </span>
+              <div>
+                <span className="text-[20px] font-medium tracking-[-0.02em] text-[#0a0a0a] block">
+                  Navegación GimnasioDB
+                </span>
+                <span className="text-[12px] text-[#7a7b7b]">
+                  {user ? `Sesión activa como ${user.rol}` : "Modo Visitante"}
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={() => setMenuOpen(false)}
@@ -533,107 +630,349 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Grupo 1: Planes y Finanzas (Daniel) */}
-            <div className="space-y-2.5">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
-                Planes, Contratos y Caja
-              </p>
-              <div className="flex flex-col space-y-1 text-[15px]">
-                {[
-                  { label: "Planes y Suscripción", href: "/contratos" },
-                  { label: "Caja y Recepción de Pagos", href: "/contratos/caja" },
-                  {
-                    label: "Estado de Cuenta del Socio",
-                    href: "/contratos/estado-cuenta",
-                  },
-                  {
-                    label: "Personal e Ingresos por Sede",
-                    href: "/contratos/personal",
-                  },
-                ].map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMenuOpen(false)}
-                    className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5"
-                  >
-                    <span>{item.label}</span>
-                    <span className="transition-transform duration-300 group-hover:translate-x-1">
-                      →
+            {/* Tarjeta de estado de usuario */}
+            {user ? (
+              <div className="bg-[#f3f4f3] border border-[#e5e5e5] rounded-[5px] p-3.5 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
+                    <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#ff6105]">
+                      {user.rol}
                     </span>
-                  </Link>
-                ))}
+                  </div>
+                  <p className="text-[14px] font-medium text-[#0a0a0a] truncate">
+                    {user.nombre_completo || user.username}
+                  </p>
+                  <p className="text-[11px] text-[#7a7b7b] truncate">
+                    @{user.username}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    setMenuOpen(false);
+                  }}
+                  className="px-2.5 py-1 text-[11px] font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-[4px] border border-rose-200 transition-colors shrink-0"
+                >
+                  Cerrar sesión
+                </button>
               </div>
-            </div>
+            ) : (
+              <div className="bg-[#ffdfcd]/50 border border-[#ffa069]/40 rounded-[5px] p-3.5 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[13px] font-medium text-[#0a0a0a]">
+                    Modo Visitante
+                  </p>
+                  <p className="text-[11px] text-[#7a7b7b]">
+                    Inicia sesión para acceder a tu portal
+                  </p>
+                </div>
+                <Link
+                  href="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="btn-secondary-pill px-3 py-1.5 bg-[#ffffff] hover:bg-[#0a0a0a] hover:text-[#ffffff] border border-[#e5e5e5] text-[12px] font-medium shrink-0"
+                >
+                  Ingresar
+                </Link>
+              </div>
+            )}
 
-            {/* Grupo 2: Sedes y Socios (Carlos) */}
-            <div className="space-y-2.5 pt-4 border-t border-[#e5e5e5]">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
-                Gimnasios, Socios y Acceso
-              </p>
-              <div className="flex flex-col space-y-1 text-[15px]">
-                {[
-                  { label: "Nuestras Sedes y Reportes", href: "/socios/sedes" },
-                  {
-                    label: "Control de Acceso (Torniquete)",
-                    href: "/socios/torniquete",
-                  },
-                  { label: "Directorio de Socios", href: "/socios" },
-                  { label: "Acceso y Perfil de Usuario", href: "/socios/login" },
-                ].map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMenuOpen(false)}
-                    className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5"
-                  >
-                    <span>{item.label}</span>
-                    <span className="transition-transform duration-300 group-hover:translate-x-1">
-                      →
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </div>
+            {/* Menú Dinámico por Rol */}
+            {(!user || (!["socio", "instructor", "personal", "administrador"].includes(user.rol?.toLowerCase()))) && (
+              <div className="space-y-6">
+                {/* Grupo 1: Explorar GimnasioDB */}
+                <div className="space-y-2.5">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
+                    Explorar GimnasioDB
+                  </p>
+                  <div className="flex flex-col space-y-1 text-[15px]">
+                    {[
+                      { label: "Nuestras Sedes", href: "#sedes", isAnchor: true },
+                      { label: "Planes y Membresías", href: "#planes", isAnchor: true },
+                      { label: "Clases Exclusivas", href: "#clases", isAnchor: true },
+                      { label: "Tu Espacio Digital", href: "#tu-espacio", isAnchor: true },
+                    ].map((item) =>
+                      item.isAnchor ? (
+                        <a
+                          key={item.href}
+                          href={item.href}
+                          onClick={(e) => {
+                            scrollToSection(e, item.href.replace("#", ""));
+                            setMenuOpen(false);
+                          }}
+                          className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5 cursor-pointer"
+                        >
+                          <span>{item.label}</span>
+                          <span className="transition-transform duration-300 group-hover:translate-x-1">
+                            →
+                          </span>
+                        </a>
+                      ) : (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setMenuOpen(false)}
+                          className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5"
+                        >
+                          <span>{item.label}</span>
+                          <span className="transition-transform duration-300 group-hover:translate-x-1">
+                            →
+                          </span>
+                        </Link>
+                      )
+                    )}
+                  </div>
+                </div>
 
-            {/* Grupo 3: Clases y Equipos (Emilia) */}
-            <div className="space-y-2.5 pt-4 border-t border-[#e5e5e5]">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
-                Clases Grupales y Equipamiento
-              </p>
-              <div className="flex flex-col space-y-1 text-[15px]">
-                {[
-                  { label: "Catálogo y Reserva de Clases", href: "/clases" },
-                  { label: "Portal del Instructor", href: "/clases/instructor" },
-                  {
-                    label: "Programador de Sesiones",
-                    href: "/clases/programador",
-                  },
-                  { label: "Inventario de Máquinas", href: "/clases/equipos" },
-                ].map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMenuOpen(false)}
-                    className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5"
-                  >
-                    <span>{item.label}</span>
-                    <span className="transition-transform duration-300 group-hover:translate-x-1">
-                      →
-                    </span>
-                  </Link>
-                ))}
+                {/* Grupo 2: Validación y Portales */}
+                <div className="space-y-2.5 pt-4 border-t border-[#e5e5e5]">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
+                    Portales de Gestión
+                  </p>
+                  <div className="flex flex-col space-y-1 text-[15px]">
+                    {[
+                      { label: "Portal del Socio", href: "/login", isAnchor: false },
+                      { label: "Portal del Instructor", href: "/login", isAnchor: false },
+                      { label: "Portal del Personal", href: "/login", isAnchor: false },
+                      { label: "Validar Pase en Torniquete", href: "#tu-espacio", isAnchor: true },
+                    ].map((item) =>
+                      item.isAnchor ? (
+                        <a
+                          key={item.label}
+                          href={item.href}
+                          onClick={(e) => {
+                            scrollToSection(e, item.href.replace("#", ""));
+                            setMenuOpen(false);
+                          }}
+                          className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5 cursor-pointer"
+                        >
+                          <span>{item.label}</span>
+                          <span className="transition-transform duration-300 group-hover:translate-x-1">
+                            →
+                          </span>
+                        </a>
+                      ) : (
+                        <Link
+                          key={item.label}
+                          href={item.href}
+                          onClick={() => setMenuOpen(false)}
+                          className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5"
+                        >
+                          <span>{item.label}</span>
+                          <span className="transition-transform duration-300 group-hover:translate-x-1">
+                            →
+                          </span>
+                        </Link>
+                      )
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {user?.rol?.toLowerCase() === "socio" && (
+              <div className="space-y-6">
+                {/* Grupo 1: Mi Portal de Socio */}
+                <div className="space-y-2.5">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
+                    Mi Portal de Socio
+                  </p>
+                  <div className="flex flex-col space-y-1 text-[15px]">
+                    {[
+                      { label: "Catálogo y Reserva de Clases", href: "/portal-socio" },
+                      { label: "Mi Estado de Cuenta y Pagos", href: "/portal-socio/estado-cuenta" },
+                      { label: "Mi Credencial y Torniquete", href: "/portal-socio/acceso" },
+                    ].map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMenuOpen(false)}
+                        className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5"
+                      >
+                        <span className="font-medium text-[#0a0a0a] group-hover:text-[#ff6105]">
+                          {item.label}
+                        </span>
+                        <span className="transition-transform duration-300 group-hover:translate-x-1">
+                          →
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Grupo 2: Explorar el Gimnasio */}
+                <div className="space-y-2.5 pt-4 border-t border-[#e5e5e5]">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
+                    Explorar Gimnasio
+                  </p>
+                  <div className="flex flex-col space-y-1 text-[15px]">
+                    {[
+                      { label: "Nuestras Sedes y Horarios", href: "#sedes", isAnchor: true },
+                      { label: "Planes de Membresía", href: "#planes", isAnchor: true },
+                      { label: "Clases Exclusivas", href: "#clases", isAnchor: true },
+                    ].map((item) =>
+                      item.isAnchor ? (
+                        <a
+                          key={item.href}
+                          href={item.href}
+                          onClick={(e) => {
+                            scrollToSection(e, item.href.replace("#", ""));
+                            setMenuOpen(false);
+                          }}
+                          className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5 cursor-pointer"
+                        >
+                          <span>{item.label}</span>
+                          <span className="transition-transform duration-300 group-hover:translate-x-1">
+                            →
+                          </span>
+                        </a>
+                      ) : (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setMenuOpen(false)}
+                          className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5"
+                        >
+                          <span>{item.label}</span>
+                          <span className="transition-transform duration-300 group-hover:translate-x-1">
+                            →
+                          </span>
+                        </Link>
+                      )
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {user?.rol?.toLowerCase() === "instructor" && (
+              <div className="space-y-6">
+                {/* Grupo 1: Portal del Instructor */}
+                <div className="space-y-2.5">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
+                    Portal del Instructor
+                  </p>
+                  <div className="flex flex-col space-y-1 text-[15px]">
+                    {[
+                      { label: "Mis Sesiones Asignadas", href: "/portal-instructor" },
+                      { label: "Pase de Lista y Asistencia", href: "/portal-instructor/asistencia" },
+                    ].map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMenuOpen(false)}
+                        className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5"
+                      >
+                        <span className="font-medium text-[#0a0a0a] group-hover:text-[#ff6105]">
+                          {item.label}
+                        </span>
+                        <span className="transition-transform duration-300 group-hover:translate-x-1">
+                          →
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Grupo 2: Recursos y Sedes */}
+                <div className="space-y-2.5 pt-4 border-t border-[#e5e5e5]">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
+                    Recursos & Sedes
+                  </p>
+                  <div className="flex flex-col space-y-1 text-[15px]">
+                    {[
+                      { label: "Nuestras Sedes", href: "#sedes", isAnchor: true },
+                      { label: "Planes y Membresías", href: "#planes", isAnchor: true },
+                      { label: "Clases Exclusivas", href: "#clases", isAnchor: true },
+                    ].map((item) => (
+                      <a
+                        key={item.href}
+                        href={item.href}
+                        onClick={(e) => {
+                          scrollToSection(e, item.href.replace("#", ""));
+                          setMenuOpen(false);
+                        }}
+                        className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5 cursor-pointer"
+                      >
+                        <span>{item.label}</span>
+                        <span className="transition-transform duration-300 group-hover:translate-x-1">
+                          →
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(user?.rol?.toLowerCase() === "personal" || user?.rol?.toLowerCase() === "administrador") && (
+              <div className="space-y-6">
+                {/* Grupo 1: Operaciones & Recepción */}
+                <div className="space-y-2.5">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
+                    Operaciones & Recepción
+                  </p>
+                  <div className="flex flex-col space-y-1 text-[15px]">
+                    {[
+                      { label: "Recepción y Torniquete", href: "/portal-personal" },
+                      { label: "Padrón de Socios & Sedes", href: "/portal-personal/socios" },
+                      { label: "Caja y Contratos", href: "/portal-personal/caja" },
+                    ].map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMenuOpen(false)}
+                        className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5"
+                      >
+                        <span className="font-medium text-[#0a0a0a] group-hover:text-[#ff6105]">
+                          {item.label}
+                        </span>
+                        <span className="transition-transform duration-300 group-hover:translate-x-1">
+                          →
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Grupo 2: Gestión Deportiva & Analítica */}
+                <div className="space-y-2.5 pt-4 border-t border-[#e5e5e5]">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#ff6105] font-medium">
+                    Gestión Deportiva & Analítica
+                  </p>
+                  <div className="flex flex-col space-y-1 text-[15px]">
+                    {[
+                      { label: "Programador de Sesiones", href: "/portal-personal/programador" },
+                      { label: "Inventario de Máquinas", href: "/portal-personal/inventario" },
+                      { label: "Personal del Gimnasio", href: "/portal-personal/personal" },
+                      { label: "Reportes & Estadísticas", href: "/portal-personal/reportes" },
+                    ].map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMenuOpen(false)}
+                        className="group py-2 text-[#292b2a] hover:text-[#ff6105] flex justify-between items-center transition-all duration-300 hover:translate-x-1.5"
+                      >
+                        <span>{item.label}</span>
+                        <span className="transition-transform duration-300 group-hover:translate-x-1">
+                          →
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="pt-6 border-t border-[#e5e5e5]">
             <Link
-              href="/contratos"
+              href={getPortalUrl()}
               onClick={() => setMenuOpen(false)}
               className="btn-primary-pill w-full py-3.5 px-6 text-[15px] font-medium text-center block"
             >
-              Inscríbete ya
+              {user ? "Ir a Mi Portal" : "Inscríbete ya"}
             </Link>
           </div>
         </aside>
@@ -687,22 +1026,53 @@ export default function Home() {
                 </p>
 
                 <div className="flex flex-wrap items-center gap-3.5 pt-2">
-                  <Link
-                    href={currentHero.primaryCta.href}
-                    className="btn-primary-pill group inline-flex items-center gap-2.5 px-8 py-4 text-[16px] font-medium tracking-[-0.01em] whitespace-nowrap"
-                  >
-                    <span>{currentHero.primaryCta.label}</span>
-                    <span className="transition-transform duration-300 group-hover:translate-x-1.5">
-                      →
-                    </span>
-                  </Link>
+                  {currentHero.primaryCta.href.startsWith("#") ? (
+                    <a
+                      href={currentHero.primaryCta.href}
+                      onClick={(e) => scrollToSection(e, currentHero.primaryCta.href.replace("#", ""))}
+                      className="btn-primary-pill group inline-flex items-center gap-2.5 px-8 py-4 text-[16px] font-medium tracking-[-0.01em] whitespace-nowrap cursor-pointer"
+                    >
+                      <span>
+                        {user
+                          ? isSocio
+                            ? "Ir a mi Portal Socio"
+                            : isInstructor
+                            ? "Ir a mi Agenda"
+                            : "Ir a Recepción"
+                          : currentHero.primaryCta.label}
+                      </span>
+                      <span className="transition-transform duration-300 group-hover:translate-x-1.5">
+                        →
+                      </span>
+                    </a>
+                  ) : (
+                    <Link
+                      href={currentHero.primaryCta.href}
+                      className="btn-primary-pill group inline-flex items-center gap-2.5 px-8 py-4 text-[16px] font-medium tracking-[-0.01em] whitespace-nowrap"
+                    >
+                      <span>{currentHero.primaryCta.label}</span>
+                      <span className="transition-transform duration-300 group-hover:translate-x-1.5">
+                        →
+                      </span>
+                    </Link>
+                  )}
 
-                  <Link
-                    href={currentHero.secondaryCta.href}
-                    className="btn-secondary-pill px-6 py-4 bg-[#ffffff] hover:bg-[#f3f4f3] text-[#0a0a0a] text-[15px] font-medium whitespace-nowrap"
-                  >
-                    {currentHero.secondaryCta.label}
-                  </Link>
+                  {currentHero.secondaryCta.href.startsWith("#") ? (
+                    <a
+                      href={currentHero.secondaryCta.href}
+                      onClick={(e) => scrollToSection(e, currentHero.secondaryCta.href.replace("#", ""))}
+                      className="btn-secondary-pill px-6 py-4 bg-[#ffffff] hover:bg-[#f3f4f3] text-[#0a0a0a] text-[15px] font-medium whitespace-nowrap cursor-pointer"
+                    >
+                      {currentHero.secondaryCta.label}
+                    </a>
+                  ) : (
+                    <Link
+                      href={currentHero.secondaryCta.href}
+                      className="btn-secondary-pill px-6 py-4 bg-[#ffffff] hover:bg-[#f3f4f3] text-[#0a0a0a] text-[15px] font-medium whitespace-nowrap"
+                    >
+                      {currentHero.secondaryCta.label}
+                    </Link>
+                  )}
                 </div>
               </div>
 
@@ -777,7 +1147,7 @@ export default function Home() {
               </div>
 
               <Link
-                href="/socios"
+                href={user?.rol?.toLowerCase() === "personal" ? "/portal-personal/socios" : user ? "/portal-socio" : "/login"}
                 className="group p-5 flex items-center justify-between hover:bg-[#f3f4f3] transition-colors"
               >
                 <div>
@@ -794,7 +1164,7 @@ export default function Home() {
               </Link>
 
               <Link
-                href="/clases"
+                href={user ? "/portal-socio" : "/login"}
                 className="group p-5 flex items-center justify-between hover:bg-[#f3f4f3] transition-colors"
               >
                 <div>
@@ -827,7 +1197,7 @@ export default function Home() {
       </div>
 
       {/* ===== SECCIÓN 1: ENCUENTRA TU SEDE MÁS CERCANA (Tarjetas con Lift y Zoom Suave) ===== */}
-      <section className="py-20 sm:py-24 px-4 sm:px-8 bg-[#f3f4f3] border-b border-[#e5e5e5]">
+      <section id="sedes" className="py-20 sm:py-24 px-4 sm:px-8 bg-[#f3f4f3] border-b border-[#e5e5e5] scroll-mt-20">
         <div className="max-w-[1200px] mx-auto space-y-12">
           <Reveal>
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -841,15 +1211,16 @@ export default function Home() {
                 <AccentRule />
               </div>
 
-              <Link
-                href="/socios/sedes"
-                className="btn-secondary-pill group inline-flex items-center gap-2 px-6 py-3 bg-[#ffffff] hover:bg-[#0a0a0a] text-[#0a0a0a] hover:text-[#ffffff] border border-[#e5e5e5] hover:border-[#0a0a0a] text-[14px] font-medium whitespace-nowrap self-start sm:self-auto"
+              <a
+                href="#sedes"
+                onClick={(e) => scrollToSection(e, "sedes")}
+                className="btn-secondary-pill group inline-flex items-center gap-2 px-6 py-3 bg-[#ffffff] hover:bg-[#0a0a0a] text-[#0a0a0a] hover:text-[#ffffff] border border-[#e5e5e5] hover:border-[#0a0a0a] text-[14px] font-medium whitespace-nowrap self-start sm:self-auto cursor-pointer"
               >
                 <span>Ver todas las sedes</span>
                 <span className="transition-transform duration-300 group-hover:translate-x-1">
                   →
                 </span>
-              </Link>
+              </a>
             </div>
           </Reveal>
 
@@ -882,23 +1253,64 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="px-6 pb-6 pt-3 border-t border-[#e5e5e5] flex items-center justify-between gap-2">
-                    <Link
-                      href="/socios/sedes"
-                      className="group/link inline-flex items-center gap-1 text-[14px] font-medium text-[#0a0a0a] hover:text-[#ff6105] transition-colors"
-                    >
-                      <span>Ver sede y métricas</span>
-                      <span className="transition-transform duration-300 group-hover/link:translate-x-1">
-                        →
-                      </span>
-                    </Link>
-                    <Link
-                      href="/contratos"
-                      className="btn-secondary-pill px-4 py-2 bg-[#ff6105] hover:bg-[#e55600] text-[#ffffff] text-[13px] font-medium whitespace-nowrap"
-                    >
-                      Inscríbete
-                    </Link>
-                  </div>
+                  {isSocio && (
+                    <div className="px-6 pb-6 pt-3 border-t border-[#e5e5e5]">
+                      <Link
+                        href={`/portal-socio?sede=${sede.id_sede}`}
+                        className="btn-secondary-pill group/btn w-full py-2.5 px-4 bg-[#f8f9f8] hover:bg-[#ff6105] text-[#0a0a0a] hover:text-[#ffffff] border border-[#e5e5e5] hover:border-[#ff6105] text-[13px] font-medium flex items-center justify-center gap-1.5 transition-all"
+                      >
+                        <span>Ver sesiones en esta sede</span>
+                        <span className="transition-transform duration-300 group-hover/btn:translate-x-1">
+                          →
+                        </span>
+                      </Link>
+                    </div>
+                  )}
+
+                  {isInstructor && (
+                    <div className="px-6 pb-6 pt-3 border-t border-[#e5e5e5]">
+                      <Link
+                        href="/portal-instructor"
+                        className="btn-secondary-pill group/btn w-full py-2.5 px-4 bg-[#f8f9f8] hover:bg-[#ff6105] text-[#0a0a0a] hover:text-[#ffffff] border border-[#e5e5e5] hover:border-[#ff6105] text-[13px] font-medium flex items-center justify-center gap-1.5 transition-all"
+                      >
+                        <span>Ver mi agenda en esta sede</span>
+                        <span className="transition-transform duration-300 group-hover/btn:translate-x-1">
+                          →
+                        </span>
+                      </Link>
+                    </div>
+                  )}
+
+                  {isPersonal && (
+                    <div className="px-6 pb-6 pt-3 border-t border-[#e5e5e5] flex items-center justify-between gap-2">
+                      <Link
+                        href="/portal-personal/personal"
+                        className="group/link inline-flex items-center gap-1 text-[13px] font-medium text-[#0a0a0a] hover:text-[#ff6105] transition-colors"
+                      >
+                        <span>Ver sede y métricas</span>
+                        <span className="transition-transform duration-300 group-hover/link:translate-x-1">
+                          →
+                        </span>
+                      </Link>
+                      <Link
+                        href="/portal-personal/personal"
+                        className="btn-secondary-pill px-3.5 py-1.5 bg-[#0a0a0a] hover:bg-[#ff6105] text-[#ffffff] text-[12px] font-medium whitespace-nowrap"
+                      >
+                        Gestionar sede
+                      </Link>
+                    </div>
+                  )}
+
+                  {isVisitor && (
+                    <div className="px-6 pb-6 pt-3 border-t border-[#e5e5e5] flex items-center justify-end">
+                      <Link
+                        href="/login"
+                        className="btn-secondary-pill w-full sm:w-auto px-5 py-2 bg-[#ff6105] hover:bg-[#e55600] text-[#ffffff] text-[13px] font-medium text-center whitespace-nowrap"
+                      >
+                        Inscríbete
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </Reveal>
             ))}
@@ -907,7 +1319,7 @@ export default function Home() {
       </section>
 
       {/* ===== SECCIÓN 2: ELIGE TU MEJOR PLAN (Staggered Reveal + Hover Lift) ===== */}
-      <section className="py-20 sm:py-24 px-4 sm:px-8 bg-[#ffffff]">
+      <section id="planes" className="py-20 sm:py-24 px-4 sm:px-8 bg-[#ffffff] scroll-mt-20">
         <div className="max-w-[1200px] mx-auto space-y-12">
           <Reveal>
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -922,10 +1334,26 @@ export default function Home() {
               </div>
 
               <Link
-                href="/contratos"
+                href={
+                  isSocio
+                    ? "/portal-socio/estado-cuenta"
+                    : isPersonal
+                    ? "/portal-personal/caja"
+                    : isInstructor
+                    ? "/portal-instructor"
+                    : "/login"
+                }
                 className="btn-secondary-pill group inline-flex items-center gap-2 px-6 py-3 bg-[#f3f4f3] hover:bg-[#0a0a0a] border border-[#e5e5e5] hover:border-[#0a0a0a] text-[#0a0a0a] hover:text-[#ffffff] text-[14px] font-medium whitespace-nowrap self-start sm:self-auto"
               >
-                <span>Ver todos los planes y contratos</span>
+                <span>
+                  {isSocio
+                    ? "Ver mi membresía y pagos"
+                    : isPersonal
+                    ? "Administrar suscripciones en caja"
+                    : isInstructor
+                    ? "Ver agenda en mi portal"
+                    : "Ver todos los planes y membresías"}
+                </span>
                 <span className="transition-transform duration-300 group-hover:translate-x-1">
                   →
                 </span>
@@ -1004,16 +1432,54 @@ export default function Home() {
                     </div>
 
                     <div className="pt-8">
-                      <Link
-                        href="/contratos"
-                        className={`w-full py-3.5 px-6 text-[15px] font-medium text-center block ${
-                          isFeatured
-                            ? "btn-primary-pill"
-                            : "btn-secondary-pill bg-[#0a0a0a] hover:bg-[#ff6105] text-[#ffffff]"
-                        }`}
-                      >
-                        ¡Inscríbete ya!
-                      </Link>
+                      {isSocio && (
+                        <Link
+                          href="/portal-socio/estado-cuenta"
+                          className={`w-full py-3.5 px-6 text-[14px] font-medium text-center block ${
+                            isFeatured
+                              ? "btn-primary-pill"
+                              : "btn-secondary-pill bg-[#0a0a0a] hover:bg-[#ff6105] text-[#ffffff]"
+                          }`}
+                        >
+                          Ver mi membresía y pagos →
+                        </Link>
+                      )}
+                      {isInstructor && (
+                        <Link
+                          href="/portal-instructor"
+                          className={`w-full py-3.5 px-6 text-[14px] font-medium text-center block ${
+                            isFeatured
+                              ? "btn-primary-pill"
+                              : "btn-secondary-pill bg-[#0a0a0a] hover:bg-[#ff6105] text-[#ffffff]"
+                          }`}
+                        >
+                          Ir a mi Portal Instructor →
+                        </Link>
+                      )}
+                      {isPersonal && (
+                        <Link
+                          href="/portal-personal/caja"
+                          className={`w-full py-3.5 px-6 text-[14px] font-medium text-center block ${
+                            isFeatured
+                              ? "btn-primary-pill"
+                              : "btn-secondary-pill bg-[#0a0a0a] hover:bg-[#ff6105] text-[#ffffff]"
+                          }`}
+                        >
+                          Emitir suscripción en caja →
+                        </Link>
+                      )}
+                      {isVisitor && (
+                        <Link
+                          href="/login"
+                          className={`w-full py-3.5 px-6 text-[15px] font-medium text-center block ${
+                            isFeatured
+                              ? "btn-primary-pill"
+                              : "btn-secondary-pill bg-[#0a0a0a] hover:bg-[#ff6105] text-[#ffffff]"
+                          }`}
+                        >
+                          ¡Inscríbete ya!
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </Reveal>
@@ -1024,7 +1490,7 @@ export default function Home() {
       </section>
 
       {/* ===== SECCIÓN 3: CLASES EXCLUSIVAS (Tarjetas Visuales con Fotografía -> /clases) ===== */}
-      <section className="py-20 sm:py-24 px-4 sm:px-8 bg-[#f3f4f3] border-t border-b border-[#e5e5e5]">
+      <section id="clases" className="py-20 sm:py-24 px-4 sm:px-8 bg-[#f3f4f3] border-t border-b border-[#e5e5e5] scroll-mt-20">
         <div className="max-w-[1200px] mx-auto space-y-12">
           <Reveal>
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -1039,10 +1505,24 @@ export default function Home() {
               </div>
 
               <Link
-                href="/clases"
+                href={
+                  isSocio
+                    ? "/portal-socio"
+                    : isInstructor
+                    ? "/portal-instructor"
+                    : isPersonal
+                    ? "/portal-personal/programador"
+                    : "/login"
+                }
                 className="btn-secondary-pill group inline-flex items-center gap-2 px-6 py-3 bg-[#ffffff] hover:bg-[#0a0a0a] text-[#0a0a0a] hover:text-[#ffffff] border border-[#e5e5e5] hover:border-[#0a0a0a] text-[14px] font-medium whitespace-nowrap self-start sm:self-auto"
               >
-                <span>Ver cartelera y reservar cupo</span>
+                <span>
+                  {isInstructor
+                    ? "Ver mis clases asignadas"
+                    : isPersonal
+                    ? "Programar sesiones deportivas"
+                    : "Ver cartelera y reservar cupo"}
+                </span>
                 <span className="transition-transform duration-300 group-hover:translate-x-1">
                   →
                 </span>
@@ -1060,11 +1540,24 @@ export default function Home() {
                 clase.nivel_exigencia_clase ??
                 clase.nivel_exigencia ??
                 "Intermedio";
+              const targetClaseId = clase.id_clase ?? idx + 1;
+              const cardHref = isSocio
+                ? `/portal-socio?clase=${targetClaseId}`
+                : isInstructor
+                ? "/portal-instructor"
+                : isPersonal
+                ? "/portal-personal/programador"
+                : "/login";
+              const cardActionText = isInstructor
+                ? "Ir a mis clases"
+                : isPersonal
+                ? "Programar sesión"
+                : "Ver horarios";
 
               return (
                 <Reveal key={clase.id_clase ?? idx} delayMs={idx * 100}>
                   <Link
-                    href="/clases"
+                    href={cardHref}
                     className="card-premium-lift group rounded-[5px] border border-[#e5e5e5] hover:border-[#0a0a0a] bg-[#ffffff] overflow-hidden flex flex-col justify-between h-full"
                   >
                     <div>
@@ -1091,7 +1584,7 @@ export default function Home() {
                     </div>
 
                     <div className="px-5 pb-5 text-[13px] font-medium text-[#0a0a0a] group-hover:text-[#ff6105] transition-colors inline-flex items-center gap-1">
-                      <span>Ver horarios</span>
+                      <span>{cardActionText}</span>
                       <span className="transition-transform duration-300 group-hover:translate-x-1">
                         →
                       </span>
@@ -1126,26 +1619,45 @@ export default function Home() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 pt-3">
             <Link
-              href="/contratos"
+              href={user ? getPortalUrl() : "/login"}
               className="btn-primary-pill px-8 py-3.5 text-[15px] font-medium"
             >
-              Inscríbete ya
+              {isSocio
+                ? "Mi Portal Socio"
+                : isInstructor
+                ? "Mi Portal Instructor"
+                : isPersonal
+                ? "Ir a Recepción"
+                : "Inscríbete ya"}
             </Link>
-            <Link
-              href="/clases/equipos"
-              className="btn-secondary-pill group inline-flex items-center gap-2 px-6 py-3.5 border border-[#e5e5e5]/40 hover:border-[#ffffff] hover:bg-[#ffffff]/10 text-[#ffffff] text-[15px] font-normal"
-            >
-              <span>Ver inventario de máquinas</span>
-              <span className="transition-transform duration-300 group-hover:translate-x-1">
-                →
-              </span>
-            </Link>
+            {isPersonal ? (
+              <Link
+                href="/portal-personal/inventario"
+                className="btn-secondary-pill group inline-flex items-center gap-2 px-6 py-3.5 border border-[#e5e5e5]/40 hover:border-[#ffffff] hover:bg-[#ffffff]/10 text-[#ffffff] text-[15px] font-normal"
+              >
+                <span>Ver inventario de máquinas</span>
+                <span className="transition-transform duration-300 group-hover:translate-x-1">
+                  →
+                </span>
+              </Link>
+            ) : (
+              <a
+                href="#sedes"
+                onClick={(e) => scrollToSection(e, "sedes")}
+                className="btn-secondary-pill group inline-flex items-center gap-2 px-6 py-3.5 border border-[#e5e5e5]/40 hover:border-[#ffffff] hover:bg-[#ffffff]/10 text-[#ffffff] text-[15px] font-normal cursor-pointer"
+              >
+                <span>Conocer nuestras sedes</span>
+                <span className="transition-transform duration-300 group-hover:translate-x-1">
+                  →
+                </span>
+              </a>
+            )}
           </div>
         </Reveal>
       </section>
 
       {/* ===== SECCIÓN 5: TU ESPACIO DIGITAL & ACCESO RÁPIDO (Banner #ffdfcd Peach Wash + Imagen) ===== */}
-      <section className="py-20 sm:py-24 px-4 sm:px-8 bg-[#ffffff]">
+      <section id="tu-espacio" className="py-20 sm:py-24 px-4 sm:px-8 bg-[#ffffff] scroll-mt-20">
         <div className="max-w-[1200px] mx-auto">
           <Reveal>
             <div className="rounded-[5px] bg-[#ffdfcd] p-6 sm:p-12 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
@@ -1200,25 +1712,73 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Botones rápidos a los módulos de autogestión */}
-                <div className="flex flex-wrap gap-2.5 pt-2">
-                  {[
-                    { label: "Estado de Cuenta", href: "/contratos/estado-cuenta" },
-                    { label: "Módulo de Caja", href: "/contratos/caja" },
-                    { label: "Torniquete Recepción", href: "/socios/torniquete" },
-                    { label: "Personal y Finanzas", href: "/contratos/personal" },
-                  ].map((btn) => (
-                    <Link
-                      key={btn.href}
-                      href={btn.href}
-                      className="btn-secondary-pill group inline-flex items-center gap-1.5 px-4 py-2 bg-[#ffffff] border border-[#e5e5e5] hover:border-[#0a0a0a] text-[13px] font-medium text-[#0a0a0a]"
-                    >
-                      <span>{btn.label}</span>
-                      <span className="transition-transform duration-300 group-hover:translate-x-1">
-                        →
-                      </span>
-                    </Link>
-                  ))}
+                {/* Accesos directos a los 3 Portales según rol */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
+                  <Link
+                    href={user ? "/portal-socio" : "/login"}
+                    className="card-premium-lift group bg-[#ffffff] border border-[#ffa069]/60 hover:border-[#ff6105] rounded-[5px] p-4 flex flex-col justify-between transition-all"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#ff6105]">
+                          Socios
+                        </span>
+                        <span className="text-xs text-[#7a7b7b] group-hover:text-[#ff6105] transition-transform duration-300 group-hover:translate-x-1">
+                          →
+                        </span>
+                      </div>
+                      <p className="text-[15px] font-medium text-[#0a0a0a]">
+                        Portal del Socio
+                      </p>
+                      <p className="text-[12px] text-[#7a7b7b]">
+                        Catálogo de clases, reservas, estado de cuenta y pase digital.
+                      </p>
+                    </div>
+                  </Link>
+
+                  <Link
+                    href={user ? "/portal-instructor" : "/login"}
+                    className="card-premium-lift group bg-[#ffffff] border border-[#ffa069]/60 hover:border-[#ff6105] rounded-[5px] p-4 flex flex-col justify-between transition-all"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#ff6105]">
+                          Instructores
+                        </span>
+                        <span className="text-xs text-[#7a7b7b] group-hover:text-[#ff6105] transition-transform duration-300 group-hover:translate-x-1">
+                          →
+                        </span>
+                      </div>
+                      <p className="text-[15px] font-medium text-[#0a0a0a]">
+                        Portal del Instructor
+                      </p>
+                      <p className="text-[12px] text-[#7a7b7b]">
+                        Sesiones asignadas, horarios y pase de lista de asistencia.
+                      </p>
+                    </div>
+                  </Link>
+
+                  <Link
+                    href={user ? "/portal-personal" : "/login"}
+                    className="card-premium-lift group bg-[#ffffff] border border-[#ffa069]/60 hover:border-[#ff6105] rounded-[5px] p-4 flex flex-col justify-between transition-all"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#ff6105]">
+                          Equipo & Staff
+                        </span>
+                        <span className="text-xs text-[#7a7b7b] group-hover:text-[#ff6105] transition-transform duration-300 group-hover:translate-x-1">
+                          →
+                        </span>
+                      </div>
+                      <p className="text-[15px] font-medium text-[#0a0a0a]">
+                        Portal del Personal
+                      </p>
+                      <p className="text-[12px] text-[#7a7b7b]">
+                        Recepción, caja de pagos, torniquete, socios y métricas.
+                      </p>
+                    </div>
+                  </Link>
                 </div>
               </div>
 
@@ -1245,20 +1805,31 @@ export default function Home() {
               <p className="font-medium text-[#0a0a0a]">GimnasioDB</p>
               <ul className="space-y-1.5 text-[#7a7b7b]">
                 <li>
-                  <Link
-                    href="/socios/sedes"
-                    className="hover:text-[#ff6105] transition-colors"
+                  <a
+                    href="#sedes"
+                    onClick={(e) => scrollToSection(e, "sedes")}
+                    className="hover:text-[#ff6105] transition-colors cursor-pointer"
                   >
                     Nuestras Sedes
-                  </Link>
+                  </a>
                 </li>
                 <li>
-                  <Link
-                    href="/clases/equipos"
-                    className="hover:text-[#ff6105] transition-colors"
-                  >
-                    Equipamiento
-                  </Link>
+                  {isPersonal ? (
+                    <Link
+                      href="/portal-personal/inventario"
+                      className="hover:text-[#ff6105] transition-colors"
+                    >
+                      Inventario de Máquinas
+                    </Link>
+                  ) : (
+                    <a
+                      href="#sedes"
+                      onClick={(e) => scrollToSection(e, "sedes")}
+                      className="hover:text-[#ff6105] transition-colors cursor-pointer"
+                    >
+                      Equipamiento de Sedes
+                    </a>
+                  )}
                 </li>
               </ul>
             </div>
@@ -1267,16 +1838,23 @@ export default function Home() {
               <p className="font-medium text-[#0a0a0a]">Planes y Finanzas</p>
               <ul className="space-y-1.5 text-[#7a7b7b]">
                 <li>
-                  <Link
-                    href="/contratos"
-                    className="hover:text-[#ff6105] transition-colors"
+                  <a
+                    href="#planes"
+                    onClick={(e) => scrollToSection(e, "planes")}
+                    className="hover:text-[#ff6105] transition-colors cursor-pointer"
                   >
-                    Planes y Contratos
-                  </Link>
+                    Planes de Membresía
+                  </a>
                 </li>
                 <li>
                   <Link
-                    href="/contratos/caja"
+                    href={
+                      isPersonal
+                        ? "/portal-personal/caja"
+                        : isSocio
+                        ? "/portal-socio/estado-cuenta"
+                        : "/login"
+                    }
                     className="hover:text-[#ff6105] transition-colors"
                   >
                     Caja y Pagos
@@ -1284,7 +1862,13 @@ export default function Home() {
                 </li>
                 <li>
                   <Link
-                    href="/contratos/estado-cuenta"
+                    href={
+                      isSocio
+                        ? "/portal-socio/estado-cuenta"
+                        : isPersonal
+                        ? "/portal-personal/caja"
+                        : "/login"
+                    }
                     className="hover:text-[#ff6105] transition-colors"
                   >
                     Estado de Cuenta
@@ -1292,7 +1876,7 @@ export default function Home() {
                 </li>
                 <li>
                   <Link
-                    href="/contratos/personal"
+                    href={isPersonal ? "/portal-personal/reportes" : "/login"}
                     className="hover:text-[#ff6105] transition-colors"
                   >
                     Personal y Reportes
@@ -1306,7 +1890,15 @@ export default function Home() {
               <ul className="space-y-1.5 text-[#7a7b7b]">
                 <li>
                   <Link
-                    href="/clases"
+                    href={
+                      isSocio
+                        ? "/portal-socio"
+                        : isInstructor
+                        ? "/portal-instructor"
+                        : isPersonal
+                        ? "/portal-personal/programador"
+                        : "/login"
+                    }
                     className="hover:text-[#ff6105] transition-colors"
                   >
                     Reserva de Clases
@@ -1314,7 +1906,7 @@ export default function Home() {
                 </li>
                 <li>
                   <Link
-                    href="/clases/instructor"
+                    href={isInstructor ? "/portal-instructor" : "/login"}
                     className="hover:text-[#ff6105] transition-colors"
                   >
                     Portal Instructor
@@ -1322,7 +1914,7 @@ export default function Home() {
                 </li>
                 <li>
                   <Link
-                    href="/clases/programador"
+                    href={isPersonal ? "/portal-personal/programador" : "/login"}
                     className="hover:text-[#ff6105] transition-colors"
                   >
                     Programar Sesiones
@@ -1336,23 +1928,40 @@ export default function Home() {
               <ul className="space-y-1.5 text-[#7a7b7b]">
                 <li>
                   <Link
-                    href="/login"
+                    href={user ? getPortalUrl() : "/login"}
                     className="hover:text-[#ff6105] transition-colors"
                   >
-                    Iniciar Sesión
+                    {user ? "Mi Portal" : "Iniciar Sesión"}
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href="/socios/torniquete"
-                    className="hover:text-[#ff6105] transition-colors"
-                  >
-                    Torniquete Recepción
-                  </Link>
+                  {isPersonal ? (
+                    <Link
+                      href="/portal-personal"
+                      className="hover:text-[#ff6105] transition-colors"
+                    >
+                      Torniquete Recepción
+                    </Link>
+                  ) : isSocio ? (
+                    <Link
+                      href="/portal-socio/acceso"
+                      className="hover:text-[#ff6105] transition-colors"
+                    >
+                      Mi Acceso Torniquete
+                    </Link>
+                  ) : (
+                    <a
+                      href="#tu-espacio"
+                      onClick={(e) => scrollToSection(e, "tu-espacio")}
+                      className="hover:text-[#ff6105] transition-colors cursor-pointer"
+                    >
+                      Validar Pase Torniquete
+                    </a>
+                  )}
                 </li>
                 <li>
                   <Link
-                    href="/socios"
+                    href={isPersonal ? "/portal-personal/socios" : "/login"}
                     className="hover:text-[#ff6105] transition-colors"
                   >
                     Padrón de Socios
