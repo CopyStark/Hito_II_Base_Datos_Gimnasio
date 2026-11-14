@@ -41,31 +41,13 @@ interface ToastFeedback {
   message: string;
 }
 
-/**
- * Extrae el apellido o segmento clave para ordenamiento alfabético.
- */
-function extraerApellido(nombreCompleto?: string | null): string {
-  if (!nombreCompleto) return "";
-  const partes = nombreCompleto.trim().split(/\s+/);
-  if (partes.length <= 1) return partes[0] || "";
-  return partes.slice(1).join(" ");
-}
-
-function compararAlumnosPorApellido(
+function compararAlumnosPorNombre(
   a: InscritoEnSesionResponse,
   b: InscritoEnSesionResponse
 ): number {
-  const apellidoA = extraerApellido(
-    (a as any).apellido_socio || a.nombre_completo_socio
-  ).toLowerCase();
-  const apellidoB = extraerApellido(
-    (b as any).apellido_socio || b.nombre_completo_socio
-  ).toLowerCase();
-  const comp = apellidoA.localeCompare(apellidoB, "es", { sensitivity: "base" });
-  if (comp !== 0) return comp;
-  return a.nombre_completo_socio.localeCompare(b.nombre_completo_socio, "es", {
-    sensitivity: "base",
-  });
+  const nombreA = (a.nombre_completo_socio || "").trim();
+  const nombreB = (b.nombre_completo_socio || "").trim();
+  return nombreA.localeCompare(nombreB, "es", { sensitivity: "base" });
 }
 
 /**
@@ -202,7 +184,7 @@ export default function InstructorPage() {
     }
   };
 
-  // 3. Cargar socios inscritos de la sesión seleccionada (excluyendo canceladas y ordenando por apellido)
+  // 3. Cargar socios inscritos de la sesión seleccionada (excluyendo canceladas y ordenando por nombre completo)
   const cargarInscritos = useCallback(async (idSesion: number) => {
     setLoadingInscritos(true);
     setErrorInscritos(null);
@@ -214,8 +196,8 @@ export default function InstructorPage() {
         const est = (item.estado_inscripcion || "").trim().toLowerCase();
         return est !== "cancelada" && est !== "cancelado";
       });
-      // Ordenar por apellido alfabéticamente
-      activas.sort(compararAlumnosPorApellido);
+      // Ordenar alfabéticamente por nombre completo
+      activas.sort(compararAlumnosPorNombre);
 
       setInscritos(activas);
 

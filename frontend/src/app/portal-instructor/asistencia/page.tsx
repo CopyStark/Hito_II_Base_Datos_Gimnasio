@@ -22,33 +22,13 @@ import {
   X,
 } from "lucide-react";
 
-/**
- * Extrae el apellido o segmento clave para ordenamiento alfabético.
- * Si el nombre es "Daniel Matus", extrae "Matus".
- * Si es "Camila Valenzuela Soto", extrae "Valenzuela Soto".
- */
-function extraerApellido(nombreCompleto?: string | null): string {
-  if (!nombreCompleto) return "";
-  const partes = nombreCompleto.trim().split(/\s+/);
-  if (partes.length <= 1) return partes[0] || "";
-  return partes.slice(1).join(" ");
-}
-
-function compararAlumnosPorApellido(
+function compararAlumnosPorNombre(
   a: InscritoEnSesionResponse,
   b: InscritoEnSesionResponse
 ): number {
-  const apellidoA = extraerApellido(
-    (a as any).apellido_socio || a.nombre_completo_socio
-  ).toLowerCase();
-  const apellidoB = extraerApellido(
-    (b as any).apellido_socio || b.nombre_completo_socio
-  ).toLowerCase();
-  const comp = apellidoA.localeCompare(apellidoB, "es", { sensitivity: "base" });
-  if (comp !== 0) return comp;
-  return a.nombre_completo_socio.localeCompare(b.nombre_completo_socio, "es", {
-    sensitivity: "base",
-  });
+  const nombreA = (a.nombre_completo_socio || "").trim();
+  const nombreB = (b.nombre_completo_socio || "").trim();
+  return nombreA.localeCompare(nombreB, "es", { sensitivity: "base" });
 }
 
 function AsistenciaContent() {
@@ -122,9 +102,9 @@ function AsistenciaContent() {
         }
       });
 
-      // 2. Ordenar alfabéticamente por apellido
-      activas.sort(compararAlumnosPorApellido);
-      canceladas.sort(compararAlumnosPorApellido);
+      // 2. Ordenar alfabéticamente por nombre completo
+      activas.sort(compararAlumnosPorNombre);
+      canceladas.sort(compararAlumnosPorNombre);
 
       setAlumnos(activas);
       setInscripcionesCanceladas(canceladas);
@@ -344,7 +324,7 @@ function AsistenciaContent() {
                   Alumnos activos ({alumnos.length})
                 </span>
                 <span className="text-[11px] text-[#7a7b7b]">
-                  — Ordenados alfabéticamente por apellido
+                  — Ordenados alfabéticamente por nombre
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -371,7 +351,7 @@ function AsistenciaContent() {
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-[#e5e5e5] text-[#7a7b7b] font-medium">
-                    <th className="py-2.5 px-3">Socio (por Apellido)</th>
+                    <th className="py-2.5 px-3">Socio</th>
                     <th className="py-2.5 px-3">Contacto</th>
                     <th className="py-2.5 px-3">Estado</th>
                     <th className="py-2.5 px-3">Pase de Asistencia</th>
