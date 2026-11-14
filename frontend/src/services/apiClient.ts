@@ -46,6 +46,39 @@ export function getApiBaseUrl(): string {
 
 export const API_BASE_URL = getApiBaseUrl();
 
+export const TOKEN_STORAGE_KEY = "gimnasiodb_token";
+export const USER_STORAGE_KEY = "gimnasiodb_user";
+
+export function getStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredToken(token: string | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+  } catch {}
+}
+
+export interface AuthUser {
+  id_usuario: number;
+  username: string;
+  rol: "Socio" | "Instructor" | "Personal" | "Administrador" | string;
+  id_socio?: number | null;
+  id_instructor?: number | null;
+  id_personal?: number | null;
+  nombre_completo?: string | null;
+}
+
 export class ApiError extends Error {
   status: number;
   data: any;
@@ -183,12 +216,20 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 40000);
 
+  // Inyección automática del token Bearer si existe en localStorage
+  const token = getStoredToken();
+  const authHeaders: Record<string, string> = {};
+  if (token) {
+    authHeaders["Authorization"] = `Bearer ${token}`;
+  }
+
   try {
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
+        ...authHeaders,
         ...headers,
       },
       ...restOptions,
@@ -196,6 +237,13 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
+      // Manejo de expiración o token inválido (401 Unauthorized)
+      if (response.status === 401 && !cleanEndpoint.includes("/login")) {
+        setStoredToken(null);
+        if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+          window.location.href = "/login";
+        }
+      }
       let errorDetail = `Error en petición: ${response.status} ${response.statusText}`;
       let errorData = null;
       try {
@@ -273,6 +321,14 @@ export const apiClient = {
 
   // Endpoints del Sistema
   health: () => apiRequest<{ backend: string; database: any }>("/api/health"),
+
+  // Módulo de Autenticación JWT Universal
+  auth: {
+    login: (credentials: { username: string; password: string }) =>
+      apiClient.post<{ access_token: string; token_type: string; user: AuthUser }>("/auth/login", credentials),
+    me: () =>
+      apiClient.get<{ autenticado: boolean; user: AuthUser }>("/auth/me"),
+  },
 
   // Módulo Persona 1: Socios y Control de Acceso
   socios: {

@@ -458,7 +458,7 @@ export default function Home() {
           {/* Controles Derecha: CTA Pill + Botón Menú Hamburguesa */}
           <div className="flex items-center gap-3 shrink-0">
             <Link
-              href="/socios/login"
+              href="/login"
               className="btn-secondary-pill hidden sm:inline-flex items-center justify-center px-5 py-2.5 border border-[#e5e5e5] bg-[#ffffff] hover:bg-[#f3f4f3] hover:border-[#0a0a0a] text-[14px] font-normal text-[#292b2a] whitespace-nowrap"
             >
               Iniciar sesión
@@ -1336,7 +1336,7 @@ export default function Home() {
               <ul className="space-y-1.5 text-[#7a7b7b]">
                 <li>
                   <Link
-                    href="/socios/login"
+                    href="/login"
                     className="hover:text-[#ff6105] transition-colors"
                   >
                     Iniciar Sesión
