@@ -81,7 +81,7 @@ export const TeamCard: React.FC<TeamCardProps> = ({
           <div className="space-y-1.5 pt-1">
             <p className="text-[11px] uppercase tracking-wider text-[#7a7b7b] font-medium flex items-center gap-1">
               <Database className="w-3 h-3 text-[#ff6105]" />
-              <span>Tablas &amp; Vistas SQL Server:</span>
+              <span>Módulos de Datos &amp; Entidades:</span>
             </p>
             <div className="flex flex-wrap gap-1.5">
               {databaseEntities.map((ent, idx) => (

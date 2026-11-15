@@ -79,7 +79,7 @@ export default function MiEstadoCuentaPage() {
       {loading && !estadoCuenta && (
         <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-12 flex flex-col items-center justify-center gap-3">
           <Loader2 className="w-6 h-6 animate-spin text-[#ff6105]" />
-          <span className="text-xs text-[#7a7b7b]">Consultando estado de cuenta en SQL Server...</span>
+          <span className="text-xs text-[#7a7b7b]">Consultando estado de cuenta en línea...</span>
         </div>
       )}
 

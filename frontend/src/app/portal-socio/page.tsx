@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
 import {
   apiClient,
   clasesApi,
@@ -22,8 +23,6 @@ import {
   Users,
   Dumbbell,
   CheckCircle2,
-  AlertTriangle,
-  X,
   Loader2,
   Sparkles,
   ArrowRight,
@@ -32,13 +31,9 @@ import {
   Layers,
 } from "lucide-react";
 
-interface FeedbackState {
-  type: "success" | "error" | "info";
-  message: string;
-}
-
 function PortalSocioContent() {
   const { user } = useAuth();
+  const toast = useToast();
   const socioId = user?.id_socio || 1;
   const searchParams = useSearchParams();
   const querySede = searchParams.get("sede");
@@ -64,6 +59,28 @@ function PortalSocioContent() {
     const month = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+  };
+
+  /**
+   * Evalúa si una sesión es estrictamente futura comparando fecha Y hora exacta
+   */
+  const esSesionFutura = (fechaSesion?: string | null, horaSesion?: string | null): boolean => {
+    if (!fechaSesion) return false;
+    try {
+      const soloFecha = fechaSesion.split("T")[0]; // YYYY-MM-DD
+      const horaLimpia = (horaSesion || "00:00").trim();
+      const partesHora = horaLimpia.split(":");
+      const hh = partesHora[0]?.padStart(2, "0") || "00";
+      const mm = partesHora[1]?.padStart(2, "0") || "00";
+      const ss = partesHora[2]?.padStart(2, "0") || "00";
+      const sessionDateTime = new Date(`${soloFecha}T${hh}:${mm}:${ss}`);
+      if (isNaN(sessionDateTime.getTime())) {
+        return soloFecha >= getFechaHoy();
+      }
+      return sessionDateTime.getTime() > Date.now();
+    } catch {
+      return false;
+    }
   };
 
   // Determinar la sede inicial asociada al socio autenticado
@@ -130,21 +147,12 @@ function PortalSocioContent() {
     }
   }, [querySede, queryClase]);
 
-  // Cargas y Feedback
+  // Cargas
   const [loading, setLoading] = useState<boolean>(true);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [tabInscripciones, setTabInscripciones] = useState<
     "proximas" | "historial"
   >("proximas");
-
-  // Auto-descartar Toasts
-  useEffect(() => {
-    if (feedback) {
-      const timer = setTimeout(() => setFeedback(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [feedback]);
 
   // Carga inicial de catálogo
   useEffect(() => {
@@ -206,17 +214,14 @@ function PortalSocioContent() {
         id_socio_inscripcion: socioId,
         id_sesion_inscripcion: idSesion,
       });
-      setFeedback({
-        type: "success",
-        message: "¡Inscripción confirmada exitosamente! Tu cupo ha sido reservado.",
-      });
+      toast.success("¡Inscripción confirmada exitosamente! Tu cupo ha sido reservado.");
       await Promise.all([cargarSesiones(), cargarMisInscripciones()]);
     } catch (err: any) {
       const msg =
         err.response?.data?.detail ||
         err.message ||
         "No se pudo completar la reserva. Verifique que cumpla las condiciones del gimnasio.";
-      setFeedback({ type: "error", message: msg });
+      toast.error(msg);
     } finally {
       setActionLoadingId(null);
     }
@@ -228,17 +233,14 @@ function PortalSocioContent() {
     setActionLoadingId(idInscripcion);
     try {
       await clasesApi.cancelarInscripcion(idInscripcion, { id_socio: socioId });
-      setFeedback({
-        type: "info",
-        message: "Inscripción cancelada correctamente.",
-      });
+      toast.success("Inscripción cancelada correctamente.");
       await Promise.all([cargarSesiones(), cargarMisInscripciones()]);
     } catch (err: any) {
       const msg =
         err.response?.data?.detail ||
         err.message ||
         "Error al cancelar la inscripción.";
-      setFeedback({ type: "error", message: msg });
+      toast.error(msg);
     } finally {
       setActionLoadingId(null);
     }
@@ -253,23 +255,27 @@ function PortalSocioContent() {
     );
   }, [misInscripciones]);
 
-  // Clasificación de inscripciones
-  const hoyStr = getFechaHoy();
+  // Clasificación de inscripciones comparando fecha y hora exacta
   const inscripcionesProximas = useMemo(
     () =>
       misInscripciones.filter(
-        (i) => i.fecha_sesion >= hoyStr && i.estado_inscripcion === "Inscrito"
+        (i) => i.estado_inscripcion === "Inscrito" && esSesionFutura(i.fecha_sesion, i.hora_sesion)
       ),
-    [misInscripciones, hoyStr]
+    [misInscripciones]
   );
 
   const inscripcionesHistorial = useMemo(
     () =>
       misInscripciones.filter(
-        (i) => i.fecha_sesion < hoyStr || i.estado_inscripcion !== "Inscrito"
+        (i) => i.estado_inscripcion !== "Inscrito" || !esSesionFutura(i.fecha_sesion, i.hora_sesion)
       ),
-    [misInscripciones, hoyStr]
+    [misInscripciones]
   );
+
+  // Sesiones futuras disponibles para reservar (excluye sesiones de hoy cuya hora ya pasó)
+  const sesionesDisponiblesVisibles = useMemo(() => {
+    return sesiones.filter((s) => esSesionFutura(s.fecha_sesion, s.hora_sesion));
+  }, [sesiones]);
 
   // Filtrar sesiones desde el catálogo de disciplinas
   const handleFiltrarPorDisciplina = (idClase: number) => {
@@ -279,36 +285,6 @@ function PortalSocioContent() {
 
   return (
     <div className="space-y-8 animate-fade-in-scale">
-      {/* Toast Flotante */}
-      {feedback && (
-        <div className="fixed bottom-5 right-5 z-50 max-w-md animate-fade-in-scale shadow-xl">
-          <div
-            className={`p-4 rounded-[5px] border flex items-start gap-3 ${
-              feedback.type === "success"
-                ? "bg-emerald-50 border-emerald-300 text-emerald-800"
-                : feedback.type === "error"
-                ? "bg-rose-50 border-rose-300 text-rose-800"
-                : "bg-blue-50 border-blue-300 text-blue-800"
-            }`}
-          >
-            {feedback.type === "success" ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            ) : feedback.type === "error" ? (
-              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-            ) : (
-              <Sparkles className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-            )}
-            <div className="flex-1 text-xs sm:text-sm font-medium">{feedback.message}</div>
-            <button
-              onClick={() => setFeedback(null)}
-              className="text-[#7a7b7b] hover:text-[#0a0a0a] cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Banner de Bienvenida */}
       <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-2">
@@ -342,7 +318,7 @@ function PortalSocioContent() {
       </div>
 
       {/* Navegación por 3 Bloques Claros */}
-      <div className="flex border-b border-[#e5e5e5] gap-2 overflow-x-auto">
+      <div className="flex justify-center border-b border-[#e5e5e5] gap-2 overflow-x-auto w-full">
         <button
           type="button"
           onClick={() => setTabPrincipal("mis-inscripciones")}
@@ -563,7 +539,7 @@ function PortalSocioContent() {
                 Filtros de Búsqueda
               </span>
               <span className="text-xs text-[#7a7b7b]">
-                {sesiones.length} sesiones encontradas
+                {sesionesDisponiblesVisibles.length} sesiones encontradas
               </span>
             </div>
 
@@ -673,7 +649,7 @@ function PortalSocioContent() {
               </div>
             </div>
 
-            {sesiones.length === 0 ? (
+            {sesionesDisponiblesVisibles.length === 0 ? (
               <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-12 text-center space-y-2">
                 <p className="text-sm font-medium text-[#0a0a0a]">
                   No se encontraron sesiones para esta fecha o filtros seleccionados
@@ -684,7 +660,7 @@ function PortalSocioContent() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {sesiones.map((s) => {
+                {sesionesDisponiblesVisibles.map((s) => {
                   const cuposDisponibles =
                     s.cupos_disponibles ??
                     s.cupo_maximo_sesion - s.total_inscritos;

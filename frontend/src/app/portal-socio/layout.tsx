@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import {
   Dumbbell,
   Receipt,
@@ -86,15 +87,7 @@ export default function PortalSocioLayout({
                 <span className="h-4 w-px bg-[#e5e5e5]" />
 
                 <div className="flex items-center gap-2.5 sm:gap-3">
-                  <Link
-                    href="/"
-                    className="group flex items-center gap-2 text-[20px] sm:text-[22px] tracking-[-0.03em] font-medium shrink-0 text-[#0a0a0a]"
-                    title="Ir a la página de inicio"
-                  >
-                    <span>gimnasio</span>
-                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#ff6105] transition-transform duration-200 group-hover:scale-125" />
-                    <span className="font-light text-[#7a7b7b]">db</span>
-                  </Link>
+                  <BrandLogo size="md" href="/" />
 
                   <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#ffdfcd]/60 text-[#ff6105] border border-[#ff6105]/20 whitespace-nowrap">
                     Portal del Socio
@@ -178,7 +171,7 @@ export default function PortalSocioLayout({
           <p>
             <span className="font-medium text-[#0a0a0a]">gimnasiodb</span>
             <span className="mx-1.5 text-[#a2a3a2]">·</span>
-            <span>Portal del Socio — Sesión activa protegida con JWT</span>
+            <span>Portal del Socio — Gestión de reservas y membresías</span>
           </p>
         </footer>
       </div>

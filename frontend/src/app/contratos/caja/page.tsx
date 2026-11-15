@@ -6,7 +6,9 @@ import apiClient, {
   ContratoDetalle,
   PagoDetalle,
   Socio,
+  limpiarMensajeTecnico,
 } from "@/services/apiClient";
+import { useToast } from "@/context/ToastContext";
 import {
   Zap,
   CreditCard,
@@ -21,6 +23,7 @@ import {
 } from "lucide-react";
 
 export default function CajaPage() {
+  const toast = useToast();
   const [planes, setPlanes] = useState<PlanMembresia[]>([]);
   const [contratos, setContratos] = useState<ContratoDetalle[]>([]);
   const [pagos, setPagos] = useState<PagoDetalle[]>([]);
@@ -151,10 +154,12 @@ export default function CajaPage() {
         monto_pago_inicial: Number(montoAtomico),
         medio_pago: medioPagoAtomico,
       });
+      const okMsg = `Contrato #${res.contrato?.id_contrato} emitido y pago inicial #${res.pago?.id_pago} registrado correctamente.`;
       setFeedback({
         type: "ok",
-        msg: `${res.mensaje} (Contrato #${res.contrato?.id_contrato}, Recibo #${res.pago?.id_pago})`,
+        msg: okMsg,
       });
+      toast.success(okMsg);
       await cargarCaja();
     } catch {
       // Respaldo ejecutando POST /contratos + POST /contratos/pagos secuencialmente en SQL Server
@@ -182,16 +187,20 @@ export default function CajaPage() {
           medio_pago: medioPagoAtomico,
         });
 
+        const okMsg = `Contrato #${nuevoContrato.id_contrato} y Recibo de Pago #${nuevoPago.id_pago} registrados correctamente.`;
         setFeedback({
           type: "ok",
-          msg: `Contrato #${nuevoContrato.id_contrato} y Recibo de Pago #${nuevoPago.id_pago} registrados exitosamente en SQL Server.`,
+          msg: okMsg,
         });
+        toast.success(okMsg);
         await cargarCaja();
       } catch (err2: any) {
+        const errorMsg = limpiarMensajeTecnico(err2.message || "Fallo en la emisión de contrato y pago.");
         setFeedback({
           type: "err",
-          msg: err2.message || "Fallo en la emisión de contrato y pago.",
+          msg: errorMsg,
         });
+        toast.error(errorMsg);
       }
     } finally {
       setSubmittingAtomico(false);
@@ -208,18 +217,22 @@ export default function CajaPage() {
         monto_cancelado_pago: Number(montoPago),
         medio_pago: medioPago,
       });
+      const okMsg = `Recibo de pago #${res.id_pago} registrado correctamente por $${Number(
+        res.monto_cancelado_pago
+      ).toLocaleString("es-CL")} (${res.medio_pago}).`;
       setFeedback({
         type: "ok",
-        msg: `Recibo de pago #${res.id_pago} registrado en SQL Server por $${Number(
-          res.monto_cancelado_pago
-        ).toLocaleString("es-CL")} (${res.medio_pago}).`,
+        msg: okMsg,
       });
+      toast.success(okMsg);
       await cargarCaja();
     } catch (err: any) {
+      const errorMsg = limpiarMensajeTecnico(err.message || "Error al registrar pago.");
       setFeedback({
         type: "err",
-        msg: err.message || "Error al registrar pago.",
+        msg: errorMsg,
       });
+      toast.error(errorMsg);
     } finally {
       setSubmittingPago(false);
     }

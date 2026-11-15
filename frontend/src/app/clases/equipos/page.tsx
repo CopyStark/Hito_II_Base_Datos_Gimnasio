@@ -4,10 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import {
   Wrench,
   Plus,
-  User,
-  Briefcase,
-  Mail,
-  Phone,
   MapPin,
   Calendar,
   Trash2,
@@ -23,24 +19,17 @@ import {
   EquipamientoItemResponse,
   SedeSimpleResponse,
 } from "@/services/apiClient";
-import {
-  PERSONAL_RESPONSABLE_MOCK,
-  PersonalResponsable,
-} from "@/components/clases/empleadoActual";
+import { useAuth } from "@/context/AuthContext";
 
 export default function EquiposPage() {
+  const { user } = useAuth();
   const [equipos, setEquipos] = useState<EquipamientoItemResponse[]>([]);
   const [sedes, setSedes] = useState<SedeSimpleResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Empleado / Personal Responsable
-  const [empleadoSeleccionado, setEmpleadoSeleccionado] =
-    useState<PersonalResponsable>(PERSONAL_RESPONSABLE_MOCK[0]);
-
-  // Filtro por Sede (sincronizado con la sede del empleado)
-  const [filtroSede, setFiltroSede] = useState<string>(
-    String(PERSONAL_RESPONSABLE_MOCK[0].id_sede_personal)
-  );
+  // Sede del usuario administrativo (por defecto 1 o id_sede)
+  const sedeUsuarioInicial = (user as any)?.id_sede || (user as any)?.id_sede_personal || 1;
+  const [filtroSede, setFiltroSede] = useState<string>(String(sedeUsuarioInicial));
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
     message: string;
@@ -49,9 +38,7 @@ export default function EquiposPage() {
   // Form para agregar nuevo equipo
   const [showAddModal, setShowAddModal] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState("");
-  const [nuevaSede, setNuevaSede] = useState<number>(
-    PERSONAL_RESPONSABLE_MOCK[0].id_sede_personal
-  );
+  const [nuevaSede, setNuevaSede] = useState<number>(Number(sedeUsuarioInicial));
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [errorModalRegistro, setErrorModalRegistro] = useState<string | null>(null);
@@ -118,26 +105,21 @@ export default function EquiposPage() {
     cargarEquipos(filtroSede);
   }, [filtroSede, cargarEquipos]);
 
-  // Cambiar empleado responsable y sincronizar sede estricta
-  const handleCambiarEmpleado = (idPersonal: number) => {
-    const encontrado = PERSONAL_RESPONSABLE_MOCK.find(
-      (e) => e.id_personal === idPersonal
-    );
-    if (encontrado) {
-      setEmpleadoSeleccionado(encontrado);
-      const nuevaSedeStr = String(encontrado.id_sede_personal);
-      setNuevaSede(encontrado.id_sede_personal);
-      if (filtroSede !== nuevaSedeStr) {
-        setFiltroSede(nuevaSedeStr);
-      } else {
-        cargarEquipos(nuevaSedeStr);
+  // Preseleccionar automáticamente la sede del usuario administrativo al cargar
+  useEffect(() => {
+    if (user) {
+      const sId = (user as any)?.id_sede || (user as any)?.id_sede_personal;
+      if (sId) {
+        setFiltroSede(String(sId));
+        setNuevaSede(Number(sId));
       }
     }
-  };
+  }, [user]);
 
-  // Abrir modal de nuevo equipo precargando la sede del empleado
+  // Abrir modal de nuevo equipo precargando la sede del filtro o del usuario
   const handleAbrirModalRegistro = () => {
-    setNuevaSede(empleadoSeleccionado.id_sede_personal);
+    const sId = filtroSede ? Number(filtroSede) : ((user as any)?.id_sede || (user as any)?.id_sede_personal || 1);
+    setNuevaSede(sId);
     setNuevoNombre("");
     setNuevaFecha("");
     setErrorModalRegistro(null);
@@ -287,62 +269,6 @@ export default function EquiposPage() {
             <span>Registrar Equipo</span>
           </button>
         </div>
-
-        {/* Barra Compacta de Perfil: Personal Responsable */}
-        <div className="bg-white border border-[#e5e5e5] hover:border-[#ff6105]/40 hover:shadow-sm transition-all duration-200 rounded-[5px] px-4 sm:px-5 py-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-[#ffdfcd]/60 border border-[#ff6105]/25 flex items-center justify-center shrink-0">
-                <User className="w-4 h-4 text-[#ff6105]" />
-              </div>
-              <span className="text-[11px] font-medium uppercase tracking-wider text-[#7a7b7b]">
-                Responsable
-              </span>
-            </div>
-
-            <div className="relative">
-              <select
-                id="selector-empleado"
-                value={empleadoSeleccionado.id_personal}
-                onChange={(e) => handleCambiarEmpleado(Number(e.target.value))}
-                className="w-full sm:w-auto appearance-none bg-[#f3f4f3]/80 hover:bg-[#f3f4f3] border border-[#e5e5e5] rounded-full pl-4 pr-9 py-1.5 text-xs sm:text-sm text-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#ff6105]/30 focus:border-[#ff6105] font-medium cursor-pointer transition-all duration-200"
-              >
-                {PERSONAL_RESPONSABLE_MOCK.map((emp) => (
-                  <option key={emp.id_personal} value={emp.id_personal}>
-                    {emp.nombre_completo_personal} — {emp.nombre_sede_personal}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-[#7a7b7b] pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ffdfcd]/50 text-[#0a0a0a] border border-[#ff6105]/20 font-medium">
-              <MapPin className="w-3 h-3 text-[#ff6105]" />
-              <span>{empleadoSeleccionado.nombre_sede_personal}</span>
-            </span>
-
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5]/80">
-              <Briefcase className="w-3 h-3 text-[#7a7b7b]" />
-              <span className="font-medium text-[#0a0a0a]">
-                {empleadoSeleccionado.cargo_personal}
-              </span>
-            </span>
-
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5]/80">
-              <Mail className="w-3 h-3 text-[#7a7b7b]" />
-              <span>{empleadoSeleccionado.correo_personal}</span>
-            </span>
-
-            {empleadoSeleccionado.telefono_personal && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f3f4f3] text-[#292b2a] border border-[#e5e5e5]/80">
-                <Phone className="w-3 h-3 text-[#7a7b7b]" />
-                <span>{empleadoSeleccionado.telefono_personal}</span>
-              </span>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Feedback Banner */}
@@ -409,10 +335,7 @@ export default function EquiposPage() {
               <option value="">Todas las sedes</option>
               {sedes.map((s) => (
                 <option key={s.id_sede} value={s.id_sede}>
-                  {s.nombre_sede}{" "}
-                  {s.id_sede === empleadoSeleccionado.id_sede_personal
-                    ? "(Sede del Responsable)"
-                    : ""}
+                  {s.nombre_sede}
                 </option>
               ))}
             </select>
@@ -421,19 +344,24 @@ export default function EquiposPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 text-xs text-[#7a7b7b]">
-          <button
-            onClick={() => {
-              const sedeEmpStr = String(empleadoSeleccionado.id_sede_personal);
-              if (filtroSede !== sedeEmpStr) {
-                setFiltroSede(sedeEmpStr);
-              } else {
-                cargarEquipos(sedeEmpStr);
-              }
-            }}
-            className="text-[#ff6105] hover:underline font-medium"
-          >
-            Restablecer a {empleadoSeleccionado.nombre_sede_personal}
-          </button>
+          {filtroSede ? (
+            <button
+              onClick={() => setFiltroSede("")}
+              className="text-[#ff6105] hover:underline font-medium cursor-pointer"
+            >
+              Ver todas las sedes
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                const sId = (user as any)?.id_sede || (user as any)?.id_sede_personal || 1;
+                setFiltroSede(String(sId));
+              }}
+              className="text-[#ff6105] hover:underline font-medium cursor-pointer"
+            >
+              Volver a mi sede
+            </button>
+          )}
           <span className="text-[#e5e5e5]">·</span>
           <span className="font-medium text-[#292b2a]">
             {equipos.length}{" "}
@@ -539,10 +467,7 @@ export default function EquiposPage() {
                   Registrar Equipamiento
                 </h3>
                 <p className="text-xs text-[#7a7b7b] mt-0.5">
-                  Responsable:{" "}
-                  <span className="text-[#0a0a0a] font-medium">
-                    {empleadoSeleccionado.nombre_completo_personal}
-                  </span>
+                  {user?.nombre_completo ? `Registrado por: ${user.nombre_completo}` : "Alta de activo en inventario de sede"}
                 </p>
               </div>
               <button
@@ -604,10 +529,7 @@ export default function EquiposPage() {
                   >
                     {sedes.map((s) => (
                       <option key={s.id_sede} value={s.id_sede}>
-                        {s.nombre_sede}{" "}
-                        {s.id_sede === empleadoSeleccionado.id_sede_personal
-                          ? "(Sede del Responsable)"
-                          : ""}
+                        {s.nombre_sede}
                       </option>
                     ))}
                   </select>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
 import {
   clasesApi,
   SesionInstructorResponse,
@@ -17,9 +18,6 @@ import {
   Users,
   Save,
   Loader2,
-  AlertTriangle,
-  ArrowLeft,
-  X,
 } from "lucide-react";
 
 function compararAlumnosPorNombre(
@@ -33,6 +31,7 @@ function compararAlumnosPorNombre(
 
 function AsistenciaContent() {
   const { user } = useAuth();
+  const toast = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -50,15 +49,6 @@ function AsistenciaContent() {
   const [loadingSesiones, setLoadingSesiones] = useState<boolean>(true);
   const [loadingAlumnos, setLoadingAlumnos] = useState<boolean>(false);
   const [savingAll, setSavingAll] = useState<boolean>(false);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
-
-  // Auto-descartar Toast flotante
-  useEffect(() => {
-    if (feedback) {
-      const timer = setTimeout(() => setFeedback(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [feedback]);
 
   // Estados locales editables por alumno (asistió, observaciones)
   const [borradorAsistencia, setBorradorAsistencia] = useState<
@@ -67,6 +57,12 @@ function AsistenciaContent() {
 
   // Cargar lista de sesiones del instructor
   useEffect(() => {
+    if (sesionQueryId) {
+      setSesionSeleccionadaId(Number(sesionQueryId));
+    }
+  }, [sesionQueryId]);
+
+  useEffect(() => {
     if (!instructorId) return;
     setLoadingSesiones(true);
     clasesApi
@@ -74,13 +70,15 @@ function AsistenciaContent() {
       .then((data: SesionInstructorResponse[]) => {
         const list = Array.isArray(data) ? data : [];
         setSesiones(list);
-        if (!sesionSeleccionadaId && list.length > 0) {
+        if (sesionQueryId) {
+          setSesionSeleccionadaId(Number(sesionQueryId));
+        } else if (!sesionSeleccionadaId && list.length > 0) {
           setSesionSeleccionadaId(list[0].id_sesion);
         }
       })
       .catch(() => setSesiones([]))
       .finally(() => setLoadingSesiones(false));
-  }, [instructorId]);
+  }, [instructorId, sesionQueryId]);
 
   // Cargar alumnos cuando cambia la sesión seleccionada
   const cargarAlumnos = useCallback(async (idSesion: number) => {
@@ -168,25 +166,22 @@ function AsistenciaContent() {
 
       await Promise.all(promesas);
 
-      setFeedback({
-        type: "success",
-        message: `Asistencia actualizada correctamente para ${alumnos.length} ${
+      toast.success(
+        `Asistencia actualizada correctamente para ${alumnos.length} ${
           alumnos.length === 1 ? "alumno" : "alumnos"
-        }.`,
-      });
+        }.`
+      );
 
       // Refrescar lista de alumnos con los datos guardados
       if (sesionSeleccionadaId) {
         cargarAlumnos(sesionSeleccionadaId);
       }
     } catch (err: any) {
-      setFeedback({
-        type: "error",
-        message:
-          err.response?.data?.detail ||
+      toast.error(
+        err.response?.data?.detail ||
           err.message ||
-          "Error al registrar la asistencia en lote.",
-      });
+          "Error al registrar la asistencia en lote."
+      );
     } finally {
       setSavingAll(false);
     }
@@ -196,32 +191,6 @@ function AsistenciaContent() {
 
   return (
     <div className="space-y-8 animate-fade-in-scale">
-      {/* Toast Feedback Flotante Inferior Derecho */}
-      {feedback && (
-        <div className="fixed bottom-5 right-5 z-50 max-w-md animate-fade-in-scale shadow-2xl">
-          <div
-            className={`p-4 rounded-[5px] border flex items-start gap-3 ${
-              feedback.type === "success"
-                ? "bg-emerald-50 border-emerald-300 text-emerald-800"
-                : "bg-rose-50 border-rose-300 text-rose-800"
-            }`}
-          >
-            {feedback.type === "success" ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            ) : (
-              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-            )}
-            <div className="flex-1 text-xs sm:text-sm">{feedback.message}</div>
-            <button
-              onClick={() => setFeedback(null)}
-              className="text-[#7a7b7b] hover:text-[#0a0a0a] cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-2">

@@ -126,8 +126,8 @@ function SociosGestionContent() {
             filtroEstado === "activos"
               ? true
               : filtroEstado === "inactivos"
-              ? false
-              : undefined,
+                ? false
+                : undefined,
           limite: 200,
         }),
         apiClient.socios.getSedesCatalogo().catch(() => []),
@@ -351,11 +351,10 @@ function SociosGestionContent() {
       {/* Feedback Banner — DESIGN.md: Monochrome + Peach Wash / Charcoal (no secondary hues) */}
       {feedback && (
         <div
-          className={`p-4 rounded-[5px] border flex items-center justify-between text-[14px] animate-fade-in-scale ${
-            feedback.type === "ok"
+          className={`p-4 rounded-[5px] border flex items-center justify-between text-[14px] animate-fade-in-scale ${feedback.type === "ok"
               ? "bg-[#ffdfcd] border-[#ffa069]/50 text-[#0a0a0a]"
               : "bg-[#202120] border-[#3c3e3d] text-[#ffffff]"
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2.5">
             {feedback.type === "ok" ? (
@@ -470,11 +469,10 @@ function SociosGestionContent() {
               key={est}
               type="button"
               onClick={() => setFiltroEstado(est)}
-              className={`px-3.5 py-1.5 rounded-[24px] text-[13px] capitalize transition-colors cursor-pointer ${
-                filtroEstado === est
+              className={`px-3.5 py-1.5 rounded-[24px] text-[13px] capitalize transition-colors cursor-pointer ${filtroEstado === est
                   ? "bg-[#202120] text-[#ffffff] font-medium"
                   : "text-[#7a7b7b] font-normal hover:text-[#0a0a0a]"
-              }`}
+                }`}
             >
               {est}
             </button>
@@ -595,16 +593,14 @@ function SociosGestionContent() {
                           type="button"
                           onClick={() => handleToggleEstado(s)}
                           title="Clic para cambiar estado"
-                          className={`inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-[8px] text-[12px] border transition-colors cursor-pointer ${
-                            activo
+                          className={`inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-[8px] text-[12px] border transition-colors cursor-pointer ${activo
                               ? "bg-[#ffffff] text-[#0a0a0a] font-medium border-[#e5e5e5] hover:border-[#ff6105]"
                               : "bg-[#f3f4f3] text-[#7a7b7b] font-normal border-[#e5e5e5] hover:border-[#292b2a]"
-                          }`}
+                            }`}
                         >
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              activo ? "bg-[#ff6105]" : "bg-[#a2a3a2]"
-                            }`}
+                            className={`w-1.5 h-1.5 rounded-full ${activo ? "bg-[#ff6105]" : "bg-[#a2a3a2]"
+                              }`}
                           />
                           <span>{activo ? "Activo" : "Inactivo"}</span>
                         </button>
@@ -844,8 +840,8 @@ function SociosGestionContent() {
                     {submitting
                       ? "Guardando..."
                       : editMode
-                      ? "Guardar Cambios"
-                      : "Registrar Socio"}
+                        ? "Guardar Cambios"
+                        : "Registrar Socio"}
                   </button>
                 </div>
               </form>
@@ -924,7 +920,7 @@ function SociosGestionContent() {
                     className="input-pill w-full px-4 py-2.5 text-[14px] placeholder-[#a2a3a2]"
                   />
                   <p className="text-[12px] text-[#7a7b7b] mt-1.5">
-                    La contraseña se almacena cifrada de forma segura en la base de datos.
+                    La contraseña se almacena cifrada de forma segura en el sistema.
                   </p>
                 </div>
 

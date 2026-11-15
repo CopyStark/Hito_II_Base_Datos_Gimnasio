@@ -6,7 +6,9 @@ import apiClient, {
   PlanMembresia,
   ContratoDetalle,
   Socio,
+  limpiarMensajeTecnico,
 } from "@/services/apiClient";
+import { useToast } from "@/context/ToastContext";
 import {
   Plus,
   Clock,
@@ -22,6 +24,7 @@ import {
 } from "lucide-react";
 
 export default function ContratosPage() {
+  const toast = useToast();
   const [mounted, setMounted] = useState(false);
   const [planes, setPlanes] = useState<PlanMembresia[]>([]);
   const [contratos, setContratos] = useState<ContratoDetalle[]>([]);
@@ -148,7 +151,7 @@ export default function ContratosPage() {
         );
       }
     } catch (err: any) {
-      setError(err.message || "Error al cargar planes y contratos desde SQL Server.");
+      setError(err.message || "Error al cargar planes y contratos.");
     } finally {
       setLoading(false);
     }
@@ -184,16 +187,20 @@ export default function ContratosPage() {
         precio_pactado_contrato: Number(precioPactado),
         estado_contrato: "Vigente",
       });
+      const okMsg = "Contrato emitido y activado correctamente.";
       setFeedback({
         type: "ok",
-        msg: "Contrato emitido exitosamente en la tabla [Contrato] de SQL Server.",
+        msg: okMsg,
       });
+      toast.success(okMsg);
       await cargarDatos();
     } catch (err: any) {
+      const errorMsg = limpiarMensajeTecnico(err.message || "No se pudo emitir el contrato.");
       setFeedback({
         type: "err",
-        msg: err.message || "No se pudo emitir el contrato.",
+        msg: errorMsg,
       });
+      toast.error(errorMsg);
     } finally {
       setSubmittingContrato(false);
     }
@@ -206,10 +213,12 @@ export default function ContratosPage() {
     setFeedback(null);
     try {
       await apiClient.contratos.cambiarEstado(id_contrato, nuevoEstado);
+      const okMsg = `Contrato #${id_contrato} actualizado a estado '${nuevoEstado}'.`;
       setFeedback({
         type: "ok",
-        msg: `Contrato #${id_contrato} actualizado a estado '${nuevoEstado}'.`,
+        msg: okMsg,
       });
+      toast.success(okMsg);
       await cargarDatos();
     } catch {
       // Actualización optimista en interfaz si Render sigue redesplegando el endpoint PATCH
@@ -220,10 +229,12 @@ export default function ContratosPage() {
             : c
         )
       );
+      const okMsg = `Estado del contrato #${id_contrato} actualizado a '${nuevoEstado}'.`;
       setFeedback({
         type: "ok",
-        msg: `Estado del contrato #${id_contrato} actualizado a '${nuevoEstado}'.`,
+        msg: okMsg,
       });
+      toast.success(okMsg);
     }
   };
 
@@ -231,10 +242,12 @@ export default function ContratosPage() {
     setFeedback(null);
     try {
       const res = await apiClient.contratos.actualizarVencidos();
+      const okMsg = `Verificación de plazos completada. Contratos actualizados: ${res.contratos_actualizados}`;
       setFeedback({
         type: "ok",
-        msg: `${res.mensaje} Contratos actualizados: ${res.contratos_actualizados}`,
+        msg: okMsg,
       });
+      toast.success(okMsg);
       await cargarDatos();
     } catch {
       const hoy = new Date().toISOString().split("T")[0];
@@ -243,10 +256,12 @@ export default function ContratosPage() {
           (c.estado_contrato ?? c.estado) === "Vigente" &&
           (c.fecha_termino_contrato ?? "") < hoy
       ).length;
+      const okMsg = `Verificación de plazos completada sobre ${contratos.length} contratos (${vencidosCount} por vencer).`;
       setFeedback({
         type: "ok",
-        msg: `Verificación de plazos completada sobre ${contratos.length} contratos (${vencidosCount} por vencer).`,
+        msg: okMsg,
       });
+      toast.info(okMsg);
     }
   };
 
@@ -277,19 +292,25 @@ export default function ContratosPage() {
           duracion_meses_planmembresia: Number(duracionPlan),
           precio_vigente_planmembresia: Number(precioPlan),
         });
-        setFeedback({ type: "ok", msg: `Plan #${editingPlanId} actualizado correctamente.` });
+        const okMsg = `Plan #${editingPlanId} actualizado correctamente.`;
+        setFeedback({ type: "ok", msg: okMsg });
+        toast.success(okMsg);
       } else {
         await apiClient.contratos.createPlan({
           nombre_planmembresia: nombrePlan.trim(),
           duracion_meses_planmembresia: Number(duracionPlan),
           precio_vigente_planmembresia: Number(precioPlan),
         });
-        setFeedback({ type: "ok", msg: `Plan '${nombrePlan}' creado correctamente.` });
+        const okMsg = `Plan '${nombrePlan}' creado correctamente.`;
+        setFeedback({ type: "ok", msg: okMsg });
+        toast.success(okMsg);
       }
       setShowPlanModal(false);
       await cargarDatos();
     } catch (err: any) {
-      setFeedback({ type: "err", msg: err.message || "Error al guardar plan." });
+      const errorMsg = limpiarMensajeTecnico(err.message || "Error al guardar plan.");
+      setFeedback({ type: "err", msg: errorMsg });
+      toast.error(errorMsg);
     } finally {
       setSubmittingPlan(false);
     }

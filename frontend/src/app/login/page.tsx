@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import {
   User,
   Lock,
@@ -123,17 +124,10 @@ export default function LoginPage() {
               <span>Inicio</span>
             </Link>
             <span className="h-4 w-px bg-[#e5e5e5]" />
-            <Link
-              href="/"
-              className="group flex items-center gap-1.5 text-[#0a0a0a] tracking-[-0.03em] text-[20px] sm:text-[22px] font-medium"
-            >
-              <span>gimnasio</span>
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#ff6105] transition-transform duration-200 group-hover:scale-125" />
-              <span className="font-light text-[#7a7b7b]">db</span>
-            </Link>
+            <BrandLogo size="md" href="/" />
           </div>
           <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#f3f4f3] text-[#7a7b7b] border border-[#e5e5e5]">
-            Seguridad JWT
+            Acceso Seguro
           </span>
         </div>
       </header>
@@ -234,7 +228,7 @@ export default function LoginPage() {
           <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 sm:p-6 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium uppercase tracking-wider text-[#7a7b7b]">
-                Cuentas de Prueba (Seed Oficial)
+                Acceso Rápido por Perfil
               </span>
               <ShieldCheck className="w-3.5 h-3.5 text-[#ff6105]" />
             </div>
@@ -270,11 +264,11 @@ export default function LoginPage() {
 
       {/* Footer */}
       <footer className="border-t border-[#e5e5e5] bg-white py-5 px-4 text-center text-xs text-[#7a7b7b]">
-        <p>
-          <span className="font-medium text-[#0a0a0a]">gimnasiodb</span>
-          <span className="mx-1.5 text-[#a2a3a2]">·</span>
-          <span>Autenticación JWT con expiración de 8 horas y roles sincronizados</span>
-        </p>
+        <div className="flex items-center justify-center gap-2">
+          <BrandLogo size="sm" href="/" />
+          <span className="text-[#a2a3a2]">·</span>
+          <span>Autenticación protegida con expiración de 8 horas y roles sincronizados</span>
+        </div>
       </footer>
     </div>
   );

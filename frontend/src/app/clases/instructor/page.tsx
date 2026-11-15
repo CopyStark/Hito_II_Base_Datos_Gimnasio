@@ -24,6 +24,7 @@ import {
   SesionInstructorResponse,
   InscritoEnSesionResponse,
 } from "@/services/apiClient";
+import { useToast } from "@/context/ToastContext";
 import {
   INSTRUCTOR_ACTUAL,
   InstructorActual,
@@ -64,6 +65,7 @@ function formatearHora(hora?: string | null): string {
 }
 
 export default function InstructorPage() {
+  const toast = useToast();
   // --- Estados del Instructor y Agenda ---
   const [instructores, setInstructores] = useState<InstructorItemResponse[]>([]);
   const [instructorSeleccionado, setInstructorSeleccionado] = useState<
@@ -313,6 +315,11 @@ export default function InstructorPage() {
         )
       );
 
+      toast.success(
+        `Asistencia guardada para ${inscrito.nombre_completo_socio} (${
+          draft.asistio ? "Asistió" : "No Asistió"
+        }).`
+      );
       setToastFeedback({
         id: Date.now(),
         type: "success",
@@ -339,6 +346,7 @@ export default function InstructorPage() {
           ? errorDetail.msg || errorDetail.message || JSON.stringify(errorDetail)
           : String(errorDetail);
 
+      toast.error(`Error al registrar asistencia: ${msg}`);
       setToastFeedback({
         id: Date.now(),
         type: "error",

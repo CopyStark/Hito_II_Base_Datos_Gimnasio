@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import {
   ShieldCheck,
   CreditCard,
@@ -122,13 +123,11 @@ export default function PortalPersonalLayout({
             >
               <Menu className="w-5 h-5" />
             </button>
-            <Link href="/" className="flex items-center gap-2" title="Ir a la página de inicio">
-              <span className="font-medium text-base text-[#0a0a0a]">gimnasio</span>
-              <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
-              <span className="text-xs text-[#7a7b7b] truncate max-w-[140px]">
-                {currentTab.name}
-              </span>
-            </Link>
+            <BrandLogo size="sm" href="/" />
+            <span className="h-4 w-px bg-[#e5e5e5]" />
+            <span className="text-xs text-[#7a7b7b] truncate max-w-[140px]">
+              {currentTab.name}
+            </span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -162,16 +161,11 @@ export default function PortalPersonalLayout({
           >
             <div className="space-y-6">
               <div className="flex items-center justify-between pb-3 border-b border-[#e5e5e5]">
-                <Link
+                <BrandLogo
+                  size="md"
                   href="/"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2"
-                  title="Ir a la página de inicio"
-                >
-                  <span className="text-lg font-medium text-[#0a0a0a]">gimnasio</span>
-                  <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
-                  <span className="font-light text-sm text-[#7a7b7b]">db</span>
-                </Link>
+                />
                 <button
                   type="button"
                   onClick={() => setMobileMenuOpen(false)}
@@ -258,15 +252,7 @@ export default function PortalPersonalLayout({
           <div className="space-y-6">
             {/* Cabecera del Sidebar (Centrado Horizontal) */}
             <div className="flex flex-col items-center justify-center text-center space-y-2 pb-4 border-b border-[#e5e5e5]">
-              <Link
-                href="/"
-                className="group flex items-center justify-center gap-2 text-[22px] tracking-[-0.03em] font-medium text-[#0a0a0a]"
-                title="Ir a la página de inicio"
-              >
-                <span>gimnasio</span>
-                <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#ff6105] transition-transform duration-200 group-hover:scale-125" />
-                <span className="font-light text-[#7a7b7b]">db</span>
-              </Link>
+              <BrandLogo size="md" href="/" className="justify-center" />
               <span className="inline-block text-[11px] font-medium uppercase tracking-[0.06em] text-[#ff6105] bg-[#ffdfcd]/50 px-3 py-0.5 rounded-full border border-[#ff6105]/20">
                 Portal Administrativo
               </span>
@@ -363,7 +349,7 @@ export default function PortalPersonalLayout({
             <p>
               <span className="font-medium text-[#0a0a0a]">gimnasiodb</span>
               <span className="mx-1.5 text-[#a2a3a2]">·</span>
-              <span>Portal Personal &amp; Administración — Conexión directa a SQL Server</span>
+              <span>Portal Personal &amp; Administración — Sistema operativo en línea</span>
             </p>
           </footer>
         </main>

@@ -1229,7 +1229,7 @@ export default function ClasesPage() {
           </div>
         ) : clases.length === 0 ? (
           <div className="py-8 text-center text-[#7a7b7b] text-sm">
-            No hay clases registradas en la base de datos.
+            No hay clases registradas en el catálogo.
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

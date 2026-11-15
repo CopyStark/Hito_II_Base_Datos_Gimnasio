@@ -7,10 +7,10 @@ import {
   LogInscripcionItem,
   SocioFidelidadCursorItem,
 } from "@/services/apiClient";
+import { useToast } from "@/context/ToastContext";
 import {
   History,
   Shield,
-  ShieldAlert,
   RefreshCw,
   Play,
   CheckCircle2,
@@ -22,33 +22,25 @@ import {
   Search,
   Filter,
   ArrowRight,
-  X,
   FileText,
-  Database,
-  Cpu,
-  Terminal,
   Activity,
   Layers,
+  FileCheck,
+  TrendingUp,
 } from "lucide-react";
-
-interface FeedbackState {
-  type: "success" | "error" | "info";
-  message: string;
-}
 
 function formatearFechaHora(fechaStr?: string | null): string {
   if (!fechaStr) return "—";
   try {
     const d = new Date(fechaStr);
     if (isNaN(d.getTime())) return fechaStr;
-    return d.toLocaleString("es-CL", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+    const dia = String(d.getDate()).padStart(2, "0");
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const anio = d.getFullYear();
+    const horas = String(d.getHours()).padStart(2, "0");
+    const minutos = String(d.getMinutes()).padStart(2, "0");
+    const segundos = String(d.getSeconds()).padStart(2, "0");
+    return `${dia}-${mes}-${anio} ${horas}:${minutos}:${segundos}`;
   } catch {
     return fechaStr;
   }
@@ -59,21 +51,21 @@ function BadgeOperacion({ tipo }: { tipo: string }) {
   if (t === "INSERT") {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-        INSERT
+        ALTA (INSERT)
       </span>
     );
   }
   if (t === "UPDATE") {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-        UPDATE
+        MODIFICACIÓN (UPDATE)
       </span>
     );
   }
   if (t === "DELETE") {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-        DELETE
+        BAJA (DELETE)
       </span>
     );
   }
@@ -119,10 +111,12 @@ function BadgeFidelidad({ clasificacion }: { clasificacion: string }) {
 }
 
 export default function AuditoriaFidelidadPage() {
-  // Pestaña principal: "triggers" o "cursor"
-  const [tabActiva, setTabActiva] = useState<"triggers" | "cursor">("triggers");
+  const toast = useToast();
 
-  // Sub-selector de triggers: "inscripciones" o "contratos"
+  // Pestaña principal: "historial" o "fidelidad"
+  const [tabActiva, setTabActiva] = useState<"historial" | "fidelidad">("historial");
+
+  // Sub-selector de historial: "inscripciones" o "contratos"
   const [subTipoLog, setSubTipoLog] = useState<"inscripciones" | "contratos">("inscripciones");
 
   // Estados de datos
@@ -139,80 +133,67 @@ export default function AuditoriaFidelidadPage() {
   const [busquedaCursor, setBusquedaCursor] = useState("");
   const [filtroClasificacion, setFiltroClasificacion] = useState<string>("TODAS");
 
-  // Notificación flotante (Toast)
-  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
-
-  // Auto-cierre del Toast
-  useEffect(() => {
-    if (!feedback) return;
-    const timer = setTimeout(() => {
-      setFeedback(null);
-    }, 4500);
-    return () => clearTimeout(timer);
-  }, [feedback]);
-
-  // Carga de logs de triggers
-  const cargarLogs = useCallback(async (tipo?: "inscripciones" | "contratos") => {
-    const objetivo = tipo || subTipoLog;
-    setCargandoLogs(true);
-    try {
-      if (objetivo === "inscripciones") {
-        const data = await apiClient.auditoria.getLogsInscripciones();
-        setLogsInscripciones(Array.isArray(data) ? data : []);
-      } else {
-        const data = await apiClient.auditoria.getLogsContratos();
-        setLogsContratos(Array.isArray(data) ? data : []);
+  // Carga de historial de auditoría
+  const cargarLogs = useCallback(
+    async (tipo?: "inscripciones" | "contratos") => {
+      const objetivo = tipo || subTipoLog;
+      setCargandoLogs(true);
+      try {
+        if (objetivo === "inscripciones") {
+          const data = await apiClient.auditoria.getLogsInscripciones();
+          setLogsInscripciones(Array.isArray(data) ? data : []);
+        } else {
+          const data = await apiClient.auditoria.getLogsContratos();
+          setLogsContratos(Array.isArray(data) ? data : []);
+        }
+        toast.success(
+          `Historial de ${
+            objetivo === "inscripciones" ? "inscripciones y asistencias" : "contratos y membresías"
+          } actualizado correctamente.`
+        );
+      } catch (err: any) {
+        const msg =
+          err.data?.detail || err.message || "Error al conectar con el servidor para consultar registros.";
+        toast.error(`Error al consultar auditoría: ${msg}`);
+      } finally {
+        setCargandoLogs(false);
       }
-      setFeedback({
-        type: "success",
-        message: `Logs de ${objetivo === "inscripciones" ? "inscripciones y asistencias" : "contratos"} actualizados correctamente.`,
-      });
-    } catch (err: any) {
-      const msg = err.data?.detail || err.message || "Error al conectar con el servidor para consultar logs.";
-      setFeedback({
-        type: "error",
-        message: `Error al cargar logs: ${msg}`,
-      });
-    } finally {
-      setCargandoLogs(false);
-    }
-  }, [subTipoLog]);
+    },
+    [subTipoLog, toast]
+  );
 
-  // Carga inicial de logs al montar o cambiar sub-tipo
+  // Carga inicial al montar o cambiar sub-tipo
   useEffect(() => {
     cargarLogs(subTipoLog);
   }, [subTipoLog]);
 
-  // Ejecución del cursor procedural
-  const ejecutarCursor = useCallback(async () => {
+  // Ejecución del diagnóstico de fidelidad y retención
+  const ejecutarDiagnostico = useCallback(async () => {
     setCargandoCursor(true);
     try {
       const data = await apiClient.auditoria.getFidelidadCursor();
       const lista = Array.isArray(data) ? data : [];
       setDatosCursor(lista);
-      setFeedback({
-        type: "success",
-        message: `Análisis procedural con cursor ejecutado exitosamente. Se evaluaron ${lista.length} socios activos.`,
-      });
+      toast.success(
+        `Diagnóstico de fidelidad y retención actualizado exitosamente. Se evaluaron ${lista.length} socios activos.`
+      );
     } catch (err: any) {
-      const msg = err.data?.detail || err.message || "Error al ejecutar sp_Reporte_Fidelidad_Socios_Cursor.";
-      setFeedback({
-        type: "error",
-        message: `Fallo al ejecutar cursor: ${msg}`,
-      });
+      const msg =
+        err.data?.detail || err.message || "Error al procesar la evaluación de fidelidad de socios.";
+      toast.error(`Fallo al actualizar diagnóstico de socios: ${msg}`);
     } finally {
       setCargandoCursor(false);
     }
-  }, []);
+  }, [toast]);
 
-  // Cargar cursor si entra a la pestaña y aún no hay datos
+  // Cargar evaluación si entra a la pestaña y aún no hay datos
   useEffect(() => {
-    if (tabActiva === "cursor" && datosCursor.length === 0 && !cargandoCursor) {
-      ejecutarCursor();
+    if (tabActiva === "fidelidad" && datosCursor.length === 0 && !cargandoCursor) {
+      ejecutarDiagnostico();
     }
   }, [tabActiva]);
 
-  // Filtrado de logs de inscripciones
+  // Filtrado de historial de inscripciones
   const logsInscripcionesFiltrados = useMemo(() => {
     return logsInscripciones.filter((item) => {
       const cumpleOperacion =
@@ -229,7 +210,7 @@ export default function AuditoriaFidelidadPage() {
     });
   }, [logsInscripciones, filtroOperacion, busquedaLog]);
 
-  // Filtrado de logs de contratos
+  // Filtrado de historial de contratos
   const logsContratosFiltrados = useMemo(() => {
     return logsContratos.filter((item) => {
       const cumpleOperacion =
@@ -246,8 +227,8 @@ export default function AuditoriaFidelidadPage() {
     });
   }, [logsContratos, filtroOperacion, busquedaLog]);
 
-  // Métricas del cursor de fidelidad
-  const metricasCursor = useMemo(() => {
+  // Métricas del diagnóstico de fidelidad
+  const metricasFidelidad = useMemo(() => {
     const total = datosCursor.length;
     let riesgo = 0;
     let frecuente = 0;
@@ -280,7 +261,7 @@ export default function AuditoriaFidelidadPage() {
     };
   }, [datosCursor]);
 
-  // Filtrado de la tabla del cursor
+  // Filtrado de la tabla de fidelidad
   const datosCursorFiltrados = useMemo(() => {
     return datosCursor.filter((s) => {
       const cumpleClasificacion =
@@ -300,119 +281,84 @@ export default function AuditoriaFidelidadPage() {
   return (
     <div className="space-y-8 animate-fade-in-scale">
       {/* =========================================================================
-          NOTIFICACIÓN FLOTANTE (TOAST EN ESQUINA INFERIOR DERECHA)
-         ========================================================================= */}
-      {feedback && (
-        <div className="fixed bottom-5 right-5 z-50 max-w-md animate-fade-in-scale shadow-2xl">
-          <div
-            className={`p-4 rounded-[5px] border flex items-start gap-3 backdrop-blur-md ${
-              feedback.type === "success"
-                ? "bg-white/95 border-emerald-300 text-emerald-900 shadow-emerald-500/10"
-                : feedback.type === "error"
-                ? "bg-white/95 border-rose-300 text-rose-900 shadow-rose-500/10"
-                : "bg-white/95 border-[#ff6105]/30 text-[#0a0a0a] shadow-[#ff6105]/10"
-            }`}
-          >
-            {feedback.type === "success" ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            ) : feedback.type === "error" ? (
-              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-            ) : (
-              <Sparkles className="w-5 h-5 text-[#ff6105] shrink-0 mt-0.5" />
-            )}
-            <div className="flex-1 text-xs sm:text-sm font-medium leading-relaxed">
-              {feedback.message}
-            </div>
-            <button
-              onClick={() => setFeedback(null)}
-              className="text-[#7a7b7b] hover:text-[#0a0a0a] cursor-pointer p-0.5"
-              title="Cerrar notificación"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          ENCABEZADO EDITORIAL DE AUDITORÍA & CURSORES
+          ENCABEZADO EDITORIAL DE AUDITORÍA & FIDELIDAD
          ========================================================================= */}
       <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-6 sm:p-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div className="space-y-3 max-w-2xl">
           <span className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.08em] text-[#7a7b7b]">
             <span className="w-2 h-2 rounded-full bg-[#ff6105]" />
-            Control Procedural &amp; Evidencia Forense en SQL Server
+            Control Operativo &amp; Trazabilidad de Gestión
           </span>
 
           <h1 className="text-3xl sm:text-4xl font-light tracking-[-0.03em] text-[#0a0a0a] leading-[1.15]">
-            Auditoría &amp; Análisis de Fidelidad
+            Auditoría &amp; Fidelización de Clientes
           </h1>
 
           <div className="w-20 h-[2px] bg-[#ff6105]" />
 
           <p className="text-sm sm:text-base text-[#7a7b7b] leading-relaxed pt-1">
-            Monitoreo en tiempo real de triggers transaccionales (<code className="text-xs bg-[#f3f4f3] px-1.5 py-0.5 rounded text-[#0a0a0a]">LOG_CAMBIO_CONTRATO</code> y <code className="text-xs bg-[#f3f4f3] px-1.5 py-0.5 rounded text-[#0a0a0a]">LOG_CAMBIO_INSCRIPCION</code>) y ejecución bajo demanda del cursor procedural <code className="text-xs bg-[#f3f4f3] px-1.5 py-0.5 rounded text-[#0a0a0a]">sp_Reporte_Fidelidad_Socios_Cursor</code>.
+            Supervisa la bitácora histórica de modificaciones en inscripciones, asistencias y contratos, junto con la evaluación periódica de retención y riesgo de deserción del padrón de socios.
           </p>
         </div>
 
-        {/* Selector de Pestaña Principal (Triggers vs Cursor) */}
+        {/* Selector de Pestaña Principal (Historial vs Fidelidad) */}
         <div className="inline-flex p-1 rounded-full bg-[#f3f4f3] border border-[#e5e5e5] shrink-0 self-start lg:self-end">
           <button
-            onClick={() => setTabActiva("triggers")}
-            className={`px-4 py-2 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-2 ${
-              tabActiva === "triggers"
+            onClick={() => setTabActiva("historial")}
+            className={`px-4 py-2 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer ${
+              tabActiva === "historial"
                 ? "bg-white text-[#0a0a0a] shadow-sm border border-[#e5e5e5]"
                 : "text-[#7a7b7b] hover:text-[#0a0a0a]"
             }`}
           >
-            <Database className="w-3.5 h-3.5 text-[#ff6105]" />
-            <span>Bitácora de Triggers</span>
+            <History className="w-3.5 h-3.5 text-[#ff6105]" />
+            <span>Historial de Auditoría y Cambios</span>
           </button>
           <button
-            onClick={() => setTabActiva("cursor")}
-            className={`px-4 py-2 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-2 ${
-              tabActiva === "cursor"
+            onClick={() => setTabActiva("fidelidad")}
+            className={`px-4 py-2 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer ${
+              tabActiva === "fidelidad"
                 ? "bg-white text-[#0a0a0a] shadow-sm border border-[#e5e5e5]"
                 : "text-[#7a7b7b] hover:text-[#0a0a0a]"
             }`}
           >
-            <Cpu className="w-3.5 h-3.5 text-[#ff6105]" />
-            <span>Análisis de Fidelidad (Cursor)</span>
+            <TrendingUp className="w-3.5 h-3.5 text-[#ff6105]" />
+            <span>Evaluación de Fidelidad y Retención</span>
           </button>
         </div>
       </div>
 
       {/* =========================================================================
-          CONTENIDO: TAB 1 — BITÁCORA DE TRIGGERS
+          CONTENIDO: TAB 1 — HISTORIAL DE AUDITORÍA Y CAMBIOS
          ========================================================================= */}
-      {tabActiva === "triggers" && (
+      {tabActiva === "historial" && (
         <div className="space-y-6">
           {/* Barra de Controles y Filtros */}
           <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
             {/* Sub-selector: Inscripciones vs Contratos */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-[#7a7b7b] uppercase tracking-wider mr-1">
-                Tabla de Log:
+                Módulo Operativo:
               </span>
               <button
                 onClick={() => setSubTipoLog("inscripciones")}
-                className={`px-3.5 py-1.5 rounded-[5px] text-xs font-medium border transition-colors ${
+                className={`px-3.5 py-1.5 rounded-[5px] text-xs font-medium border transition-colors cursor-pointer ${
                   subTipoLog === "inscripciones"
                     ? "bg-[#0a0a0a] text-white border-[#0a0a0a]"
                     : "bg-white text-[#292b2a] border-[#e5e5e5] hover:bg-[#f3f4f3]"
                 }`}
               >
-                Inscripciones &amp; Asistencia (LOG_CAMBIO_INSCRIPCION)
+                Inscripciones y Asistencias
               </button>
               <button
                 onClick={() => setSubTipoLog("contratos")}
-                className={`px-3.5 py-1.5 rounded-[5px] text-xs font-medium border transition-colors ${
+                className={`px-3.5 py-1.5 rounded-[5px] text-xs font-medium border transition-colors cursor-pointer ${
                   subTipoLog === "contratos"
                     ? "bg-[#0a0a0a] text-white border-[#0a0a0a]"
                     : "bg-white text-[#292b2a] border-[#e5e5e5] hover:bg-[#f3f4f3]"
                 }`}
               >
-                Contratos &amp; Membresías (LOG_CAMBIO_CONTRATO)
+                Contratos y Membresías
               </button>
             </div>
 
@@ -435,9 +381,9 @@ export default function AuditoriaFidelidadPage() {
                 className="text-xs py-1.5 px-2.5 rounded-[5px] border border-[#e5e5e5] bg-white text-[#0a0a0a] focus:outline-none focus:border-[#ff6105]"
               >
                 <option value="TODAS">Todas las operaciones</option>
-                <option value="INSERT">INSERT</option>
-                <option value="UPDATE">UPDATE</option>
-                <option value="DELETE">DELETE</option>
+                <option value="INSERT">Altas (INSERT)</option>
+                <option value="UPDATE">Modificaciones (UPDATE)</option>
+                <option value="DELETE">Bajas (DELETE)</option>
               </select>
 
               <button
@@ -446,20 +392,20 @@ export default function AuditoriaFidelidadPage() {
                 className="text-xs px-4 py-1.5 rounded-[5px] font-medium bg-[#ff6105] hover:bg-[#e05504] text-white transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${cargandoLogs ? "animate-spin" : ""}`} />
-                <span>Actualizar Logs</span>
+                <span>Actualizar Historial</span>
               </button>
             </div>
           </div>
 
-          {/* Tabla de Logs */}
+          {/* Tabla de Historial */}
           <div className="bg-white border border-[#e5e5e5] rounded-[5px] overflow-hidden">
             <div className="px-5 py-4 border-b border-[#e5e5e5] flex items-center justify-between bg-[#fafbfa]">
               <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-[#ff6105]" />
+                <FileCheck className="w-4 h-4 text-[#ff6105]" />
                 <h3 className="text-sm font-medium text-[#0a0a0a]">
                   {subTipoLog === "inscripciones"
-                    ? "Eventos de Inscripción y Pase de Asistencia (Últimos 50)"
-                    : "Eventos de Ciclo de Vida de Contratos (Últimos 50)"}
+                    ? "Registro de Inscripciones y Control de Asistencia (Últimos 50)"
+                    : "Registro de Modificaciones en Contratos y Planes (Últimos 50)"}
                 </h3>
               </div>
               <span className="text-xs text-[#7a7b7b]">
@@ -474,13 +420,13 @@ export default function AuditoriaFidelidadPage() {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-[#e5e5e5] bg-[#f8f9f8] text-[#7a7b7b] uppercase tracking-wider text-[11px]">
-                      <th className="py-3 px-4 font-medium"># Log</th>
-                      <th className="py-3 px-4 font-medium">Operación</th>
-                      <th className="py-3 px-4 font-medium">ID Inscripción</th>
+                      <th className="py-3 px-4 font-medium"># Registro</th>
+                      <th className="py-3 px-4 font-medium">Tipo de Cambio</th>
+                      <th className="py-3 px-4 font-medium">Elemento Afectado</th>
                       <th className="py-3 px-4 font-medium">Transición de Estado / Asistencia</th>
-                      <th className="py-3 px-4 font-medium">Usuario SQL</th>
-                      <th className="py-3 px-4 font-medium">Origen (Host / App)</th>
-                      <th className="py-3 px-4 font-medium text-right">Fecha y Hora</th>
+                      <th className="py-3 px-4 font-medium">Usuario Responsable</th>
+                      <th className="py-3 px-4 font-medium">Origen del Registro</th>
+                      <th className="py-3 px-4 font-medium text-right whitespace-nowrap">Fecha y Hora</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#e5e5e5]">
@@ -489,7 +435,7 @@ export default function AuditoriaFidelidadPage() {
                         <td colSpan={7} className="py-12 text-center text-[#7a7b7b]">
                           <div className="flex flex-col items-center justify-center gap-2">
                             <RefreshCw className="w-5 h-5 animate-spin text-[#ff6105]" />
-                            <span>Cargando eventos desde SQL Server...</span>
+                            <span>Cargando registros de auditoría...</span>
                           </div>
                         </td>
                       </tr>
@@ -499,10 +445,10 @@ export default function AuditoriaFidelidadPage() {
                           <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
                             <Shield className="w-8 h-8 text-[#a2a3a2]" />
                             <p className="font-medium text-[#0a0a0a]">
-                              No hay eventos de auditoría registrados en LOG_CAMBIO_INSCRIPCION
+                              No hay registros de auditoría en inscripciones y asistencias
                             </p>
                             <p className="text-xs">
-                              Los registros se generan automáticamente al cancelar inscripciones desde el portal o guardar asistencia en el pase de lista de instructores.
+                              Los registros se generan de forma automática cuando se confirman asistencias en sala o se cancelan inscripciones de socios.
                             </p>
                           </div>
                         </td>
@@ -532,28 +478,38 @@ export default function AuditoriaFidelidadPage() {
                               </div>
                               {(item.asistio_anterior !== null || item.asistio_nuevo !== null) && (
                                 <div className="text-[10px] text-[#7a7b7b]">
-                                  Asistió: {item.asistio_anterior === true ? "Sí" : item.asistio_anterior === false ? "No" : "Pendiente"} →{" "}
+                                  Asistencia: {item.asistio_anterior === true ? "Presente" : item.asistio_anterior === false ? "Ausente" : "Pendiente"} →{" "}
                                   <span className="font-medium text-[#0a0a0a]">
-                                    {item.asistio_nuevo === true ? "Sí" : item.asistio_nuevo === false ? "No" : "Pendiente"}
+                                    {item.asistio_nuevo === true ? "Presente" : item.asistio_nuevo === false ? "Ausente" : "Pendiente"}
                                   </span>
                                 </div>
                               )}
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-[#292b2a]">
-                            <span className="font-mono bg-[#f3f4f3] px-1.5 py-0.5 rounded text-[11px]">
-                              {item.usuario_sql || "sa"}
-                            </span>
+                          <td className="py-3 px-4">
+                            <div className="flex flex-col gap-0.5">
+                              <div>
+                                <span className="font-mono bg-[#f3f4f3] px-2 py-0.5 rounded-[4px] text-[11px] font-semibold text-[#0a0a0a] border border-[#e5e5e5]">
+                                  {item.usuario_sql || "Sistema"}
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-[#7a7b7b]">Gestión en Línea</span>
+                            </div>
                           </td>
-                          <td className="py-3 px-4 text-[#7a7b7b] text-[11px]">
-                            <p className="truncate max-w-[160px]" title={item.equipo_origen || "—"}>
-                              Host: {item.equipo_origen || "—"}
-                            </p>
-                            <p className="truncate max-w-[160px] text-[10px]" title={item.aplicacion_origen || "—"}>
-                              App: {item.aplicacion_origen || "—"}
-                            </p>
+                          <td className="py-3 px-4 text-[11px]">
+                            <div className="space-y-0.5">
+                              <p className="font-medium text-[#0a0a0a]">
+                                Canal Web Central
+                              </p>
+                              <p
+                                className="text-xs text-neutral-400 truncate max-w-[180px]"
+                                title={item.equipo_origen || "servidor-central"}
+                              >
+                                Origen: {item.equipo_origen || "servidor-central"}
+                              </p>
+                            </div>
                           </td>
-                          <td className="py-3 px-4 text-right font-mono text-[#7a7b7b]">
+                          <td className="py-3 px-4 text-right font-mono text-[#7a7b7b] whitespace-nowrap">
                             {formatearFechaHora(item.fecha_cambio)}
                           </td>
                         </tr>
@@ -565,13 +521,13 @@ export default function AuditoriaFidelidadPage() {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-[#e5e5e5] bg-[#f8f9f8] text-[#7a7b7b] uppercase tracking-wider text-[11px]">
-                      <th className="py-3 px-4 font-medium"># Log</th>
-                      <th className="py-3 px-4 font-medium">Operación</th>
-                      <th className="py-3 px-4 font-medium">ID Contrato</th>
-                      <th className="py-3 px-4 font-medium">Transición de Estado / Término</th>
-                      <th className="py-3 px-4 font-medium">Usuario SQL</th>
-                      <th className="py-3 px-4 font-medium">Origen (Host / App)</th>
-                      <th className="py-3 px-4 font-medium text-right">Fecha y Hora</th>
+                      <th className="py-3 px-4 font-medium"># Registro</th>
+                      <th className="py-3 px-4 font-medium">Tipo de Cambio</th>
+                      <th className="py-3 px-4 font-medium">Elemento Afectado</th>
+                      <th className="py-3 px-4 font-medium">Transición de Estado / Vencimiento</th>
+                      <th className="py-3 px-4 font-medium">Usuario Responsable</th>
+                      <th className="py-3 px-4 font-medium">Origen del Registro</th>
+                      <th className="py-3 px-4 font-medium text-right whitespace-nowrap">Fecha y Hora</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#e5e5e5]">
@@ -580,7 +536,7 @@ export default function AuditoriaFidelidadPage() {
                         <td colSpan={7} className="py-12 text-center text-[#7a7b7b]">
                           <div className="flex flex-col items-center justify-center gap-2">
                             <RefreshCw className="w-5 h-5 animate-spin text-[#ff6105]" />
-                            <span>Cargando eventos desde SQL Server...</span>
+                            <span>Cargando registros de auditoría...</span>
                           </div>
                         </td>
                       </tr>
@@ -590,10 +546,10 @@ export default function AuditoriaFidelidadPage() {
                           <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
                             <Shield className="w-8 h-8 text-[#a2a3a2]" />
                             <p className="font-medium text-[#0a0a0a]">
-                              No hay eventos de auditoría registrados en LOG_CAMBIO_CONTRATO
+                              No hay registros de auditoría en contratos y membresías
                             </p>
                             <p className="text-xs">
-                              Los registros se generan automáticamente al emitir un nuevo contrato, renovar, cambiar estado o cancelar una membresía.
+                              Los registros se generan de forma automática al emitir un nuevo contrato, renovar una membresía o cancelar planes.
                             </p>
                           </div>
                         </td>
@@ -623,7 +579,7 @@ export default function AuditoriaFidelidadPage() {
                               </div>
                               {(item.fecha_fin_anterior || item.fecha_fin_nueva) && (
                                 <div className="text-[10px] text-[#7a7b7b]">
-                                  Vencimiento: {item.fecha_fin_anterior || "—"} →{" "}
+                                  Término: {item.fecha_fin_anterior || "—"} →{" "}
                                   <span className="font-medium text-[#0a0a0a]">
                                     {item.fecha_fin_nueva || "—"}
                                   </span>
@@ -631,20 +587,30 @@ export default function AuditoriaFidelidadPage() {
                               )}
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-[#292b2a]">
-                            <span className="font-mono bg-[#f3f4f3] px-1.5 py-0.5 rounded text-[11px]">
-                              {item.usuario_sql || "sa"}
-                            </span>
+                          <td className="py-3 px-4">
+                            <div className="flex flex-col gap-0.5">
+                              <div>
+                                <span className="font-mono bg-[#f3f4f3] px-2 py-0.5 rounded-[4px] text-[11px] font-semibold text-[#0a0a0a] border border-[#e5e5e5]">
+                                  {item.usuario_sql || "Sistema"}
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-[#7a7b7b]">Gestión en Línea</span>
+                            </div>
                           </td>
-                          <td className="py-3 px-4 text-[#7a7b7b] text-[11px]">
-                            <p className="truncate max-w-[160px]" title={item.equipo_origen || "—"}>
-                              Host: {item.equipo_origen || "—"}
-                            </p>
-                            <p className="truncate max-w-[160px] text-[10px]" title={item.aplicacion_origen || "—"}>
-                              App: {item.aplicacion_origen || "—"}
-                            </p>
+                          <td className="py-3 px-4 text-[11px]">
+                            <div className="space-y-0.5">
+                              <p className="font-medium text-[#0a0a0a]">
+                                Canal Web Central
+                              </p>
+                              <p
+                                className="text-xs text-neutral-400 truncate max-w-[180px]"
+                                title={item.equipo_origen || "servidor-central"}
+                              >
+                                Origen: {item.equipo_origen || "servidor-central"}
+                              </p>
+                            </div>
                           </td>
-                          <td className="py-3 px-4 text-right font-mono text-[#7a7b7b]">
+                          <td className="py-3 px-4 text-right font-mono text-[#7a7b7b] whitespace-nowrap">
                             {formatearFechaHora(item.fecha_cambio)}
                           </td>
                         </tr>
@@ -659,44 +625,44 @@ export default function AuditoriaFidelidadPage() {
       )}
 
       {/* =========================================================================
-          CONTENIDO: TAB 2 — ANÁLISIS DE FIDELIDAD (CURSOR PROCEDURAL)
+          CONTENIDO: TAB 2 — EVALUACIÓN DE FIDELIDAD Y RETENCIÓN
          ========================================================================= */}
-      {tabActiva === "cursor" && (
+      {tabActiva === "fidelidad" && (
         <div className="space-y-6">
-          {/* Cabecera de Control del Cursor */}
+          {/* Cabecera de Control del Diagnóstico */}
           <div className="bg-white border border-[#e5e5e5] rounded-[5px] p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <Cpu className="w-4 h-4 text-[#ff6105]" />
+                <Activity className="w-4 h-4 text-[#ff6105]" />
                 <h3 className="text-sm font-medium text-[#0a0a0a]">
-                  Procedimiento Stored: <code className="font-mono text-xs bg-[#f3f4f3] px-1 py-0.5 rounded">sp_Reporte_Fidelidad_Socios_Cursor</code>
+                  Diagnóstico Automatizado de Retención y Asistencia
                 </h3>
               </div>
               <p className="text-xs text-[#7a7b7b]">
-                Procesa individualmente mediante un cursor <code className="font-mono text-[11px]">FAST_FORWARD</code> el historial de asistencias, inasistencias y vigencia de contratos.
+                Evalúa el comportamiento de asistencia presencial, inasistencias acumuladas y vigencia de membresías para proyectar la retención de cada socio.
               </p>
             </div>
 
             <button
-              onClick={ejecutarCursor}
+              onClick={ejecutarDiagnostico}
               disabled={cargandoCursor}
               className="text-xs sm:text-sm px-6 py-2.5 rounded-full font-medium bg-[#ff6105] hover:bg-[#e05504] text-white shadow-[1px_6px_14px_rgba(255,97,5,0.28)] hover:shadow-[1px_8px_18px_rgba(255,97,5,0.4)] transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2 shrink-0 cursor-pointer disabled:opacity-50"
             >
               {cargandoCursor ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Iterando Cursor SQL...</span>
+                  <span>Evaluando padrón de socios...</span>
                 </>
               ) : (
                 <>
                   <Play className="w-4 h-4 fill-white" />
-                  <span>Ejecutar Análisis con Cursor</span>
+                  <span>Actualizar Diagnóstico de Socios</span>
                 </>
               )}
             </button>
           </div>
 
-          {/* Tarjetas Resumen por Categoría (KPIs) */}
+          {/* Tarjetas Resumen por Categoría (KPIs de Negocio) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* 1. Riesgo de Deserción */}
             <div className="bg-white border border-[#e5e5e5] hover:border-rose-300 rounded-[5px] p-5 space-y-2 transition-all">
@@ -708,10 +674,10 @@ export default function AuditoriaFidelidadPage() {
               </div>
               <div className="flex items-baseline justify-between">
                 <span className="text-3xl font-light tracking-[-0.02em] text-rose-700">
-                  {cargandoCursor ? "..." : metricasCursor.riesgo}
+                  {cargandoCursor ? "..." : metricasFidelidad.riesgo}
                 </span>
                 <span className="text-xs font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">
-                  {cargandoCursor ? "—" : `${metricasCursor.pctRiesgo}%`}
+                  {cargandoCursor ? "—" : `${metricasFidelidad.pctRiesgo}%`}
                 </span>
               </div>
               <p className="text-[11px] text-[#7a7b7b] leading-tight">
@@ -729,10 +695,10 @@ export default function AuditoriaFidelidadPage() {
               </div>
               <div className="flex items-baseline justify-between">
                 <span className="text-3xl font-light tracking-[-0.02em] text-emerald-700">
-                  {cargandoCursor ? "..." : metricasCursor.frecuente}
+                  {cargandoCursor ? "..." : metricasFidelidad.frecuente}
                 </span>
                 <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                  {cargandoCursor ? "—" : `${metricasCursor.pctFrecuente}%`}
+                  {cargandoCursor ? "—" : `${metricasFidelidad.pctFrecuente}%`}
                 </span>
               </div>
               <p className="text-[11px] text-[#7a7b7b] leading-tight">
@@ -750,10 +716,10 @@ export default function AuditoriaFidelidadPage() {
               </div>
               <div className="flex items-baseline justify-between">
                 <span className="text-3xl font-light tracking-[-0.02em] text-blue-700">
-                  {cargandoCursor ? "..." : metricasCursor.ocasional}
+                  {cargandoCursor ? "..." : metricasFidelidad.ocasional}
                 </span>
                 <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                  {cargandoCursor ? "—" : `${metricasCursor.pctOcasional}%`}
+                  {cargandoCursor ? "—" : `${metricasFidelidad.pctOcasional}%`}
                 </span>
               </div>
               <p className="text-[11px] text-[#7a7b7b] leading-tight">
@@ -771,10 +737,10 @@ export default function AuditoriaFidelidadPage() {
               </div>
               <div className="flex items-baseline justify-between">
                 <span className="text-3xl font-light tracking-[-0.02em] text-gray-700">
-                  {cargandoCursor ? "..." : metricasCursor.sinActividad}
+                  {cargandoCursor ? "..." : metricasFidelidad.sinActividad}
                 </span>
                 <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
-                  {cargandoCursor ? "—" : `${metricasCursor.pctSinActividad}%`}
+                  {cargandoCursor ? "—" : `${metricasFidelidad.pctSinActividad}%`}
                 </span>
               </div>
               <p className="text-[11px] text-[#7a7b7b] leading-tight">
@@ -812,13 +778,13 @@ export default function AuditoriaFidelidadPage() {
             </div>
           </div>
 
-          {/* Tabla de Detalle del Cursor */}
+          {/* Tabla de Detalle de Fidelidad */}
           <div className="bg-white border border-[#e5e5e5] rounded-[5px] overflow-hidden">
             <div className="px-5 py-4 border-b border-[#e5e5e5] flex items-center justify-between bg-[#fafbfa]">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-[#ff6105]" />
                 <h3 className="text-sm font-medium text-[#0a0a0a]">
-                  Padrón de Socios Evaluados por el Cursor ({datosCursorFiltrados.length} de {datosCursor.length})
+                  Padrón de Socios Analizados ({datosCursorFiltrados.length} de {datosCursor.length})
                 </h3>
               </div>
             </div>
@@ -833,7 +799,7 @@ export default function AuditoriaFidelidadPage() {
                     <th className="py-3 px-4 font-medium text-center">Asistencias</th>
                     <th className="py-3 px-4 font-medium text-center">Inasistencias</th>
                     <th className="py-3 px-4 font-medium text-center">Días Restantes Contrato</th>
-                    <th className="py-3 px-4 font-medium text-right">Clasificación Procedural</th>
+                    <th className="py-3 px-4 font-medium text-right">Nivel de Fidelidad</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e5e5e5]">
@@ -842,7 +808,7 @@ export default function AuditoriaFidelidadPage() {
                       <td colSpan={7} className="py-12 text-center text-[#7a7b7b]">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <RefreshCw className="w-5 h-5 animate-spin text-[#ff6105]" />
-                          <span>Recorriendo cursor FAST_FORWARD en SQL Server...</span>
+                          <span>Calculando nivel de fidelidad de socios...</span>
                         </div>
                       </td>
                     </tr>
@@ -855,7 +821,7 @@ export default function AuditoriaFidelidadPage() {
                             No se encontraron socios que coincidan con los filtros
                           </p>
                           <p className="text-xs">
-                            Haz clic en &quot;Ejecutar Análisis con Cursor&quot; para regenerar el lote de evaluación desde la base de datos.
+                            Haz clic en &quot;Actualizar Diagnóstico de Socios&quot; para regenerar la evaluación desde el sistema.
                           </p>
                         </div>
                       </td>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import apiClient, {
   Socio,
   PlanMembresia,
@@ -86,7 +87,7 @@ const MARQUEE_ITEMS = [
   "Clases Grupales con Reserva en Línea",
   "Acceso Automatizado por Torniquete",
   "Planes Sin Permanencia Forzosa",
-  "Conectado en Tiempo Real a SQL Server",
+  "Sistema Operativo en Línea",
 ];
 
 /**
@@ -472,17 +473,8 @@ export default function Home() {
         }`}
       >
         <div className="max-w-[1200px] mx-auto h-full flex items-center justify-between gap-4">
-          {/* Logo con pulso sutil en el punto naranja */}
-          <Link
-            href="/"
-            className="group flex items-center gap-2 text-[#0a0a0a] tracking-[-0.03em] text-[24px] font-medium whitespace-nowrap shrink-0"
-          >
-            <span className="transition-transform duration-300 group-hover:-translate-y-0.5">
-              gimnasio
-            </span>
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#ff6105] transition-transform duration-300 group-hover:scale-125" />
-            <span className="font-light text-[#7a7b7b]">db</span>
-          </Link>
+          {/* Logo con Isotipo SVG y punto naranja */}
+          <BrandLogo size="lg" href="/" />
 
           {/* Links Centrales con subrayado animado desde la izquierda */}
           <nav className="hidden md:flex items-center gap-8 text-[15px] font-normal text-[#292b2a]">
@@ -1972,9 +1964,9 @@ export default function Home() {
           </div>
 
           <div className="pt-8 border-t border-[#e5e5e5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-[13px] text-[#7a7b7b]">
-            <div className="flex items-center gap-2">
-              <span className="text-[#0a0a0a] font-medium">gimnasiodb</span>
-              <span>·</span>
+            <div className="flex items-center gap-3">
+              <BrandLogo size="sm" href="/" />
+              <span className="text-[#a2a3a2]">·</span>
               <span>Red de Gimnasios & Gestión Deportiva</span>
             </div>
 
@@ -1990,7 +1982,7 @@ export default function Home() {
               />
               <span>
                 {healthStatus
-                  ? "Conectado en vivo a SQL Server"
+                  ? "Sistema operativo en línea"
                   : "Sincronizando con servidor..."}
               </span>
             </div>

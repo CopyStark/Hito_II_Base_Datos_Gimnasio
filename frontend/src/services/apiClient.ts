@@ -79,6 +79,24 @@ export interface AuthUser {
   nombre_completo?: string | null;
 }
 
+/**
+ * Normaliza y limpia mensajes de error o confirmación para eliminar nombres
+ * técnicos de procedimientos almacenados, comandos SQL o referencias de base de datos.
+ */
+export function limpiarMensajeTecnico(rawMsg?: string | null): string {
+  if (!rawMsg) return "";
+  let msg = String(rawMsg);
+  // Reemplazar patrones de procedimientos almacenados y comandos SQL
+  msg = msg.replace(/\bmediante\s+(?:dbo\.)?sp_[a-zA-Z0-9_]+\.?/gi, "correctamente.");
+  msg = msg.replace(/\b(?:dbo\.)?sp_[a-zA-Z0-9_]+\b/gi, "el sistema");
+  msg = msg.replace(/\bEXEC(?:UTE)?\s+/gi, "");
+  msg = msg.replace(/\bTHROW\b\s*\d*,?/gi, "");
+  msg = msg.replace(/en la tabla \[[^\]]+\]/gi, "en el sistema");
+  msg = msg.replace(/en la base de datos/gi, "en el sistema");
+  msg = msg.replace(/SQL Server/gi, "el sistema central");
+  return msg.trim();
+}
+
 export class ApiError extends Error {
   status: number;
   data: any;
@@ -274,7 +292,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
       } catch {
         // Si la respuesta no es JSON válido
       }
-      throw new ApiError(errorDetail, response.status, errorData);
+      throw new ApiError(limpiarMensajeTecnico(errorDetail), response.status, errorData);
     }
 
     // Si no hay contenido (HTTP 204 No Content)
@@ -287,13 +305,13 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
     clearTimeout(timeoutId);
     if (err.name === "AbortError") {
       throw new ApiError(
-        "El servidor backend en Render tardó más de 40s en responder. Puede estar despertando de su modo reposo (cold-start).",
+        "El servidor central tardó en responder. Reintente en unos instantes.",
         504
       );
     }
     if (err.message === "Failed to fetch") {
       throw new ApiError(
-        `No se pudo conectar con Render (${getApiBaseUrl()}). Si la instancia gratuita estaba suspendida, tarda ~30s en despertar. Reintente en unos instantes.`,
+        "No se pudo conectar con el servidor central. Reintente en unos instantes.",
         503
       );
     }
